@@ -2,6 +2,7 @@ package main
 
 import (
 	// formatting and printing values to the console.
+	"HubInvestments/login"
 	"encoding/json"
 	"fmt"
 	"log"      // logging messages to the console.
@@ -15,27 +16,38 @@ func Home(w http.ResponseWriter, r *http.Request) {
 	fmt.Print(r.Body)
 }
 
-type LoginModel struct {
-	Email    string
-	Password string
-}
-
 func Login(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Login success")
 	decoder := json.NewDecoder(r.Body)
-	var t LoginModel
+	var t login.LoginModel
 	err := decoder.Decode(&t)
 	if err != nil {
 		panic(err)
 	}
 
+	message, err := login.Login(t)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println(message)
+
 	log.Println(t.Email)
 	log.Println(t.Password)
+}
 
+func Login2(w http.ResponseWriter, r *http.Request) {
+	x := login.LoginModel{}
+	err := json.NewDecoder(r.Body).Decode(&x)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fmt.Fprintf(w, "Email: %s\nPassword: %s", x.Email, x.Password)
 }
 
 func main() {
-	http.HandleFunc("/", Home)
 	http.HandleFunc("/login", Login)
 
 	err := http.ListenAndServe(portNum, nil)
