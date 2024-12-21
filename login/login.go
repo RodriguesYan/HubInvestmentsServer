@@ -1,8 +1,11 @@
 package login
 
 import (
+	"HubInvestments/auth"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -13,7 +16,7 @@ type LoginModel struct {
 	Password string
 }
 
-func Login(loginModel LoginModel) (string, error) {
+func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
 	if err != nil {
 		return "", err
@@ -28,7 +31,7 @@ func Login(loginModel LoginModel) (string, error) {
 		log.Println("Successfully Connected")
 	}
 
-	user, err := db.Queryx("SELECT email FROM users")
+	user, err := db.Queryx("SELECT email, password FROM users where email = $1", loginModel.Email)
 
 	if err != nil {
 		log.Fatal(err)
@@ -36,20 +39,38 @@ func Login(loginModel LoginModel) (string, error) {
 	}
 
 	var email string
+	var password string
+
 	for user.Next() {
-		if err := user.Scan(&email); err != nil {
+		if err := user.Scan(&email, &password); err != nil {
 			log.Fatal(err)
+			return "", err
 		}
 		fmt.Printf("%s", email)
+		fmt.Printf("%s", password)
 	}
+
 	if err := user.Err(); err != nil {
 		log.Fatal(err)
+		return "", err
 	}
 
-	log.Println("User: ", email)
+	if len(email) == 0 {
+		return "", errors.New("user or password is wrong")
+	}
 
-	return "Login success", nil
-	//validar se password esta correto
+	if loginModel.Password != password {
+		return "", errors.New("user or password is wrong")
+	}
 
-	//retornar token
+	tokenString, err := auth.CreateToken(loginModel.Email)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return "", errors.New("user or password is wrong")
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	return tokenString, nil
 }
