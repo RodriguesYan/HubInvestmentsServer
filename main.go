@@ -9,7 +9,8 @@ import (
 	"net/http"
 )
 
-const portNum string = "localhost:8080"
+// const portNum string = "localhost:8080"
+const portNum string = "192.168.0.172:8080"
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -32,7 +33,18 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	log.Println(t.Email)
 	log.Println(t.Password)
 
-	fmt.Fprint(w, token)
+	data := map[string]string{
+		"token": token,
+	}
+
+	jsonData, err := json.Marshal(data)
+
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return
+	}
+
+	fmt.Fprint(w, string(jsonData))
 }
 
 func main() {
