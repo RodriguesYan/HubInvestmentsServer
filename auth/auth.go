@@ -11,11 +11,11 @@ import (
 
 var secretKey = []byte("secret-key") //TODO: por essa key em um env file da vida
 
-func VerifyToken(tokenString string, w http.ResponseWriter) error {
+func VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
 	if tokenString == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, "Missing authorization header")
-		return errors.New("missing authorization header")
+		return "", errors.New("missing authorization header")
 	}
 
 	tokenString = tokenString[len("Bearer "):]
@@ -25,22 +25,30 @@ func VerifyToken(tokenString string, w http.ResponseWriter) error {
 	})
 
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if !token.Valid {
-		return fmt.Errorf("invalid token")
+		return "", fmt.Errorf("invalid token")
 	}
 
-	return nil
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if !ok {
+		return "", errors.New("invalid claims")
+	}
+
+	userId, _ := claims["userId"].(string)
+
+	return userId, nil
 }
 
-func CreateToken(username string) (string, error) {
+func CreateToken(userName string, userId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
-			"username": username,
+			"username": userName,
+			"userId":   userId,
 			"exp":      time.Now().Add(time.Minute * 1).Unix(),
-			// "exp":      time.Now().Add(time.Hour * 24).Unix(),
 		})
 
 	tokenString, err := token.SignedString(secretKey)

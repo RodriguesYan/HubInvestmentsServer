@@ -49,7 +49,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/login", Login)
-	http.HandleFunc("/getBalance", home.GetBalance)
+	http.HandleFunc("/getAucAggregationBalance", home.GetAucAggregation)
 
 	err := http.ListenAndServe(portNum, nil)
 

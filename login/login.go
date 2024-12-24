@@ -31,7 +31,7 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 		log.Println("Successfully Connected")
 	}
 
-	user, err := db.Queryx("SELECT email, password FROM users where email = $1", loginModel.Email)
+	user, err := db.Queryx("SELECT id, email, password FROM users where email = $1", loginModel.Email)
 
 	if err != nil {
 		log.Fatal(err)
@@ -40,9 +40,10 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 
 	var email string
 	var password string
+	var userId string
 
 	for user.Next() {
-		if err := user.Scan(&email, &password); err != nil {
+		if err := user.Scan(&userId, &email, &password); err != nil {
 			log.Fatal(err)
 			return "", err
 		}
@@ -63,7 +64,7 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 		return "", errors.New("user or password is wrong")
 	}
 
-	tokenString, err := auth.CreateToken(loginModel.Email)
+	tokenString, err := auth.CreateToken(loginModel.Email, string(userId))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
