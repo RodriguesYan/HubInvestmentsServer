@@ -3,7 +3,6 @@ package login
 import (
 	"HubInvestments/auth"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -47,8 +46,6 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 			log.Fatal(err)
 			return "", err
 		}
-		fmt.Printf("%s", email)
-		fmt.Printf("%s", password)
 	}
 
 	if err := user.Err(); err != nil {

@@ -10,7 +10,8 @@ import (
 )
 
 // const portNum string = "localhost:8080"
-const portNum string = "192.168.0.172:8080"
+// const portNum string = "192.168.0.172:8080"//My home IP
+const portNum string = "192.168.0.48:8080" //Camila's home IP
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -30,8 +31,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(token)
 
-	log.Println(t.Email)
-	log.Println(t.Password)
+	// log.Println(t.Email)
+	// log.Println(t.Password)
 
 	data := map[string]string{
 		"token": token,
