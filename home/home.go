@@ -28,6 +28,11 @@ type PositionAggregationModel struct {
 	Assets        []AssetsModel `json:"assets"`
 }
 
+type AucAggregationModel struct {
+	TotalBalance        float32                    `json:"totalBalance" db:"total_balance"`
+	PositionAggregation []PositionAggregationModel `json:"positionAggregation"`
+}
+
 func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	tokenString := r.Header.Get("Authorization")
@@ -53,13 +58,24 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 		log.Println("Successfully Connected")
 	}
 
-	aggregation, err := db.Queryx("SELECT i.symbol, p.average_price, p.quantity, i.category, i.last_price FROM positions p join instruments i on p.instrument_id = i.id where p.user_id = $1", userId)
+	aggregation, err := db.Queryx(`
+		SELECT 	i.symbol, 
+				p.average_price, 
+				p.quantity, 
+				i.category, 
+				i.last_price,
+				b.current_value
+		FROM positions p 
+		join instruments i on p.instrument_id = i.id 
+		join balance b on p.user_id = b.user_id
+		where p.user_id = $1`, userId)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var aucAggregations []PositionAggregationModel
+	var positionAggregations []PositionAggregationModel
+	var currentValue float32
 
 	for aggregation.Next() {
 		var symbol string
@@ -68,7 +84,7 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 		var lastPrice float32
 		var category int
 
-		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice); err != nil {
+		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice, &currentValue); err != nil {
 			log.Println("Caindo nesse erro aqui 2")
 			log.Fatal(err)
 		} else {
@@ -79,12 +95,12 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 				LastPrice:    lastPrice,
 			}
 
-			idx := sort.Search(len(aucAggregations), func(i int) bool {
-				return aucAggregations[i].Category == category
+			idx := sort.Search(len(positionAggregations), func(i int) bool {
+				return positionAggregations[i].Category == category
 			})
 
-			if idx < len(aucAggregations) && aucAggregations[idx].Category == category {
-				aucAggregations[idx].Assets = append(aucAggregations[idx].Assets, asset)
+			if idx < len(positionAggregations) && positionAggregations[idx].Category == category {
+				positionAggregations[idx].Assets = append(positionAggregations[idx].Assets, asset)
 			} else {
 				var aucAggregation PositionAggregationModel = PositionAggregationModel{
 					Category:      category,
@@ -95,12 +111,17 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 					Assets:        []AssetsModel{asset},
 				}
 
-				aucAggregations = append(aucAggregations, aucAggregation)
+				positionAggregations = append(positionAggregations, aucAggregation)
 			}
 		}
 	}
 
-	result, err := json.Marshal(aucAggregations)
+	aucAggregation := AucAggregationModel{
+		TotalBalance:        currentValue,
+		PositionAggregation: positionAggregations,
+	}
+
+	result, err := json.Marshal(aucAggregation)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
