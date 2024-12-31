@@ -3,11 +3,8 @@ package home
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sort"
-
-	"HubInvestments/auth"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -33,29 +30,33 @@ type AucAggregationModel struct {
 	PositionAggregation []PositionAggregationModel `json:"positionAggregation"`
 }
 
-func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
+type TokenVerifier func(string, http.ResponseWriter) (string, error)
+
+type DBConnector func() (*sqlx.DB, error)
+
+func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, connectDB DBConnector) {
 	w.Header().Set("Content-Type", "application/json")
 	tokenString := r.Header.Get("Authorization")
 
-	userId, err := auth.VerifyToken(tokenString, w)
+	userId, err := verifyToken(tokenString, w)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
+	db, err := connectDB()
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Successfully Connected")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	aggregation, err := db.Queryx(`
@@ -71,7 +72,8 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 		where p.user_id = $1`, userId)
 
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	var positionAggregations []PositionAggregationModel
@@ -85,8 +87,8 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 		var category int
 
 		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice, &currentValue); err != nil {
-			log.Println("Caindo nesse erro aqui 2")
-			log.Fatal(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		} else {
 			var asset AssetsModel = AssetsModel{
 				Symbol:       symbol,
@@ -129,9 +131,8 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-
-	fmt.Println("My result", string(result))
 
 	fmt.Fprint(w, string(result))
 }

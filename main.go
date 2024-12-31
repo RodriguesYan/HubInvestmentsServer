@@ -1,12 +1,15 @@
 package main
 
 import (
+	"HubInvestments/auth"
 	"HubInvestments/home"
 	"HubInvestments/login"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/jmoiron/sqlx"
 )
 
 // const portNum string = "localhost:8080"
@@ -49,8 +52,21 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Define the token verification function
+	verifyToken := func(token string, w http.ResponseWriter) (string, error) {
+		return auth.VerifyToken(token, w)
+	}
+
+	// Define the database connection function
+	connectDB := func() (*sqlx.DB, error) {
+		return sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
+	}
+
 	http.HandleFunc("/login", Login)
-	http.HandleFunc("/getAucAggregationBalance", home.GetAucAggregation)
+	// Create a closure that captures the dependencies
+	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
+		home.GetAucAggregation(w, r, verifyToken, connectDB)
+	})
 
 	err := http.ListenAndServe(portNum, nil)
 
