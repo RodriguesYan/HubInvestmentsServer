@@ -101,6 +101,10 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request) {
 
 			if idx < len(positionAggregations) && positionAggregations[idx].Category == category {
 				positionAggregations[idx].Assets = append(positionAggregations[idx].Assets, asset)
+				positionAggregations[idx].TotalInvested += averagePrice * quantity
+				positionAggregations[idx].CurrentTotal += lastPrice * quantity
+				positionAggregations[idx].Pnl += lastPrice*quantity - averagePrice*quantity
+				positionAggregations[idx].PnlPercentage = ((lastPrice*quantity - averagePrice*quantity) / (averagePrice * quantity)) * 100
 			} else {
 				var aucAggregation PositionAggregationModel = PositionAggregationModel{
 					Category:      category,

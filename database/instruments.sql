@@ -9,8 +9,9 @@ CREATE TABLE instruments (
 );
 
 INSERT INTO instruments (id, symbol, name, category, last_price) 
-VALUES (2, 'AMZN', 'Amazon prime', 1, 140.5)
-VALUES (3, 'DIS', 'Disneylandia', 1, 240.5)
-VALUES (4, 'VOO', 'Vanguard SP 500', 2, 240.5);
+VALUES 	(5, 'VBR', 'Vanguard small caps value', 2, 240.5)
+		(2, 'AMZN', 'Amazon prime', 1, 140.5),
+ 		(3, 'DIS', 'Disneylandia', 1, 240.5),
+ 		(4, 'VOO', 'Vanguard SP 500', 2, 340.5);
 
 select * from instruments;
