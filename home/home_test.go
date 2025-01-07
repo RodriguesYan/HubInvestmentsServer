@@ -36,7 +36,9 @@ func TestGetAucAggregation(t *testing.T) {
 	sqlxDB := sqlx.NewDb(db, "sqlmock")
 
 	rows := sqlmock.NewRows([]string{"symbol", "average_price", "quantity", "category", "last_price", "current_value"}).
-		AddRow("AAPL", 150.0, 10, 1, 155.0, 1000.0)
+		AddRow("AAPL", 150.0, 10, 1, 155.0, 1000.0).
+		AddRow("AMZN", 350.0, 5, 1, 385.0, 1000.0).
+		AddRow("VOO", 450.0, 15, 2, 555.0, 1000.0)
 	mock.ExpectQuery("SELECT i.symbol, p.average_price, p.quantity, i.category, i.last_price, b.current_value").
 		WithArgs("user-id").
 		WillReturnRows(rows)
@@ -64,7 +66,21 @@ func TestGetAucAggregation(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Add more assertions based on the expected response
-	assert.Equal(t, float32(1000.0), response.TotalBalance) // Example assertion
+	assert.Equal(t, float32(1000.0), response.TotalBalance)
+
+	//Stocks
+	assert.Equal(t, float32(3475), response.PositionAggregation[0].CurrentTotal)
+	assert.Equal(t, float32(3250), response.PositionAggregation[0].TotalInvested)
+	assert.Equal(t, float32(225), response.PositionAggregation[0].Pnl)
+	assert.Equal(t, float32(10), response.PositionAggregation[0].PnlPercentage)
+	assert.Equal(t, int(2), len(response.PositionAggregation[0].Assets))
+
+	//ETFs
+	assert.Equal(t, float32(8325), response.PositionAggregation[1].CurrentTotal)
+	assert.Equal(t, float32(6750), response.PositionAggregation[1].TotalInvested)
+	assert.Equal(t, float32(1575), response.PositionAggregation[1].Pnl)
+	assert.Equal(t, float32(23.333334), response.PositionAggregation[1].PnlPercentage)
+	assert.Equal(t, int(1), len(response.PositionAggregation[1].Assets))
 }
 
 func TestGetAucAggregation_Unauthorized(t *testing.T) {
