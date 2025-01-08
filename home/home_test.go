@@ -1,6 +1,7 @@
 package home
 
 import (
+	domain "HubInvestments/home/domain/model"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -33,7 +33,7 @@ func TestGetAucAggregation(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 
-	sqlxDB := sqlx.NewDb(db, "sqlmock")
+	// sqlxDB := sqlx.NewDb(db, "sqlmock")
 
 	rows := sqlmock.NewRows([]string{"symbol", "average_price", "quantity", "category", "last_price", "current_value"}).
 		AddRow("AAPL", 150.0, 10, 1, 155.0, 1000.0).
@@ -53,7 +53,7 @@ func TestGetAucAggregation(t *testing.T) {
 
 	// Calling the handler function
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		GetAucAggregation(w, r, mockAuth.VerifyToken, func() (*sqlx.DB, error) { return sqlxDB, nil })
+		GetAucAggregation(w, r, mockAuth.VerifyToken)
 	})
 	handler.ServeHTTP(rr, req)
 
@@ -61,7 +61,7 @@ func TestGetAucAggregation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Checking the response body
-	var response AucAggregationModel
+	var response domain.AucAggregationModel
 	err = json.NewDecoder(rr.Body).Decode(&response)
 	assert.NoError(t, err)
 
@@ -98,7 +98,7 @@ func TestGetAucAggregation_Unauthorized(t *testing.T) {
 
 	// Calling the handler function
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		GetAucAggregation(w, r, mockAuth.VerifyToken, func() (*sqlx.DB, error) { return nil, nil })
+		GetAucAggregation(w, r, mockAuth.VerifyToken)
 	})
 	handler.ServeHTTP(rr, req)
 

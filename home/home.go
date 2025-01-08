@@ -1,40 +1,17 @@
 package home
 
 import (
+	domain "HubInvestments/home/domain/model"
+	di "HubInvestments/home/pck"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"sort"
-
-	"github.com/jmoiron/sqlx"
 )
-
-type AssetsModel struct {
-	Symbol       string  `json:"symbol" db:"symbol"`
-	Quantity     float32 `json:"quantity" db:"quantity"`
-	AveragePrice float32 `json:"averagePrice" db:"average_price"`
-	LastPrice    float32 `json:"currentPrice" db:"current_price"`
-}
-
-type PositionAggregationModel struct {
-	Category      int           `json:"category" db:"category"`
-	TotalInvested float32       `json:"totalInvested" db:"total_invested"`
-	CurrentTotal  float32       `json:"currentTotal" db:"current_total"`
-	Pnl           float32       `json:"pnl" db:"pnl"`
-	PnlPercentage float32       `json:"pnlPercentage" db:"pnl_percentage"`
-	Assets        []AssetsModel `json:"assets"`
-}
-
-type AucAggregationModel struct {
-	TotalBalance        float32                    `json:"totalBalance" db:"total_balance"`
-	PositionAggregation []PositionAggregationModel `json:"positionAggregation"`
-}
 
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
 
-type DBConnector func() (*sqlx.DB, error)
-
-func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, connectDB DBConnector) {
+func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier) {
 	w.Header().Set("Content-Type", "application/json")
 	tokenString := r.Header.Get("Authorization")
 
@@ -45,84 +22,44 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 		return
 	}
 
-	db, err := connectDB()
+	container, err := di.NewContainer()
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		log.Fatalf("could not initialize container: %v", err)
 	}
 
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	aggregation, err := db.Queryx(`
-		SELECT 	i.symbol, 
-				p.average_price, 
-				p.quantity, 
-				i.category, 
-				i.last_price,
-				b.current_value
-		FROM positions p 
-		join instruments i on p.instrument_id = i.id 
-		join balance b on p.user_id = b.user_id
-		where p.user_id = $1`, userId)
+	assets, err := container.UserService.GetAucAggregation(userId)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		log.Fatalf("could not create user: %v", err)
 	}
 
-	var positionAggregations []PositionAggregationModel
+	// var positionAggregations []PositionAggregationModel
+	var positionAggregations []domain.PositionAggregationModel
 	var currentValue float32
 
-	for aggregation.Next() {
-		var symbol string
-		var quantity float32
-		var averagePrice float32
-		var lastPrice float32
-		var category int
-
-		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice, &currentValue); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+	for index, element := range assets {
+		if index < len(positionAggregations) && positionAggregations[index].Category == element.Category {
+			positionAggregations[index].Assets = append(positionAggregations[index].Assets, element)
+			positionAggregations[index].TotalInvested += element.AveragePrice * element.Quantity
+			positionAggregations[index].CurrentTotal += element.LastPrice * element.Quantity
+			positionAggregations[index].Pnl += element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity
+			positionAggregations[index].PnlPercentage = ((element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity) / (element.AveragePrice * element.Quantity)) * 100
 		} else {
-			var asset AssetsModel = AssetsModel{
-				Symbol:       symbol,
-				Quantity:     quantity,
-				AveragePrice: averagePrice,
-				LastPrice:    lastPrice,
+			var aucAggregation domain.PositionAggregationModel = domain.PositionAggregationModel{
+				Category:      element.Category,
+				TotalInvested: element.AveragePrice * element.Quantity,
+				CurrentTotal:  element.LastPrice * element.Quantity,
+				Pnl:           element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity,
+				PnlPercentage: ((element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity) / (element.AveragePrice * element.Quantity)) * 100,
+				Assets:        assets,
 			}
 
-			idx := sort.Search(len(positionAggregations), func(i int) bool {
-				return positionAggregations[i].Category == category
-			})
-
-			if idx < len(positionAggregations) && positionAggregations[idx].Category == category {
-				positionAggregations[idx].Assets = append(positionAggregations[idx].Assets, asset)
-				positionAggregations[idx].TotalInvested += averagePrice * quantity
-				positionAggregations[idx].CurrentTotal += lastPrice * quantity
-				positionAggregations[idx].Pnl += lastPrice*quantity - averagePrice*quantity
-				positionAggregations[idx].PnlPercentage = ((lastPrice*quantity - averagePrice*quantity) / (averagePrice * quantity)) * 100
-			} else {
-				var aucAggregation PositionAggregationModel = PositionAggregationModel{
-					Category:      category,
-					TotalInvested: averagePrice * quantity,
-					CurrentTotal:  lastPrice * quantity,
-					Pnl:           lastPrice*quantity - averagePrice*quantity,
-					PnlPercentage: ((lastPrice*quantity - averagePrice*quantity) / (averagePrice * quantity)) * 100,
-					Assets:        []AssetsModel{asset},
-				}
-
-				positionAggregations = append(positionAggregations, aucAggregation)
-			}
+			positionAggregations = append(positionAggregations, aucAggregation)
 		}
 	}
 
-	aucAggregation := AucAggregationModel{
+	aucAggregation := domain.AucAggregationModel{
 		TotalBalance:        currentValue,
 		PositionAggregation: positionAggregations,
 	}

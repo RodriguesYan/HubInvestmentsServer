@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // const portNum string = "localhost:8080"
-// const portNum string = "192.168.0.172:8080"//My home IP
-const portNum string = "192.168.0.48:8080" //Camila's home IP
+const portNum string = "192.168.0.172:8080" //My home IP
+// const portNum string = "192.168.0.48:8080" //Camila's home IP
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -57,15 +55,10 @@ func main() {
 		return auth.VerifyToken(token, w)
 	}
 
-	// Define the database connection function
-	connectDB := func() (*sqlx.DB, error) {
-		return sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
-	}
-
 	http.HandleFunc("/login", Login)
 	// Create a closure that captures the dependencies
 	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
-		home.GetAucAggregation(w, r, verifyToken, connectDB)
+		home.GetAucAggregation(w, r, verifyToken)
 	})
 
 	err := http.ListenAndServe(portNum, nil)
