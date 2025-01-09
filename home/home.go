@@ -22,7 +22,7 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 		return
 	}
 
-	assets, err := container.AucService.GetAucAggregation(userId)
+	assets, err := container.GetAucService().GetAucAggregation(userId)
 
 	if err != nil {
 		log.Fatalf("could not create user: %v", err)

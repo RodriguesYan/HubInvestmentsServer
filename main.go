@@ -56,16 +56,19 @@ func main() {
 		return auth.VerifyToken(token, w)
 	}
 
-	container, _ := di.NewContainer()
+	container, err := di.NewContainer()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	http.HandleFunc("/login", Login)
 	// Create a closure that captures the dependencies
 	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
-		home.GetAucAggregation(w, r, verifyToken, *container)
+		home.GetAucAggregation(w, r, verifyToken, container)
 	})
 
-	err := http.ListenAndServe(portNum, nil)
-
+	err = http.ListenAndServe(portNum, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

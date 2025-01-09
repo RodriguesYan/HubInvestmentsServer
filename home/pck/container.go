@@ -8,11 +8,19 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type Container struct {
+type Container interface {
+	GetAucService() *service.AucService
+}
+
+type containerImpl struct {
 	AucService *service.AucService
 }
 
-func NewContainer() (*Container, error) {
+func (c *containerImpl) GetAucService() *service.AucService {
+	return c.AucService
+}
+
+func NewContainer() (Container, error) {
 	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
 
 	if err != nil {
@@ -22,7 +30,7 @@ func NewContainer() (*Container, error) {
 	userRepo := persistence.NewSQLXAucRepository(db)
 	userService := service.NewUserService(userRepo)
 
-	return &Container{
+	return &containerImpl{
 		AucService: userService,
 	}, nil
 }
