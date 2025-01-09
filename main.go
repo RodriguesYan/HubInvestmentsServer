@@ -3,6 +3,7 @@ package main
 import (
 	"HubInvestments/auth"
 	"HubInvestments/home"
+	di "HubInvestments/home/pck"
 	"HubInvestments/login"
 	"encoding/json"
 	"fmt"
@@ -55,10 +56,12 @@ func main() {
 		return auth.VerifyToken(token, w)
 	}
 
+	container, _ := di.NewContainer()
+
 	http.HandleFunc("/login", Login)
 	// Create a closure that captures the dependencies
 	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
-		home.GetAucAggregation(w, r, verifyToken)
+		home.GetAucAggregation(w, r, verifyToken, *container)
 	})
 
 	err := http.ListenAndServe(portNum, nil)

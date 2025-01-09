@@ -9,7 +9,7 @@ import (
 )
 
 type Container struct {
-	UserService *service.AucService
+	AucService *service.AucService
 }
 
 func NewContainer() (*Container, error) {
@@ -23,6 +23,6 @@ func NewContainer() (*Container, error) {
 	userService := service.NewUserService(userRepo)
 
 	return &Container{
-		UserService: userService,
+		AucService: userService,
 	}, nil
 }

@@ -11,7 +11,7 @@ import (
 
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
 
-func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier) {
+func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) {
 	w.Header().Set("Content-Type", "application/json")
 	tokenString := r.Header.Get("Authorization")
 
@@ -22,19 +22,12 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 		return
 	}
 
-	container, err := di.NewContainer()
-
-	if err != nil {
-		log.Fatalf("could not initialize container: %v", err)
-	}
-
-	assets, err := container.UserService.GetAucAggregation(userId)
+	assets, err := container.AucService.GetAucAggregation(userId)
 
 	if err != nil {
 		log.Fatalf("could not create user: %v", err)
 	}
 
-	// var positionAggregations []PositionAggregationModel
 	var positionAggregations []domain.PositionAggregationModel
 	var currentValue float32
 
