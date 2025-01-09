@@ -19,10 +19,6 @@ func NewContainer() (*Container, error) {
 		return nil, err
 	}
 
-	// defer db.Close()
-
-	// userRepo := persistence.NewSQLXUserRepository(db)
-	// userRepo := persistence.NewSQLXUserRepository(db)
 	userRepo := persistence.NewSQLXAucRepository(db)
 	userService := service.NewUserService(userRepo)
 
