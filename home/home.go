@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 )
 
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
@@ -31,7 +32,11 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 	var positionAggregations []domain.PositionAggregationModel
 	var currentValue float32
 
-	for index, element := range assets {
+	for _, element := range assets {
+		index := sort.Search(len(positionAggregations), func(i int) bool {
+			return positionAggregations[i].Category == element.Category
+		})
+
 		if index < len(positionAggregations) && positionAggregations[index].Category == element.Category {
 			positionAggregations[index].Assets = append(positionAggregations[index].Assets, element)
 			positionAggregations[index].TotalInvested += element.AveragePrice * element.Quantity
@@ -45,7 +50,7 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 				CurrentTotal:  element.LastPrice * element.Quantity,
 				Pnl:           element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity,
 				PnlPercentage: ((element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity) / (element.AveragePrice * element.Quantity)) * 100,
-				Assets:        assets,
+				Assets:        []domain.AssetsModel{element},
 			}
 
 			positionAggregations = append(positionAggregations, aucAggregation)

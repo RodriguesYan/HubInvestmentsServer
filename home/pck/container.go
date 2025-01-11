@@ -28,7 +28,7 @@ func NewContainer() (Container, error) {
 	}
 
 	userRepo := persistence.NewSQLXAucRepository(db)
-	userService := service.NewUserService(userRepo)
+	userService := service.NewAucService(userRepo)
 
 	return &containerImpl{
 		AucService: userService,

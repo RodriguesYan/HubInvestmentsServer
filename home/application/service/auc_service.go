@@ -5,11 +5,15 @@ import (
 	"HubInvestments/home/domain/repository"
 )
 
+type AucServiceInterface interface {
+	GetAucAggregation(userId string) ([]domain.AssetsModel, error)
+}
+
 type AucService struct {
 	repo repository.AucRepository
 }
 
-func NewUserService(repo repository.AucRepository) *AucService {
+func NewAucService(repo repository.AucRepository) *AucService {
 	return &AucService{repo: repo}
 }
 
