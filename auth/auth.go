@@ -15,32 +15,49 @@ func VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
 	if tokenString == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, "Missing authorization header")
+
 		return "", errors.New("missing authorization header")
 	}
 
-	tokenString = tokenString[len("Bearer "):]
-
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
-	})
+	token, err := parseToken(tokenString)
 
 	if err != nil {
 		return "", err
 	}
 
-	if !token.Valid {
-		return "", fmt.Errorf("invalid token")
-	}
+	claims, err := validateToken(token)
 
-	claims, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok {
-		return "", errors.New("invalid claims")
+	if err != nil {
+		return "", err
 	}
 
 	userId, _ := claims["userId"].(string)
 
 	return userId, nil
+}
+
+func validateToken(token *jwt.Token) (jwt.MapClaims, error) {
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if !ok {
+		return nil, errors.New("invalid claims")
+	}
+
+	return claims, nil
+}
+
+func parseToken(token string) (*jwt.Token, error) {
+	token = token[len("Bearer "):]
+
+	jwtToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+
+	return jwtToken, err
 }
 
 func CreateToken(userName string, userId string) (string, error) {
