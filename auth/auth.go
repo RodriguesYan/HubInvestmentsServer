@@ -11,7 +11,18 @@ import (
 
 var secretKey = []byte("secret-key") //TODO: por essa key em um env file da vida
 
-func VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
+type AuthService struct {
+	jwtParser jwt.Parser
+}
+
+func NewAuthService(jwtParser jwt.Parser) *AuthService {
+	return &AuthService{jwtParser: jwtParser}
+}
+
+//TODO: por tudo que é de jwt em um file apartado (auth_adapter ou algo do tipo)
+//TODO: criar interface e tudo pra conseguir mockar em testes, ai esse cara aqui fica livre dessa lib
+
+func (s *AuthService) VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
 	if tokenString == "" {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, "Missing authorization header")
@@ -19,7 +30,7 @@ func VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
 		return "", errors.New("missing authorization header")
 	}
 
-	token, err := parseToken(tokenString)
+	token, err := s.parseToken(tokenString)
 
 	if err != nil {
 		return "", err
@@ -50,10 +61,10 @@ func validateToken(token *jwt.Token) (jwt.MapClaims, error) {
 	return claims, nil
 }
 
-func parseToken(token string) (*jwt.Token, error) {
+func (s *AuthService) parseToken(token string) (*jwt.Token, error) {
 	token = token[len("Bearer "):]
 
-	jwtToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	jwtToken, err := s.jwtParser.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
 
