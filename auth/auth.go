@@ -8,11 +8,16 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+type IAuthService interface {
+	VerifyToken(tokenString string, w http.ResponseWriter) (string, error)
+	CreateToken(userName string, userId string) (string, error)
+}
+
 type AuthService struct {
 	tokenService ITokenService
 }
 
-func NewAuthService(tokenService ITokenService) *AuthService {
+func NewAuthService(tokenService ITokenService) IAuthService {
 	return &AuthService{tokenService: tokenService}
 }
 
