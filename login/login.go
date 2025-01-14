@@ -61,7 +61,9 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 		return "", errors.New("user or password is wrong")
 	}
 
-	tokenString, err := auth.CreateToken(loginModel.Email, string(userId))
+	authService := auth.NewAuthService(auth.NewTokenService())
+
+	tokenString, err := authService.CreateToken(loginModel.Email, string(userId))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

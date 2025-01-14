@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
-	"github.com/golang-jwt/jwt"
 )
 
 // const portNum string = "localhost:8080"
@@ -54,7 +52,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// Define the token verification function
-	aucService := auth.NewAuthService(jwt.Parser{})
+	tokenService := auth.NewTokenService()
+	aucService := auth.NewAuthService(tokenService)
 	verifyToken := func(token string, w http.ResponseWriter) (string, error) {
 		return aucService.VerifyToken(token, w)
 	}
