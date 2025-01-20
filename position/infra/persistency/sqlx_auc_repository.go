@@ -1,8 +1,8 @@
 package persistence
 
 import (
-	domain "HubInvestments/home/domain/model"
-	"HubInvestments/home/domain/repository"
+	domain "HubInvestments/position/domain/model"
+	"HubInvestments/position/domain/repository"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"

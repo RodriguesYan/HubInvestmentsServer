@@ -1,8 +1,8 @@
-package home
+package get_aggregation
 
 import (
-	"HubInvestments/home/application/service"
-	domain "HubInvestments/home/domain/model"
+	"HubInvestments/position/application/service"
+	domain "HubInvestments/position/domain/model"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"

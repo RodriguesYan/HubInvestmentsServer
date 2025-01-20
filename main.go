@@ -2,9 +2,10 @@ package main
 
 import (
 	"HubInvestments/auth"
-	"HubInvestments/home"
-	di "HubInvestments/home/pck"
+	"HubInvestments/auth/token"
 	"HubInvestments/login"
+	di "HubInvestments/pck"
+	get_aggregation "HubInvestments/position"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -52,7 +53,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// Define the token verification function
-	tokenService := auth.NewTokenService()
+	tokenService := token.NewTokenService()
 	aucService := auth.NewAuthService(tokenService)
 	verifyToken := func(token string, w http.ResponseWriter) (string, error) {
 		return aucService.VerifyToken(token, w)
@@ -67,7 +68,7 @@ func main() {
 	http.HandleFunc("/login", Login)
 	// Create a closure that captures the dependencies
 	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
-		home.GetAucAggregation(w, r, verifyToken, container)
+		get_aggregation.GetAucAggregation(w, r, verifyToken, container)
 	})
 
 	err = http.ListenAndServe(portNum, nil)

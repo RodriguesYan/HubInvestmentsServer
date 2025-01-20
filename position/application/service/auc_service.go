@@ -1,8 +1,8 @@
 package service
 
 import (
-	domain "HubInvestments/home/domain/model"
-	"HubInvestments/home/domain/repository"
+	domain "HubInvestments/position/domain/model"
+	"HubInvestments/position/domain/repository"
 )
 
 type AucServiceInterface interface {

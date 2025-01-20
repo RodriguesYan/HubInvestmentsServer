@@ -1,6 +1,8 @@
-package auth
+package token
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -64,4 +66,18 @@ func (s *TokenService) parseToken(token string) (*jwt.Token, error) {
 	})
 
 	return jwtToken, err
+}
+
+func validateToken(token *jwt.Token) (jwt.MapClaims, error) {
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+
+	if !ok {
+		return nil, errors.New("invalid claims")
+	}
+
+	return claims, nil
 }

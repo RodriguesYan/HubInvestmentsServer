@@ -1,8 +1,8 @@
 package di
 
 import (
-	"HubInvestments/home/application/service"
-	persistence "HubInvestments/home/infra/persistency"
+	"HubInvestments/position/application/service"
+	persistence "HubInvestments/position/infra/persistency"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"

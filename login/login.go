@@ -2,6 +2,7 @@ package login
 
 import (
 	"HubInvestments/auth"
+	"HubInvestments/auth/token"
 	"errors"
 	"log"
 	"net/http"
@@ -61,7 +62,7 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 		return "", errors.New("user or password is wrong")
 	}
 
-	authService := auth.NewAuthService(auth.NewTokenService())
+	authService := auth.NewAuthService(token.NewTokenService())
 
 	tokenString, err := authService.CreateToken(loginModel.Email, string(userId))
 

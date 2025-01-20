@@ -1,11 +1,10 @@
 package auth
 
 import (
+	"HubInvestments/auth/token"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/golang-jwt/jwt"
 )
 
 type IAuthService interface {
@@ -14,10 +13,10 @@ type IAuthService interface {
 }
 
 type AuthService struct {
-	tokenService ITokenService
+	tokenService token.ITokenService
 }
 
-func NewAuthService(tokenService ITokenService) IAuthService {
+func NewAuthService(tokenService token.ITokenService) IAuthService {
 	return &AuthService{tokenService: tokenService}
 }
 
@@ -38,20 +37,6 @@ func (s *AuthService) VerifyToken(tokenString string, w http.ResponseWriter) (st
 	userId, _ := claims["userId"].(string)
 
 	return userId, nil
-}
-
-func validateToken(token *jwt.Token) (jwt.MapClaims, error) {
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok {
-		return nil, errors.New("invalid claims")
-	}
-
-	return claims, nil
 }
 
 func (s *AuthService) CreateToken(userName string, userId string) (string, error) {

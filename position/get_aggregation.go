@@ -1,8 +1,8 @@
-package home
+package get_aggregation
 
 import (
-	domain "HubInvestments/home/domain/model"
-	di "HubInvestments/home/pck"
+	di "HubInvestments/pck"
+	domain "HubInvestments/position/domain/model"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +10,13 @@ import (
 	"sort"
 )
 
+// TODO: makefile dropando database, recriando tabelas e populando
+// TODO: por docker pra banco de dados
+// TODO: microsserviços (not requered)
+// TODO: swagger
+// TODO: rmq pra enfileirar envios de ordens
+// TODO: GRPC
+// TODO: websocket para cotaçao de ativos
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
 
 func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) {
