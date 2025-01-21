@@ -17,6 +17,9 @@ import (
 // TODO: rmq pra enfileirar envios de ordens
 // TODO: GRPC
 // TODO: websocket para cotaçao de ativos
+//TODO: fazer testes pra login
+//TODO: refatorar login em metodos menores
+
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
 
 func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) {
