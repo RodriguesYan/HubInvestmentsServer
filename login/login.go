@@ -3,7 +3,8 @@ package login
 import (
 	"HubInvestments/auth"
 	"HubInvestments/auth/token"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -16,26 +17,36 @@ type LoginModel struct {
 	Password string
 }
 
-func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
+func Login(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	decoder := json.NewDecoder(r.Body)
+	var t LoginModel
+	err := decoder.Decode(&t)
+	if err != nil {
+		panic(err)
+	}
+
 	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
 	if err != nil {
-		return "", err
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error connecting to DB:", err)
 	}
-	//validar se email existe
+
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
-		return "", err
 	} else {
 		log.Println("Successfully Connected")
 	}
 
-	user, err := db.Queryx("SELECT id, email, password FROM users where email = $1", loginModel.Email)
+	user, err := db.Queryx("SELECT id, email, password FROM users where email = $1", t.Email)
 
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
-		return "", err
+		fmt.Println("Error doing sql query in users table:", err)
 	}
 
 	var email string
@@ -44,34 +55,49 @@ func Login(loginModel LoginModel, w http.ResponseWriter) (string, error) {
 
 	for user.Next() {
 		if err := user.Scan(&userId, &email, &password); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 			log.Fatal(err)
-			return "", err
+			fmt.Println("Error reading sql response:", err)
 		}
 	}
 
 	if err := user.Err(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Fatal(err)
-		return "", err
+		fmt.Println("Error scanning data to variables:", err)
 	}
 
 	if len(email) == 0 {
-		return "", errors.New("user or password is wrong")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Println("user or password is wrong")
 	}
 
-	if loginModel.Password != password {
-		return "", errors.New("user or password is wrong")
+	if t.Password != password {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Println("user or password is wrong")
 	}
 
 	authService := auth.NewAuthService(token.NewTokenService())
 
-	tokenString, err := authService.CreateToken(loginModel.Email, string(userId))
+	tokenString, err := authService.CreateToken(t.Email, string(userId))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		return "", errors.New("user or password is wrong")
+		fmt.Println("user or password is wrong")
+	}
+
+	data := map[string]string{
+		"token": tokenString,
+	}
+
+	jsonData, err := json.Marshal(data)
+
+	if err != nil {
+		fmt.Println("Error encoding JSON:", err)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	return tokenString, nil
+	fmt.Fprint(w, string(jsonData))
 }
