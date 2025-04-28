@@ -19,6 +19,9 @@ import (
 // TODO: websocket para cotaçao de ativos
 //TODO: fazer testes pra login
 //TODO: refatorar login em metodos menores
+//TODO: SSL
+//TODO: CI/CD
+//TODO: nginx (load balancer, caching, proxy, security(ssl), compression)
 
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
 
