@@ -7,6 +7,6 @@ CREATE TABLE users (
     password VARCHAR(50) NOT NULL
 );
 
-INSERT INTO users (id, email, name, password) VALUES (1, 'bla@bla.com', 'John Doe', '123456');
+INSERT INTO users (id, email, name, password) VALUES (1, 'bla@bla.com', 'John Doe', '12345678');
 
 select * from users;

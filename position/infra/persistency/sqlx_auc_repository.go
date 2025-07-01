@@ -25,10 +25,10 @@ func (r *SQLXAucRepository) GetPositionAggregation(userId string) ([]domain.Asse
 			p.quantity, 
 			i.category, 
 			i.last_price,
-			b.current_value
+			b.available_balance
 	FROM positions p 
 	join instruments i on p.instrument_id = i.id 
-	join balance b on p.user_id = b.user_id
+	join balances b on p.user_id = b.user_id
 	where p.user_id = $1`, userId)
 
 	if err != nil {
