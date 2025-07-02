@@ -1,23 +1,31 @@
 package di
 
 import (
-	"HubInvestments/position/application/service"
-	persistence "HubInvestments/position/infra/persistency"
+	balService "HubInvestments/balance/application/service"
+	balancePersistence "HubInvestments/balance/infra/persistence"
+	posService "HubInvestments/position/application/service"
+	aucPersistence "HubInvestments/position/infra/persistency"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 type Container interface {
-	GetAucService() *service.AucService
+	GetAucService() *posService.AucService
+	GetBalanceService() *balService.BalanceService
 }
 
 type containerImpl struct {
-	AucService *service.AucService
+	AucService     *posService.AucService
+	BalanceService *balService.BalanceService
 }
 
-func (c *containerImpl) GetAucService() *service.AucService {
+func (c *containerImpl) GetAucService() *posService.AucService {
 	return c.AucService
+}
+
+func (c *containerImpl) GetBalanceService() *balService.BalanceService {
+	return c.BalanceService
 }
 
 func NewContainer() (Container, error) {
@@ -27,10 +35,14 @@ func NewContainer() (Container, error) {
 		return nil, err
 	}
 
-	userRepo := persistence.NewSQLXAucRepository(db)
-	userService := service.NewAucService(userRepo)
+	aucRepo := aucPersistence.NewSQLXAucRepository(db)
+	aucService := posService.NewAucService(aucRepo)
+
+	balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
+	balanceService := balService.NewBalanceService(balanceRepo)
 
 	return &containerImpl{
-		AucService: userService,
+		AucService:     aucService,
+		BalanceService: balanceService,
 	}, nil
 }

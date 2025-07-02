@@ -1,8 +1,8 @@
 package persistence
 
 import (
-	domain "HubInvestments/position/domain/model"
-	"HubInvestments/position/domain/repository"
+	domain "HubInvestments/balance/domain/model"
+	"HubInvestments/balance/domain/repository"
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
@@ -12,15 +12,15 @@ type SQLXBalanceRepository struct {
 	db *sqlx.DB
 }
 
-func GetBalance(db *sqlx.DB) repository.BalanceRepository {
+func NewSqlxBalanceRepository(db *sqlx.DB) repository.BalanceRepository {
 	return &SQLXBalanceRepository{db: db}
 }
 
 func (r *SQLXBalanceRepository) GetBalance(userId string) (domain.BalanceModel, error) {
 	balance, err := r.db.Queryx(
 		`
-		SELECT 	current_value
-		FROM	balance
+		SELECT 	available_balance
+		FROM	balances
 		WHERE	user_id = $1
 		`, userId)
 

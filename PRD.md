@@ -184,6 +184,7 @@ To create a robust, scalable, and user-friendly investment platform that enables
 - Session tokens
 - Frequently accessed watchlists
 - Temporary calculation results
+- Cache-aside pattern
 
 ## 6. API Specifications
 

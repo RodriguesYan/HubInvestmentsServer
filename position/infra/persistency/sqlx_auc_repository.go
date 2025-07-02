@@ -37,7 +37,7 @@ func (r *SQLXAucRepository) GetPositionAggregation(userId string) ([]domain.Asse
 	}
 
 	var positionAggregations []domain.AssetsModel
-	var currentValue float32 //TODO: remover isso daqui e criar um repo proprio pra balance
+	var availableBalance float32 //TODO: remover isso daqui e criar um repo proprio pra balance
 
 	for aggregation.Next() {
 		var symbol string
@@ -46,7 +46,7 @@ func (r *SQLXAucRepository) GetPositionAggregation(userId string) ([]domain.Asse
 		var lastPrice float32
 		var category int
 
-		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice, &currentValue); err != nil {
+		if err := aggregation.Scan(&symbol, &averagePrice, &quantity, &category, &lastPrice, &availableBalance); err != nil {
 			return nil, fmt.Errorf(err.Error())
 		}
 

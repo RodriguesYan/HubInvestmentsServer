@@ -1,21 +1,2 @@
 
-- criar table instruments e balance
-- mapear atributos de instruments e positions no repository de auc
-- renomear tudo que tem auc para position
-- segregar balance things em seu proprio modulo
-- double check pra ver se DDD esta bem aplicado
-- makefile dropando database, recriando tabelas e populando
-- por docker pra banco de dados
-- GRPC
-- microsserviços (not requered)
-- swagger
-- Lista de ativos
-- Detalhes de ativos
-- Boleta
-- rmq pra enfileirar envios de ordens
-- websocket (SSE?) para cotaçao de ativos
-- fazer testes pra login
-- refatorar login em metodos menores
-- SSL
-- CI/CD
-- nginx (load balancer, caching, proxy, security(ssl), compression)
+- ver artigo do bryan de novo pra ver se eu to implementando interface corretamente
