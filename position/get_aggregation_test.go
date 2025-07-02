@@ -1,6 +1,7 @@
 package get_aggregation
 
 import (
+	di "HubInvestments/pck"
 	"HubInvestments/position/application/service"
 	domain "HubInvestments/position/domain/model"
 	"encoding/json"
@@ -20,14 +21,6 @@ type MockAuth struct {
 func (m *MockAuth) VerifyToken(token string, w http.ResponseWriter) (string, error) {
 	args := m.Called(token, w)
 	return args.String(0), args.Error(1)
-}
-
-type MockContainer struct {
-	aucService *service.AucService
-}
-
-func (m *MockContainer) GetAucService() *service.AucService {
-	return m.aucService
 }
 
 type MockAucRepository struct {
@@ -56,16 +49,15 @@ func TestGetAucAggregation_Success(t *testing.T) {
 		},
 	}
 
-	mockContainer := &MockContainer{
-		aucService: service.NewAucService(mockRepo),
-	}
+	// Use the reusable TestContainer - much cleaner and more scalable!
+	testContainer := di.NewTestContainer().WithAucService(service.NewAucService(mockRepo))
 
 	req, err := http.NewRequest("GET", "/auc-aggregation", nil)
 	assert.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer token")
 
 	rr := httptest.NewRecorder()
-	GetAucAggregation(rr, req, verifyToken, mockContainer)
+	GetAucAggregation(rr, req, verifyToken, testContainer)
 
 	// Check the response
 	assert.Equal(t, http.StatusOK, rr.Code)
