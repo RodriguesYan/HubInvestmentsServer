@@ -10,13 +10,13 @@ type AucServiceInterface interface {
 }
 
 type AucService struct {
-	repo repository.AucRepository
+	repo repository.PositionRepository
 }
 
-func NewAucService(repo repository.AucRepository) *AucService {
+func NewAucService(repo repository.PositionRepository) *AucService {
 	return &AucService{repo: repo}
 }
 
 func (s *AucService) GetAucAggregation(userId string) ([]domain.AssetsModel, error) {
-	return s.repo.GetPositionAggregation(userId)
+	return s.repo.GetPositionsByUserId(userId)
 }

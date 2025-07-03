@@ -7,15 +7,15 @@ import (
 )
 
 type GetPositionAggregationUseCase struct {
-	repo repository.AucRepository
+	repo repository.PositionRepository
 }
 
-func NewGetPositionAggregationUseCase(repo repository.AucRepository) *GetPositionAggregationUseCase {
+func NewGetPositionAggregationUseCase(repo repository.PositionRepository) *GetPositionAggregationUseCase {
 	return &GetPositionAggregationUseCase{repo: repo}
 }
 
 func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggregationModel, error) {
-	assets, err := uc.repo.GetPositionAggregation(userId)
+	assets, err := uc.repo.GetPositionsByUserId(userId)
 	if err != nil {
 		return domain.AucAggregationModel{}, err
 	}

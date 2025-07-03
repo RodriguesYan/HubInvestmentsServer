@@ -5,7 +5,7 @@ import (
 	balancePersistence "HubInvestments/balance/infra/persistence"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
-	aucPersistence "HubInvestments/position/infra/persistence"
+	positionPersistence "HubInvestments/position/infra/persistence"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -42,9 +42,9 @@ func NewContainer() (Container, error) {
 		return nil, err
 	}
 
-	aucRepo := aucPersistence.NewSQLXAucRepository(db)
-	aucService := posService.NewAucService(aucRepo)
-	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(aucRepo)
+	positionRepo := positionPersistence.NewSQLXPositionRepository(db)
+	aucService := posService.NewAucService(positionRepo)
+	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
 
 	balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
 	balanceService := balService.NewBalanceService(balanceRepo)

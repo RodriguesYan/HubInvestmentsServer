@@ -23,12 +23,12 @@ func (m *MockAuth) VerifyToken(token string, w http.ResponseWriter) (string, err
 	return args.String(0), args.Error(1)
 }
 
-type MockAucRepository struct {
+type MockPositionRepository struct {
 	aggregations []domain.AssetsModel
 	err          error
 }
 
-func (m *MockAucRepository) GetPositionAggregation(userId string) ([]domain.AssetsModel, error) {
+func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -41,7 +41,7 @@ func TestGetAucAggregation_Success(t *testing.T) {
 		return "user123", nil
 	}
 
-	mockRepo := &MockAucRepository{
+	mockRepo := &MockPositionRepository{
 		aggregations: []domain.AssetsModel{
 			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
 			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},

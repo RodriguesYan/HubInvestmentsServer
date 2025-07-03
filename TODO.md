@@ -29,11 +29,15 @@
 - [x] Create proper mapper to convert between DTOs and domain models
 - **Result**: Domain models are now pure and separated from infrastructure concerns
 
-### ⏳ Step 5: Improve Repository Interface Design
-- [ ] Make repository interfaces more domain-focused
-- [ ] Consider renaming `AucRepository` to `PositionRepository` for better domain alignment
-- [ ] Add more specific methods if needed (e.g., `GetPositionsByUserId`, `GetPositionsByCategory`)
-- [ ] Move repository interfaces to `position/domain/repository/`
+### ✅ Step 5: Improve Repository Interface Design (COMPLETED)
+- [x] Make repository interfaces more domain-focused
+- [x] Rename `AucRepository` to `PositionRepository` for better domain alignment
+- [x] Add more specific methods: `GetPositionsByUserId`, `GetPositionsByCategory`, `GetPositionBySymbol`
+- [x] Keep repository interfaces in `position/domain/repository/`
+- [x] Update all implementations and dependencies to use new interface
+- [x] Create new `SQLXPositionRepository` with improved error messages and domain-focused methods
+- [x] Update use cases, services, and tests to use new repository interface
+- **Result**: Repository interface is now more domain-focused with specific, well-named methods that clearly express business intent
 
 ### ⏳ Step 6: Restructure Package Organization
 - [ ] Create proper DDD directory structure:
@@ -46,9 +50,9 @@
   ├── domain/
   │   ├── model/                # Pure domain models (✅ Done)
   │   ├── service/              # Domain services
-  │   └── repository/           # Repository interfaces
+  │   └── repository/           # Repository interfaces (✅ Done)
   └── infra/
-      ├── persistence/          # Repository implementations
+      ├── persistence/          # Repository implementations (✅ Done)
       └── dto/                  # Data transfer objects (✅ Done)
   ```
 - [ ] Move existing files to appropriate locations
