@@ -3,13 +3,15 @@ package di
 import (
 	balService "HubInvestments/balance/application/service"
 	posService "HubInvestments/position/application/service"
+	posUsecase "HubInvestments/position/application/usecase"
 )
 
 // TestContainer is a simple mock container for testing
 // It implements the Container interface with configurable services
 type TestContainer struct {
-	aucService     *posService.AucService
-	balanceService *balService.BalanceService
+	aucService                 *posService.AucService
+	balanceService             *balService.BalanceService
+	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 }
 
 // NewTestContainer creates a new test container with optional services
@@ -29,6 +31,12 @@ func (c *TestContainer) WithBalanceService(service *balService.BalanceService) *
 	return c
 }
 
+// WithPositionAggregationUseCase sets the PositionAggregationUseCase for testing
+func (c *TestContainer) WithPositionAggregationUseCase(usecase *posUsecase.GetPositionAggregationUseCase) *TestContainer {
+	c.positionAggregationUseCase = usecase
+	return c
+}
+
 // GetAucService returns the configured AucService or nil
 func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
@@ -37,6 +45,11 @@ func (c *TestContainer) GetAucService() *posService.AucService {
 // GetBalanceService returns the configured BalanceService or nil
 func (c *TestContainer) GetBalanceService() *balService.BalanceService {
 	return c.balanceService
+}
+
+// GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil
+func (c *TestContainer) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
+	return c.positionAggregationUseCase
 }
 
 // Add new methods here as you add them to the Container interface

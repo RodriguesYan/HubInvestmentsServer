@@ -5,7 +5,7 @@ import (
 	"HubInvestments/auth/token"
 	"HubInvestments/login"
 	di "HubInvestments/pck"
-	get_aggregation "HubInvestments/position"
+	positionHandler "HubInvestments/position/presentation/http"
 	"log"
 	"net/http"
 )
@@ -30,7 +30,7 @@ func main() {
 
 	http.HandleFunc("/login", login.Login)
 	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
-		get_aggregation.GetAucAggregation(w, r, verifyToken, container)
+		positionHandler.GetAucAggregation(w, r, verifyToken, container)
 	})
 
 	err = http.ListenAndServe(portNum, nil)

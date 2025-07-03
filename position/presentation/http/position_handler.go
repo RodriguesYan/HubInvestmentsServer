@@ -1,13 +1,10 @@
-package get_aggregation
+package http
 
 import (
 	di "HubInvestments/pck"
-	domain "HubInvestments/position/domain/model"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"sort"
 )
 
 type TokenVerifier func(string, http.ResponseWriter) (string, error)
@@ -16,54 +13,22 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 	w.Header().Set("Content-Type", "application/json")
 	tokenString := r.Header.Get("Authorization")
 
+	// Authentication
 	userId, err := verifyToken(tokenString, w)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	assets, err := container.GetAucService().GetAucAggregation(userId)
-
+	// Execute use case
+	aucAggregation, err := container.GetPositionAggregationUseCase().Execute(userId)
 	if err != nil {
-		log.Fatalf("could not create user: %v", err)
+		http.Error(w, "Failed to get position aggregation: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	var positionAggregations []domain.PositionAggregationModel
-	var currentValue float32
-
-	for _, element := range assets {
-		index := sort.Search(len(positionAggregations), func(i int) bool {
-			return positionAggregations[i].Category == element.Category
-		})
-
-		if index < len(positionAggregations) && positionAggregations[index].Category == element.Category {
-			positionAggregations[index].Assets = append(positionAggregations[index].Assets, element)
-			positionAggregations[index].TotalInvested += element.AveragePrice * element.Quantity
-			positionAggregations[index].CurrentTotal += element.LastPrice * element.Quantity
-			positionAggregations[index].Pnl += element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity
-			positionAggregations[index].PnlPercentage = ((element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity) / (element.AveragePrice * element.Quantity)) * 100
-		} else {
-			var aucAggregation domain.PositionAggregationModel = domain.PositionAggregationModel{
-				Category:      element.Category,
-				TotalInvested: element.AveragePrice * element.Quantity,
-				CurrentTotal:  element.LastPrice * element.Quantity,
-				Pnl:           element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity,
-				PnlPercentage: ((element.LastPrice*element.Quantity - element.AveragePrice*element.Quantity) / (element.AveragePrice * element.Quantity)) * 100,
-				Assets:        []domain.AssetsModel{element},
-			}
-
-			positionAggregations = append(positionAggregations, aucAggregation)
-		}
-	}
-
-	aucAggregation := domain.AucAggregationModel{
-		TotalBalance:        currentValue,
-		PositionAggregation: positionAggregations,
-	}
-
+	// Serialize response
 	result, err := json.Marshal(aucAggregation)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

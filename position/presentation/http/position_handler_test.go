@@ -1,8 +1,8 @@
-package get_aggregation
+package http
 
 import (
 	di "HubInvestments/pck"
-	"HubInvestments/position/application/service"
+	"HubInvestments/position/application/usecase"
 	domain "HubInvestments/position/domain/model"
 	"encoding/json"
 	"net/http"
@@ -49,8 +49,9 @@ func TestGetAucAggregation_Success(t *testing.T) {
 		},
 	}
 
-	// Use the reusable TestContainer - much cleaner and more scalable!
-	testContainer := di.NewTestContainer().WithAucService(service.NewAucService(mockRepo))
+	// Use the reusable TestContainer with the new use case
+	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
+	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
 
 	req, err := http.NewRequest("GET", "/auc-aggregation", nil)
 	assert.NoError(t, err)
@@ -71,7 +72,7 @@ func TestGetAucAggregation_Success(t *testing.T) {
 	assert.Equal(t, float32(3475), response.PositionAggregation[0].CurrentTotal)
 	assert.Equal(t, float32(3250), response.PositionAggregation[0].TotalInvested)
 	assert.Equal(t, float32(225), response.PositionAggregation[0].Pnl)
-	assert.Equal(t, float32(10), response.PositionAggregation[0].PnlPercentage)
+	assert.Equal(t, float32(6.923077), response.PositionAggregation[0].PnlPercentage)
 	assert.Equal(t, int(2), len(response.PositionAggregation[0].Assets))
 
 	//ETFs
