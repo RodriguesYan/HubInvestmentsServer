@@ -32,8 +32,14 @@ To create a robust, scalable, and user-friendly investment platform that enables
 - Password encryption and validation
 - Token expiration and refresh mechanisms
 - Rate limiting for login attempts
+- Login method refactoring for better maintainability
+- Comprehensive unit testing for authentication flows
 
 **Current Status**: ✅ Implemented (auth module exists)
+
+**Pending Tasks**:
+- 📋 Refactor login methods into smaller, more maintainable functions
+- 📋 Implement comprehensive unit tests for login functionality
 
 ### 4.2 Portfolio Aggregation & Balance Management
 
@@ -85,14 +91,20 @@ To create a robust, scalable, and user-friendly investment platform that enables
 - Asset details and metadata
 - Market indicators and analytics
 - Search and filter capabilities
+- Live asset price quotations via WebSocket
 
 **Technical Requirements**:
 - Market data API integration
 - Redis caching for real-time data
 - PostgreSQL for historical data storage
-- WebSocket/SSE for real-time updates
+- WebSocket implementation for real-time asset price streaming
+- SSE (Server-Sent Events) as fallback for real-time updates
 
 **Current Status**: 📋 Planned
+
+**Pending Tasks**:
+- 📋 Implement WebSocket infrastructure for real-time asset quotations
+- 📋 Design and implement market data streaming architecture
 
 ### 4.5 Order Management System
 
@@ -221,52 +233,58 @@ To create a robust, scalable, and user-friendly investment platform that enables
 - ✅ Project structure and DDD implementation
 - 🔄 Database schema refinement
 - 🔄 Position service refactoring
+- 📋 Authentication method refactoring and testing
 
-### Phase 2: Data Management
+### Phase 2: Data Management & DevOps Setup
 - 📋 Instruments and balance tables creation
 - 📋 Repository pattern implementation
-- 📋 Docker containerization for database
-- 📋 Makefile for database operations
+- 📋 Docker containerization for database services
+- 📋 Makefile implementation for database operations (drop, recreate, populate)
+- 📋 Database automation scripts and tooling
 
-### Phase 3: Market Data & Watchlist
+### Phase 3: Market Data & Real-time Features
 - 📋 Market data service implementation
 - 📋 Redis integration for caching
 - 📋 Watchlist functionality
-- 📋 Real-time data feeds (WebSocket/SSE)
+- 📋 WebSocket implementation for real-time asset quotations
+- 📋 Real-time data feeds architecture
 
-### Phase 4: Order Management
+### Phase 4: Order Management & Message Queuing
 - 📋 Order management system
-- 📋 RabbitMQ integration
+- 📋 RabbitMQ integration for order queue management
 - 📋 Order worker implementation
 - 📋 Order validation and risk management
 
-### Phase 5: Production Readiness
-- 📋 SSL/TLS implementation
-- 📋 Nginx load balancer setup
-- 📋 CI/CD pipeline
+### Phase 5: Production Readiness & Security
+- 📋 SSL/TLS implementation and certificate management
+- 📋 Nginx load balancer setup with caching, proxy, and security features
+- 📋 CI/CD pipeline implementation
 - 📋 Comprehensive testing suite
-- 📋 API documentation (Swagger)
+- 📋 API documentation with Swagger/OpenAPI
 
-### Phase 6: Advanced Features
-- 📋 GRPC implementation
-- 📋 Microservices decomposition
+### Phase 6: Advanced Architecture & Features
+- 📋 gRPC implementation for inter-service communication
+- 📋 Microservices decomposition (optional but recommended)
 - 📋 Advanced analytics and reporting
 - 📋 Mobile API optimization
+- 📋 Performance monitoring and observability
 
 ## 8. Quality Assurance
 
 ### 8.1 Testing Strategy
-- **Unit Tests**: Individual component testing
+- **Unit Tests**: Individual component testing with focus on authentication flows
 - **Integration Tests**: Service interaction testing
 - **End-to-End Tests**: Complete user workflow testing
 - **Performance Tests**: Load and stress testing
 - **Security Tests**: Vulnerability and penetration testing
+- **Real-time Testing**: WebSocket connection and data streaming validation
 
 ### 8.2 Performance Requirements
 - **Response Time**: < 200ms for API calls
 - **Throughput**: Support 1000+ concurrent users
 - **Availability**: 99.9% uptime
 - **Data Accuracy**: Real-time data within 100ms latency
+- **WebSocket Performance**: Support 10,000+ concurrent WebSocket connections
 
 ## 9. Security Requirements
 
@@ -336,6 +354,68 @@ To create a robust, scalable, and user-friendly investment platform that enables
 - Cryptocurrency support
 - International market expansion
 - Advanced charting and technical analysis tools
+
+## 14. Technical Implementation Details
+
+### 14.1 Database Management
+**Makefile Operations**:
+- Database drop and recreation scripts
+- Table population with seed data
+- Migration management
+- Backup and restore procedures
+
+**Docker Integration**:
+- PostgreSQL containerization
+- Redis containerization
+- Development environment setup
+- Production-ready container configurations
+
+### 14.2 Real-time Data Architecture
+**WebSocket Implementation**:
+- Asset price quotation streaming
+- Connection management and scaling
+- Error handling and reconnection logic
+- Message queuing for offline clients
+
+**Message Queue Architecture**:
+- RabbitMQ setup for order processing
+- Queue management and monitoring
+- Dead letter queues for failed orders
+- Horizontal scaling considerations
+
+### 14.3 Security & Infrastructure
+**SSL/TLS Configuration**:
+- Certificate management and renewal
+- HTTPS enforcement
+- Secure WebSocket connections (WSS)
+- API endpoint security
+
+**Nginx Configuration**:
+- Load balancing strategies
+- Caching policies
+- Proxy configuration
+- Security headers and protection
+- Compression and optimization
+
+### 14.4 API Documentation
+**Swagger/OpenAPI Integration**:
+- Automated API documentation generation
+- Interactive API explorer
+- Schema validation
+- Code generation for client SDKs
+
+### 14.5 Microservices Architecture (Future)
+**Service Decomposition**:
+- Independent service deployment
+- Service discovery and registration
+- Circuit breaker patterns
+- Distributed tracing and monitoring
+
+**gRPC Implementation**:
+- Protocol buffer definitions
+- Service-to-service communication
+- Streaming capabilities
+- Performance optimization
 
 ---
 
