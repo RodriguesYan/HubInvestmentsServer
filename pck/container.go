@@ -4,7 +4,7 @@ import (
 	balService "HubInvestments/balance/application/service"
 	balancePersistence "HubInvestments/balance/infra/persistence"
 	posService "HubInvestments/position/application/service"
-	aucPersistence "HubInvestments/position/infra/persistency"
+	aucPersistence "HubInvestments/position/infra/persistence"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
