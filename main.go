@@ -3,6 +3,7 @@ package main
 import (
 	"HubInvestments/auth"
 	"HubInvestments/auth/token"
+	balanceHandler "HubInvestments/balance/presentation/http"
 	"HubInvestments/login"
 	di "HubInvestments/pck"
 	positionHandler "HubInvestments/position/presentation/http"
@@ -29,8 +30,11 @@ func main() {
 	}
 
 	http.HandleFunc("/login", login.Login)
-	http.HandleFunc("/getAucAggregationBalance", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/getAucAggregation", func(w http.ResponseWriter, r *http.Request) {
 		positionHandler.GetAucAggregation(w, r, verifyToken, container)
+	})
+	http.HandleFunc("/getBalance", func(w http.ResponseWriter, r *http.Request) {
+		balanceHandler.GetBalance(w, r, verifyToken, container)
 	})
 
 	err = http.ListenAndServe(portNum, nil)
