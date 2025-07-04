@@ -18,7 +18,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifie
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 	}
 
-	balance, err := container.GetBalanceService().GetBalance(userId)
+	balance, err := container.GetBalanceUseCase().Execute(userId)
 
 	if err != nil {
 		http.Error(w, "Failed to get balance: "+err.Error(), http.StatusInternalServerError)

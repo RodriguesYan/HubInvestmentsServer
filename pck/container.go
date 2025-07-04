@@ -2,6 +2,7 @@ package di
 
 import (
 	balService "HubInvestments/balance/application/service"
+	balUsecase "HubInvestments/balance/application/usecase"
 	balancePersistence "HubInvestments/balance/infra/persistence"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
@@ -13,14 +14,16 @@ import (
 
 type Container interface {
 	GetAucService() *posService.AucService
-	GetBalanceService() *balService.BalanceService
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
+	GetBalanceService() *balService.BalanceService
+	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 }
 
 type containerImpl struct {
 	AucService                 *posService.AucService
 	BalanceService             *balService.BalanceService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
+	BalanceUsecase             *balUsecase.GetBalanceUseCase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -33,6 +36,10 @@ func (c *containerImpl) GetBalanceService() *balService.BalanceService {
 
 func (c *containerImpl) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
 	return c.PositionAggregationUseCase
+}
+
+func (c *containerImpl) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
+	return c.BalanceUsecase
 }
 
 func NewContainer() (Container, error) {
@@ -48,10 +55,12 @@ func NewContainer() (Container, error) {
 
 	balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
 	balanceService := balService.NewBalanceService(balanceRepo)
+	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceService)
 
 	return &containerImpl{
 		AucService:                 aucService,
 		BalanceService:             balanceService,
 		PositionAggregationUseCase: positionAggregationUseCase,
+		BalanceUsecase:             balanceUsecase,
 	}, nil
 }

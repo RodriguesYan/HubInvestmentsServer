@@ -10,7 +10,59 @@
 - [x] Database schema for positions and instruments
 - **Result**: Solid foundation with clean architecture and working authentication
 
-### ⏳ Phase 2: Authentication & Login Improvements (IN PROGRESS)
+### ⏳ Phase 2: Portfolio Summary Implementation (IN PROGRESS)
+- [ ] **Step 1**: Create Portfolio Domain Model
+  - [ ] Create `portfolio/domain/model/` directory structure
+  - [ ] Implement `portfolio_summary_model.go` with PortfolioSummaryModel struct
+  - [ ] Add imports for balance and position domain models
+  - [ ] Include calculated fields (TotalPortfolioValue, LastUpdated)
+- [ ] **Step 2**: Create Balance Use Case (Missing Dependency)
+  - [ ] Create `balance/application/usecase/get_balance_usecase.go`
+  - [ ] Implement GetBalanceUseCase struct and Execute method
+  - [ ] Add proper error handling and validation
+- [ ] **Step 3**: Create Portfolio Use Case
+  - [ ] Create `portfolio/application/usecase/` directory
+  - [ ] Implement `get_portfolio_summary_usecase.go`
+  - [ ] Add dependency injection for Position and Balance use cases
+  - [ ] Implement orchestration logic for combining data
+  - [ ] Add business logic for calculating total portfolio value
+  - [ ] Include proper error handling and validation
+- [ ] **Step 4**: Create Portfolio Handler
+  - [ ] Create `portfolio/presentation/http/` directory
+  - [ ] Implement `portfolio_handler.go` with GetPortfolioSummary function
+  - [ ] Add authentication verification
+  - [ ] Implement proper HTTP error handling
+  - [ ] Add JSON serialization and response formatting
+- [ ] **Step 5**: Update Dependency Injection Container
+  - [ ] Add GetBalanceUseCase method to Container interface
+  - [ ] Add GetPortfolioSummaryUseCase method to Container interface
+  - [ ] Update containerImpl struct with new dependencies
+  - [ ] Modify NewContainer function to initialize new use cases
+  - [ ] Update TestContainer for testing support
+- [ ] **Step 6**: Add Portfolio Route to Main
+  - [ ] Import portfolio handler in main.go
+  - [ ] Add `/getPortfolioSummary` endpoint
+  - [ ] Wire up authentication and container dependencies
+- [ ] **Step 7**: Create Unit Tests
+  - [ ] Create `portfolio/presentation/http/portfolio_handler_test.go`
+  - [ ] Implement mock dependencies for testing
+  - [ ] Add test cases for success and error scenarios
+  - [ ] Test authentication and authorization flows
+- [ ] **Step 8**: Integration Testing
+  - [ ] Test complete flow from HTTP request to database
+  - [ ] Verify data aggregation and calculation logic
+  - [ ] Test error handling scenarios
+  - [ ] Validate JSON response format
+- [ ] **Step 9**: Documentation and Validation
+  - [ ] Update API documentation with new endpoint
+  - [ ] Add example request/response in comments
+  - [ ] Validate endpoint with real data
+  - [ ] Performance testing with concurrent requests
+- **Priority**: High - Core portfolio functionality combining position and balance data
+- **Dependencies**: Balance Use Case implementation, existing Position Use Case
+- **Result**: Single endpoint providing complete portfolio overview
+
+### ⏳ Phase 3: Authentication & Login Improvements
 - [ ] Refactor login methods into smaller, more maintainable functions
 - [ ] Implement comprehensive unit tests for login functionality
 - [ ] Add password complexity requirements validation
@@ -19,7 +71,7 @@
 - [ ] Implement secure password handling improvements
 - **Priority**: High - Security and maintainability improvements
 
-### ⏳ Phase 3: Database Infrastructure & DevOps Setup
+### ⏳ Phase 4: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
   - [ ] Instruments table with asset details
   - [ ] Enhanced balances table structure
@@ -32,7 +84,7 @@
 - [ ] Set up Redis containerization for caching
 - **Priority**: High - Foundation for all other features
 
-### ⏳ Phase 4: Market Data Service Implementation
+### ⏳ Phase 5: Market Data Service Implementation
 - [ ] Design and implement market data service architecture
 - [ ] Create asset search and discovery functionality
 - [ ] Implement asset details and metadata endpoints
@@ -42,7 +94,7 @@
 - [ ] Add asset comparison tools and filtering
 - **Priority**: High - Core business functionality
 
-### ⏳ Phase 5: Watchlist Management System
+### ⏳ Phase 6: Watchlist Management System
 - [ ] Create watchlist CRUD operations
 - [ ] Implement support for multiple watchlists per user
 - [ ] Add real-time price updates for watchlisted assets
@@ -52,7 +104,7 @@
 - [ ] Create watchlist showcase endpoint
 - **Priority**: Medium - User experience enhancement
 
-### ⏳ Phase 6: Order Management System
+### ⏳ Phase 7: Order Management System
 - [ ] Design comprehensive order management architecture
 - [ ] Implement RabbitMQ for order queue management
 - [ ] Create order validation service with risk management
@@ -63,7 +115,7 @@
 - [ ] Add compliance checks and audit trails
 - **Priority**: High - Core trading functionality
 
-### ⏳ Phase 7: Real-time Data & WebSocket Infrastructure
+### ⏳ Phase 8: Real-time Data & WebSocket Infrastructure
 - [ ] Implement WebSocket infrastructure for real-time asset quotations
 - [ ] Design and implement market data streaming architecture
 - [ ] Add SSE (Server-Sent Events) as fallback for real-time updates
@@ -73,7 +125,7 @@
 - [ ] Support 10,000+ concurrent WebSocket connections
 - **Priority**: Medium - Real-time features
 
-### ⏳ Phase 8: Security & Production Readiness
+### ⏳ Phase 9: Security & Production Readiness
 - [ ] Implement SSL/TLS encryption for all communications
 - [ ] Set up Nginx load balancer with caching and security features
 - [ ] Add WAF (Web Application Firewall) protection
@@ -84,7 +136,7 @@
 - [ ] Create security headers and protection policies
 - **Priority**: High - Production security requirements
 
-### ⏳ Phase 9: API Documentation & Testing
+### ⏳ Phase 10: API Documentation & Testing
 - [ ] Implement Swagger/OpenAPI documentation
 - [ ] Create interactive API explorer
 - [ ] Add automated API documentation generation
@@ -95,7 +147,7 @@
 - [ ] Implement security and penetration testing
 - **Priority**: Medium - Quality assurance and developer experience
 
-### ⏳ Phase 10: Advanced Architecture & Microservices
+### ⏳ Phase 11: Advanced Architecture & Microservices
 - [ ] Implement gRPC for inter-service communication
 - [ ] Design microservices decomposition strategy
 - [ ] Add service discovery and registration
@@ -105,7 +157,7 @@
 - [ ] Implement horizontal scaling considerations
 - **Priority**: Low - Advanced architecture (optional but recommended)
 
-### ⏳ Phase 11: Performance & Monitoring
+### ⏳ Phase 12: Performance & Monitoring
 - [ ] Implement application and infrastructure monitoring
 - [ ] Add performance metrics and alerting
 - [ ] Create database performance optimization
@@ -116,7 +168,7 @@
 - [ ] Implement real-time data within 100ms latency
 - **Priority**: Medium - Production performance requirements
 
-### ⏳ Phase 12: CI/CD & DevOps Pipeline
+### ⏳ Phase 13: CI/CD & DevOps Pipeline
 - [ ] Set up automated CI/CD pipeline
 - [ ] Implement automated testing in pipeline
 - [ ] Add code quality checks and linting
