@@ -18,6 +18,7 @@ type PositionAggregationModel struct {
 }
 
 type AucAggregationModel struct {
-	TotalBalance        float32                    `json:"totalBalance"`
+	TotalInvested       float32                    `json:"totalInvested"`
+	CurrentTotal        float32                    `json:"currentTotal"`
 	PositionAggregation []PositionAggregationModel `json:"positionAggregation"`
 }

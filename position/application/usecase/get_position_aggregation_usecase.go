@@ -20,20 +20,21 @@ func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggre
 		return domain.AucAggregationModel{}, err
 	}
 
-	positionAggregations := uc.aggregateAssetsByCategory(assets)
-
-	var totalBalance float32 = 0
+	positionAggregations, totalInvested, currentTotal := uc.aggregateAssetsByCategory(assets)
 
 	aucAggregation := domain.AucAggregationModel{
-		TotalBalance:        totalBalance,
+		TotalInvested:       totalInvested,
+		CurrentTotal:        currentTotal,
 		PositionAggregation: positionAggregations,
 	}
 
 	return aucAggregation, nil
 }
 
-func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []domain.AssetsModel) []domain.PositionAggregationModel {
+func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []domain.AssetsModel) (aggregation []domain.PositionAggregationModel, totalInvested float32, currentTotal float32) {
 	var positionAggregations []domain.PositionAggregationModel
+	var invested float32 = 0
+	var current float32 = 0
 
 	for _, element := range assets {
 		index := sort.Search(len(positionAggregations), func(i int) bool {
@@ -42,15 +43,19 @@ func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []doma
 
 		if index < len(positionAggregations) && positionAggregations[index].Category == element.Category {
 			uc.updateExistingAggregation(&positionAggregations[index], element)
+			invested += positionAggregations[index].TotalInvested
+			currentTotal += positionAggregations[index].CurrentTotal
 		} else {
 			newAggregation := uc.createNewAggregation(element)
 			positionAggregations = append(positionAggregations, domain.PositionAggregationModel{})
 			copy(positionAggregations[index+1:], positionAggregations[index:])
 			positionAggregations[index] = newAggregation
+			invested += positionAggregations[index].TotalInvested
+			currentTotal += positionAggregations[index].CurrentTotal
 		}
 	}
 
-	return positionAggregations
+	return positionAggregations, invested, current
 }
 
 func (uc *GetPositionAggregationUseCase) updateExistingAggregation(aggregation *domain.PositionAggregationModel, asset domain.AssetsModel) {

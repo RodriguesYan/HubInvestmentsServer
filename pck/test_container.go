@@ -2,6 +2,8 @@ package di
 
 import (
 	balService "HubInvestments/balance/application/service"
+	balUsecase "HubInvestments/balance/application/usecase"
+	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
 )
@@ -12,6 +14,8 @@ type TestContainer struct {
 	aucService                 *posService.AucService
 	balanceService             *balService.BalanceService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
+	getBalanceUsecase          *balUsecase.GetBalanceUseCase
+	getPortfolioSummary        *portfolioUsecase.GetPortfolioSummaryUsecase
 }
 
 // NewTestContainer creates a new test container with optional services
@@ -50,6 +54,14 @@ func (c *TestContainer) GetBalanceService() *balService.BalanceService {
 // GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil
 func (c *TestContainer) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
 	return c.positionAggregationUseCase
+}
+
+func (c *TestContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
+	return c.getBalanceUsecase
+}
+
+func (c *TestContainer) GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase {
+	return c.getPortfolioSummary
 }
 
 // Add new methods here as you add them to the Container interface

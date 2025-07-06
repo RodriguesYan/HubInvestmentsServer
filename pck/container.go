@@ -4,6 +4,7 @@ import (
 	balService "HubInvestments/balance/application/service"
 	balUsecase "HubInvestments/balance/application/usecase"
 	balancePersistence "HubInvestments/balance/infra/persistence"
+	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
 	positionPersistence "HubInvestments/position/infra/persistence"
@@ -17,6 +18,7 @@ type Container interface {
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
 	GetBalanceService() *balService.BalanceService
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
+	GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase
 }
 
 type containerImpl struct {
@@ -24,6 +26,7 @@ type containerImpl struct {
 	BalanceService             *balService.BalanceService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
+	PortfolioSummaryUsecase    *portfolioUsecase.GetPortfolioSummaryUsecase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -42,6 +45,10 @@ func (c *containerImpl) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
 	return c.BalanceUsecase
 }
 
+func (c *containerImpl) GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase {
+	return c.PortfolioSummaryUsecase
+}
+
 func NewContainer() (Container, error) {
 	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
 
@@ -57,10 +64,13 @@ func NewContainer() (Container, error) {
 	balanceService := balService.NewBalanceService(balanceRepo)
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceService)
 
+	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
+
 	return &containerImpl{
 		AucService:                 aucService,
 		BalanceService:             balanceService,
 		PositionAggregationUseCase: positionAggregationUseCase,
 		BalanceUsecase:             balanceUsecase,
+		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
 	}, nil
 }
