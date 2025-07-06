@@ -191,3 +191,6 @@
 - [ ] Cryptocurrency support
 - [ ] International market expansion
 - [ ] Advanced charting and technical analysis tools
+
+### Technical Debits
+- [ ] **Token Verification Duplication**: Handlers are repeating token verification logic - need to segregate into middleware to avoid code duplication

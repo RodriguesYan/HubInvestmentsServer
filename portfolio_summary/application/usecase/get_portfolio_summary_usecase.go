@@ -6,6 +6,7 @@ import (
 	"HubInvestments/portfolio_summary/domain/model"
 	posUsecase "HubInvestments/position/application/usecase"
 	domain "HubInvestments/position/domain/model"
+	"fmt"
 )
 
 type GetPortfolioSummaryUsecase struct {
@@ -16,8 +17,6 @@ type GetPortfolioSummaryUsecase struct {
 func NewGetPortfolioSummaryUsecase(position posUsecase.GetPositionAggregationUseCase, balance balUsecase.GetBalanceUseCase) *GetPortfolioSummaryUsecase {
 	return &GetPortfolioSummaryUsecase{position: position, balance: balance}
 }
-
-//TODO: depois preciso criar um handler dele e disponibilizar a rota
 
 func (uc *GetPortfolioSummaryUsecase) Execute(userId string) (model.PortfolioSummaryModel, error) {
 	balanceResult, err := uc.balance.Execute(userId)
@@ -32,12 +31,14 @@ func (uc *GetPortfolioSummaryUsecase) Execute(userId string) (model.PortfolioSum
 		return model.PortfolioSummaryModel{}, err
 	}
 
+	fmt.Println(positionResult.CurrentTotal)
+
 	totalPortfolio := getTotalPortfolio(balanceResult, positionResult)
 
 	return model.PortfolioSummaryModel{
 		Balance:             balanceResult,
-		PositionAggregation: positionResult.PositionAggregation,
 		TotalPortfolio:      totalPortfolio,
+		PositionAggregation: positionResult,
 	}, err
 }
 

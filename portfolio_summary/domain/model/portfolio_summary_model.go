@@ -7,7 +7,7 @@ import (
 
 type PortfolioSummaryModel struct {
 	Balance             balanceDomain.BalanceModel
-	PositionAggregation []positionDomain.PositionAggregationModel
 	TotalPortfolio      float32
 	LastUpdatedDate     string
+	PositionAggregation positionDomain.AucAggregationModel
 }

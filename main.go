@@ -6,6 +6,7 @@ import (
 	balanceHandler "HubInvestments/balance/presentation/http"
 	"HubInvestments/login"
 	di "HubInvestments/pck"
+	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/position/presentation/http"
 	"log"
 	"net/http"
@@ -35,6 +36,9 @@ func main() {
 	})
 	http.HandleFunc("/getBalance", func(w http.ResponseWriter, r *http.Request) {
 		balanceHandler.GetBalance(w, r, verifyToken, container)
+	})
+	http.HandleFunc("/getPortfolioSummary", func(w http.ResponseWriter, r *http.Request) {
+		portfolioSummaryHandler.GetPortfolioSummary(w, r, verifyToken, container)
 	})
 
 	err = http.ListenAndServe(portNum, nil)
