@@ -13,7 +13,7 @@ import (
 )
 
 // const portNum string = "localhost:8080"
-const portNum string = "192.168.0.4:8080" //My home IP
+const portNum string = "192.168.0.6:8080" //My home IP
 // const portNum string = "192.168.0.48:8080" //Camila's home IP
 
 func main() {

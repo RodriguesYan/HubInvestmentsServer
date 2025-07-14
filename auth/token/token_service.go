@@ -28,7 +28,7 @@ func (s *TokenService) CreateAndSignToken(userName string, userId string) (strin
 		jwt.MapClaims{
 			"username": userName,
 			"userId":   userId,
-			"exp":      time.Now().Add(time.Minute * 1).Unix(),
+			"exp":      time.Now().Add(time.Minute * 10).Unix(), //token expiration time = 1 min
 		})
 
 	tokenString, err := token.SignedString(secretKey)
