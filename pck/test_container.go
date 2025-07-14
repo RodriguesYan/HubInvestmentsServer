@@ -15,7 +15,7 @@ type TestContainer struct {
 	balanceService             *balService.BalanceService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
-	getPortfolioSummary        *portfolioUsecase.GetPortfolioSummaryUsecase
+	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
 }
 
 // NewTestContainer creates a new test container with optional services
@@ -41,6 +41,18 @@ func (c *TestContainer) WithPositionAggregationUseCase(usecase *posUsecase.GetPo
 	return c
 }
 
+// WithBalanceUseCase sets the BalanceUseCase for testing
+func (c *TestContainer) WithBalanceUseCase(usecase *balUsecase.GetBalanceUseCase) *TestContainer {
+	c.getBalanceUsecase = usecase
+	return c
+}
+
+// WithPortfolioSummaryUsecase sets the PortfolioSummaryUsecase for testing
+func (c *TestContainer) WithPortfolioSummaryUsecase(usecase portfolioUsecase.PortfolioSummaryUsecase) *TestContainer {
+	c.getPortfolioSummary = usecase
+	return c
+}
+
 // GetAucService returns the configured AucService or nil
 func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
@@ -60,7 +72,7 @@ func (c *TestContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
 	return c.getBalanceUsecase
 }
 
-func (c *TestContainer) GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase {
+func (c *TestContainer) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase {
 	return c.getPortfolioSummary
 }
 

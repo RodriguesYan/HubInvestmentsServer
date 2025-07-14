@@ -18,7 +18,7 @@ type Container interface {
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
 	GetBalanceService() *balService.BalanceService
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
-	GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase
+	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 }
 
 type containerImpl struct {
@@ -26,7 +26,7 @@ type containerImpl struct {
 	BalanceService             *balService.BalanceService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
-	PortfolioSummaryUsecase    *portfolioUsecase.GetPortfolioSummaryUsecase
+	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -45,7 +45,7 @@ func (c *containerImpl) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
 	return c.BalanceUsecase
 }
 
-func (c *containerImpl) GetPortfolioSummaryUsecase() *portfolioUsecase.GetPortfolioSummaryUsecase {
+func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase {
 	return c.PortfolioSummaryUsecase
 }
 

@@ -16,6 +16,7 @@ func GetPortfolioSummary(w http.ResponseWriter, r *http.Request, verifyToken Tok
 	userId, err := verifyToken(tokenString, w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
 	}
 
 	aggregation, err := container.GetPortfolioSummaryUsecase().Execute(userId)

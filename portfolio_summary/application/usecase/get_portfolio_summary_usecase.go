@@ -9,12 +9,17 @@ import (
 	"fmt"
 )
 
+// PortfolioSummaryUsecase interface defines the contract for portfolio summary operations
+type PortfolioSummaryUsecase interface {
+	Execute(userId string) (model.PortfolioSummaryModel, error)
+}
+
 type GetPortfolioSummaryUsecase struct {
 	balance  balUsecase.GetBalanceUseCase
 	position posUsecase.GetPositionAggregationUseCase
 }
 
-func NewGetPortfolioSummaryUsecase(position posUsecase.GetPositionAggregationUseCase, balance balUsecase.GetBalanceUseCase) *GetPortfolioSummaryUsecase {
+func NewGetPortfolioSummaryUsecase(position posUsecase.GetPositionAggregationUseCase, balance balUsecase.GetBalanceUseCase) PortfolioSummaryUsecase {
 	return &GetPortfolioSummaryUsecase{position: position, balance: balance}
 }
 
