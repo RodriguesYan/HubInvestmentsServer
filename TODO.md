@@ -99,6 +99,7 @@
 - **Priority**: Medium - Real-time features
 
 ### ⏳ Phase 3: Authentication & Login Improvements
+- [ ] Apply DDD pattern to login module
 - [ ] Refactor login methods into smaller, more maintainable functions
 - [ ] Implement comprehensive unit tests for login functionality
 - [ ] Add password complexity requirements validation
