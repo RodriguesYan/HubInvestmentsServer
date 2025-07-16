@@ -44,7 +44,7 @@
   - [x] Add `/getPortfolioSummary` endpoint
   - [x] Wire up authentication and container dependencies
 - [ ] **Step 7**: Create Unit Tests
-  - [ ] Create `portfolio/presentation/http/portfolio_handler_test.go`
+  - [x] Create `portfolio/presentation/http/portfolio_handler_test.go`
   - [ ] Implement mock dependencies for testing
   - [ ] Add test cases for success and error scenarios
   - [ ] Test authentication and authorization flows
