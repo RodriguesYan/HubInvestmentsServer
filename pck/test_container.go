@@ -1,7 +1,6 @@
 package di
 
 import (
-	balService "HubInvestments/balance/application/service"
 	balUsecase "HubInvestments/balance/application/usecase"
 	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
 	posService "HubInvestments/position/application/service"
@@ -12,7 +11,6 @@ import (
 // It implements the Container interface with configurable services
 type TestContainer struct {
 	aucService                 *posService.AucService
-	balanceService             *balService.BalanceService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
 	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
@@ -26,12 +24,6 @@ func NewTestContainer() *TestContainer {
 // WithAucService sets the AucService for testing
 func (c *TestContainer) WithAucService(service *posService.AucService) *TestContainer {
 	c.aucService = service
-	return c
-}
-
-// WithBalanceService sets the BalanceService for testing
-func (c *TestContainer) WithBalanceService(service *balService.BalanceService) *TestContainer {
-	c.balanceService = service
 	return c
 }
 
@@ -56,11 +48,6 @@ func (c *TestContainer) WithPortfolioSummaryUsecase(usecase portfolioUsecase.Por
 // GetAucService returns the configured AucService or nil
 func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
-}
-
-// GetBalanceService returns the configured BalanceService or nil
-func (c *TestContainer) GetBalanceService() *balService.BalanceService {
-	return c.balanceService
 }
 
 // GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil

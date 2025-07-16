@@ -83,9 +83,9 @@
 				
 				<option value="file13">HubInvestments/position/application/usecase/get_position_aggregation_usecase.go (100.0%)</option>
 				
-				<option value="file14">HubInvestments/position/infra/dto/mapper.go (0.0%)</option>
+				<option value="file14">HubInvestments/position/infra/dto/mapper.go (85.7%)</option>
 				
-				<option value="file15">HubInvestments/position/infra/persistence/sqlx_position_repository.go (0.0%)</option>
+				<option value="file15">HubInvestments/position/infra/persistence/sqlx_position_repository.go (100.0%)</option>
 				
 				<option value="file16">HubInvestments/position/presentation/http/position_handler.go (60.0%)</option>
 				
@@ -917,12 +917,12 @@ import domain "HubInvestments/position/domain/model"
 type AssetMapper struct{}
 
 // NewAssetMapper creates a new asset mapper
-func NewAssetMapper() *AssetMapper <span class="cov0" title="0">{
+func NewAssetMapper() *AssetMapper <span class="cov8" title="1">{
         return &amp;AssetMapper{}
 }</span>
 
 // ToDomain converts AssetDTO to domain.AssetsModel
-func (m *AssetMapper) ToDomain(dto AssetDTO) domain.AssetsModel <span class="cov0" title="0">{
+func (m *AssetMapper) ToDomain(dto AssetDTO) domain.AssetsModel <span class="cov8" title="1">{
         return domain.AssetsModel{
                 Symbol:       dto.Symbol,
                 Quantity:     dto.Quantity,
@@ -944,12 +944,12 @@ func (m *AssetMapper) ToDTO(model domain.AssetsModel) AssetDTO <span class="cov0
 }</span>
 
 // ToDomainSlice converts a slice of AssetDTO to slice of domain.AssetsModel
-func (m *AssetMapper) ToDomainSlice(dtos []AssetDTO) []domain.AssetsModel <span class="cov0" title="0">{
+func (m *AssetMapper) ToDomainSlice(dtos []AssetDTO) []domain.AssetsModel <span class="cov8" title="1">{
         models := make([]domain.AssetsModel, len(dtos))
-        for i, dto := range dtos </span><span class="cov0" title="0">{
+        for i, dto := range dtos </span><span class="cov8" title="1">{
                 models[i] = m.ToDomain(dto)
         }</span>
-        <span class="cov0" title="0">return models</span>
+        <span class="cov8" title="1">return models</span>
 }
 </pre>
 		
@@ -969,14 +969,14 @@ type SQLXPositionRepository struct {
         mapper *dto.AssetMapper
 }
 
-func NewSQLXPositionRepository(db *sqlx.DB) repository.PositionRepository <span class="cov0" title="0">{
+func NewSQLXPositionRepository(db *sqlx.DB) repository.PositionRepository <span class="cov8" title="1">{
         return &amp;SQLXPositionRepository{
                 db:     db,
                 mapper: dto.NewAssetMapper(),
         }
 }</span>
 
-func (r *SQLXPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) <span class="cov0" title="0">{
+func (r *SQLXPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) <span class="cov8" title="1">{
         query := `
         SELECT         i.symbol, 
                         p.average_price, 
@@ -989,12 +989,12 @@ func (r *SQLXPositionRepository) GetPositionsByUserId(userId string) ([]domain.A
 
         var assetDTOs []dto.AssetDTO
         err := r.db.Select(&amp;assetDTOs, query, userId)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return nil, fmt.Errorf("failed to get positions for user %s: %w", userId, err)
         }</span>
 
         // Convert DTOs to domain models using mapper
-        <span class="cov0" title="0">return r.mapper.ToDomainSlice(assetDTOs), nil</span>
+        <span class="cov8" title="1">return r.mapper.ToDomainSlice(assetDTOs), nil</span>
 }
 </pre>
 		

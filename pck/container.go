@@ -1,7 +1,6 @@
 package di
 
 import (
-	balService "HubInvestments/balance/application/service"
 	balUsecase "HubInvestments/balance/application/usecase"
 	balancePersistence "HubInvestments/balance/infra/persistence"
 	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
@@ -16,14 +15,12 @@ import (
 type Container interface {
 	GetAucService() *posService.AucService
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
-	GetBalanceService() *balService.BalanceService
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 }
 
 type containerImpl struct {
 	AucService                 *posService.AucService
-	BalanceService             *balService.BalanceService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
@@ -31,10 +28,6 @@ type containerImpl struct {
 
 func (c *containerImpl) GetAucService() *posService.AucService {
 	return c.AucService
-}
-
-func (c *containerImpl) GetBalanceService() *balService.BalanceService {
-	return c.BalanceService
 }
 
 func (c *containerImpl) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
@@ -61,14 +54,12 @@ func NewContainer() (Container, error) {
 	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
 
 	balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
-	balanceService := balService.NewBalanceService(balanceRepo)
-	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceService)
+	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
 
 	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
 
 	return &containerImpl{
 		AucService:                 aucService,
-		BalanceService:             balanceService,
 		PositionAggregationUseCase: positionAggregationUseCase,
 		BalanceUsecase:             balanceUsecase,
 		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
