@@ -5,7 +5,10 @@ import (
 	balDomain "HubInvestments/balance/domain/model"
 	posUsecase "HubInvestments/position/application/usecase"
 	posModel "HubInvestments/position/domain/model"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // Mock repository for positions
@@ -92,4 +95,49 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 	if len(categoryAgg.Assets) != 2 {
 		t.Errorf("Expected 2 assets in category 1, got %d", len(categoryAgg.Assets))
 	}
+}
+
+func TestGetPortfolioSummary_BalanceFailure(t *testing.T) {
+	// Arrange - Create mock data
+	mockBalance := balDomain.BalanceModel{}
+	mockPositions := []posModel.AssetsModel{
+		{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
+		{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
+	}
+
+	// Create mock repositories
+	mockBalanceRepo := &MockBalanceRepository{balance: mockBalance, err: errors.New("Failed to get balance")}
+	mockPositionRepo := &MockPositionRepository{positions: mockPositions, err: nil}
+
+	// Create real use cases with mocked repositories
+	balanceUsecase := balUsecase.NewGetBalanceUseCase(mockBalanceRepo)
+	positionUsecase := posUsecase.NewGetPositionAggregationUseCase(mockPositionRepo)
+
+	// Create the actual GetPortfolioSummaryUsecase we want to test
+	portfolioUsecase := NewGetPortfolioSummaryUsecase(*positionUsecase, *balanceUsecase)
+	_, err := portfolioUsecase.Execute("testUser")
+
+	assert.Error(t, err)
+	assert.Equal(t, "Failed to get balance", err.Error())
+}
+
+func TestGetPortfolioSummary_PositionFailure(t *testing.T) {
+	// Arrange - Create mock data
+	mockBalance := balDomain.BalanceModel{}
+	mockPositions := []posModel.AssetsModel{}
+
+	// Create mock repositories
+	mockBalanceRepo := &MockBalanceRepository{balance: mockBalance, err: nil}
+	mockPositionRepo := &MockPositionRepository{positions: mockPositions, err: errors.New("Failed to get position")}
+
+	// Create real use cases with mocked repositories
+	balanceUsecase := balUsecase.NewGetBalanceUseCase(mockBalanceRepo)
+	positionUsecase := posUsecase.NewGetPositionAggregationUseCase(mockPositionRepo)
+
+	// Create the actual GetPortfolioSummaryUsecase we want to test
+	portfolioUsecase := NewGetPortfolioSummaryUsecase(*positionUsecase, *balanceUsecase)
+	_, err := portfolioUsecase.Execute("testUser")
+
+	assert.Error(t, err)
+	assert.Equal(t, "Failed to get position", err.Error())
 }
