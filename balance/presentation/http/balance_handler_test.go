@@ -3,6 +3,7 @@ package http
 import (
 	"HubInvestments/balance/application/usecase"
 	domain "HubInvestments/balance/domain/model"
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"encoding/json"
 	"errors"
@@ -24,14 +25,14 @@ func (m *MockBalanceRepository) GetBalance(userId string) (domain.BalanceModel, 
 }
 
 // Helper function to create a successful token verifier
-func createSuccessfulTokenVerifier(expectedUserId string) TokenVerifier {
+func createSuccessfulTokenVerifier(expectedUserId string) middleware.TokenVerifier {
 	return func(token string, w http.ResponseWriter) (string, error) {
 		return expectedUserId, nil
 	}
 }
 
 // Helper function to create a failing token verifier
-func createFailingTokenVerifier(errorMsg string) TokenVerifier {
+func createFailingTokenVerifier(errorMsg string) middleware.TokenVerifier {
 	return func(token string, w http.ResponseWriter) (string, error) {
 		return "", errors.New(errorMsg)
 	}
@@ -43,6 +44,32 @@ func createTestContainer(balanceUsecase *usecase.GetBalanceUseCase) di.Container
 }
 
 func TestGetBalance_Success(t *testing.T) {
+	req, err := http.NewRequest("GET", "/getBalance", nil)
+	assert.NoError(t, err)
+
+	expectedUserId := "user123"
+	rr := httptest.NewRecorder()
+
+	expectedBalance := domain.BalanceModel{
+		AvailableBalance: 10000,
+	}
+
+	mockRepo := &MockBalanceRepository{result: expectedBalance, err: nil}
+	balanceUsecase := usecase.NewGetBalanceUseCase(mockRepo)
+	testContainer := createTestContainer(balanceUsecase)
+
+	// Test the direct handler (without middleware authentication)
+	GetBalance(rr, req, expectedUserId, testContainer)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var actualBalance domain.BalanceModel
+	err = json.Unmarshal(rr.Body.Bytes(), &actualBalance)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBalance, actualBalance)
+}
+
+func TestGetBalanceWithAuth_Success(t *testing.T) {
 	req, err := http.NewRequest("GET", "/getBalance", nil)
 	assert.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer valid-token")
@@ -59,7 +86,9 @@ func TestGetBalance_Success(t *testing.T) {
 	testContainer := createTestContainer(balanceUsecase)
 	verifyToken := createSuccessfulTokenVerifier(expectedUserId)
 
-	GetBalance(rr, req, verifyToken, testContainer)
+	// Test the middleware-wrapped handler
+	handler := GetBalanceWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
@@ -70,7 +99,7 @@ func TestGetBalance_Success(t *testing.T) {
 	assert.Equal(t, expectedBalance, actualBalance)
 }
 
-func TestGetBalance_AuthenticationFailure(t *testing.T) {
+func TestGetBalanceWithAuth_AuthenticationFailure(t *testing.T) {
 	rr := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/getBalance", nil)
 	verifyToken := createFailingTokenVerifier("invalid token")
@@ -78,7 +107,9 @@ func TestGetBalance_AuthenticationFailure(t *testing.T) {
 	balanceUsecase := usecase.NewGetBalanceUseCase(mockRepo)
 	testContainer := createTestContainer(balanceUsecase)
 
-	GetBalance(rr, req, verifyToken, testContainer)
+	// Test the middleware-wrapped handler
+	handler := GetBalanceWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	// Assert
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
@@ -89,7 +120,6 @@ func TestGetBalance_UseCaseError(t *testing.T) {
 	// Arrange
 	req, err := http.NewRequest("GET", "/getBalance", nil)
 	assert.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer valid-token")
 
 	rr := httptest.NewRecorder()
 	useCaseError := errors.New("database connection failed")
@@ -97,10 +127,9 @@ func TestGetBalance_UseCaseError(t *testing.T) {
 	mockRepo := &MockBalanceRepository{err: useCaseError}
 	balanceUsecase := usecase.NewGetBalanceUseCase(mockRepo)
 	testContainer := createTestContainer(balanceUsecase)
-	verifyToken := createSuccessfulTokenVerifier("user123")
 
-	// Act
-	GetBalance(rr, req, verifyToken, testContainer)
+	// Act - Test the direct handler
+	GetBalance(rr, req, "user123", testContainer)
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -111,7 +140,6 @@ func TestGetBalance_JSONMarshalError(t *testing.T) {
 	// Arrange
 	req, err := http.NewRequest("GET", "/getBalance", nil)
 	assert.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer valid-token")
 
 	rr := httptest.NewRecorder()
 
@@ -123,10 +151,9 @@ func TestGetBalance_JSONMarshalError(t *testing.T) {
 	mockRepo := &MockBalanceRepository{result: unmarshallableBalance}
 	balanceUsecase := usecase.NewGetBalanceUseCase(mockRepo)
 	testContainer := createTestContainer(balanceUsecase)
-	verifyToken := createSuccessfulTokenVerifier("user123")
 
-	// Act
-	GetBalance(rr, req, verifyToken, testContainer)
+	// Act - Test the direct handler
+	GetBalance(rr, req, "user123", testContainer)
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)

@@ -1,25 +1,15 @@
 package http
 
 import (
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
-type TokenVerifier func(string, http.ResponseWriter) (string, error)
-
-func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) {
-	w.Header().Set("Content-Type", "application/json")
-	tokenString := r.Header.Get("Authorization")
-
-	// Authentication
-	userId, err := verifyToken(tokenString, w)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
+// GetAucAggregation handles position aggregation retrieval for authenticated users
+func GetAucAggregation(w http.ResponseWriter, r *http.Request, userId string, container di.Container) {
 	// Execute use case
 	aucAggregation, err := container.GetPositionAggregationUseCase().Execute(userId)
 	if err != nil {
@@ -35,4 +25,11 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
 	}
 
 	fmt.Fprint(w, string(result))
+}
+
+// GetAucAggregationWithAuth returns a handler wrapped with authentication middleware
+func GetAucAggregationWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc {
+	return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) {
+		GetAucAggregation(w, r, userId, container)
+	})
 }

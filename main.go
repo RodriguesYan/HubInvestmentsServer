@@ -5,6 +5,7 @@ import (
 	"HubInvestments/auth/token"
 	balanceHandler "HubInvestments/balance/presentation/http"
 	"HubInvestments/login"
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/position/presentation/http"
@@ -20,9 +21,9 @@ func main() {
 	tokenService := token.NewTokenService()
 	aucService := auth.NewAuthService(tokenService)
 
-	verifyToken := func(token string, w http.ResponseWriter) (string, error) {
+	verifyToken := middleware.TokenVerifier(func(token string, w http.ResponseWriter) (string, error) {
 		return aucService.VerifyToken(token, w)
-	}
+	})
 
 	container, err := di.NewContainer()
 
@@ -31,15 +32,9 @@ func main() {
 	}
 
 	http.HandleFunc("/login", login.Login)
-	http.HandleFunc("/getAucAggregation", func(w http.ResponseWriter, r *http.Request) {
-		positionHandler.GetAucAggregation(w, r, verifyToken, container)
-	})
-	http.HandleFunc("/getBalance", func(w http.ResponseWriter, r *http.Request) {
-		balanceHandler.GetBalance(w, r, verifyToken, container)
-	})
-	http.HandleFunc("/getPortfolioSummary", func(w http.ResponseWriter, r *http.Request) {
-		portfolioSummaryHandler.GetPortfolioSummary(w, r, verifyToken, container)
-	})
+	http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
+	http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
+	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
 
 	err = http.ListenAndServe(portNum, nil)
 	if err != nil {

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"HubInvestments/position/application/usecase"
 	domain "HubInvestments/position/domain/model"
@@ -37,9 +38,55 @@ func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.A
 
 func TestGetAucAggregation_Success(t *testing.T) {
 	// Mock dependencies
-	verifyToken := func(token string, w http.ResponseWriter) (string, error) {
-		return "user123", nil
+	expectedUserId := "user123"
+
+	mockRepo := &MockPositionRepository{
+		aggregations: []domain.AssetsModel{
+			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
+			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
+			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
+		},
 	}
+
+	// Use the reusable TestContainer with the new use case
+	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
+	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
+
+	req, err := http.NewRequest("GET", "/auc-aggregation", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	// Test the direct handler (without middleware authentication)
+	GetAucAggregation(rr, req, expectedUserId, testContainer)
+
+	// Check the response
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var response domain.AucAggregationModel
+	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	//Stocks
+	assert.Equal(t, float32(3475), response.PositionAggregation[0].CurrentTotal)
+	assert.Equal(t, float32(3250), response.PositionAggregation[0].TotalInvested)
+	assert.Equal(t, float32(225), response.PositionAggregation[0].Pnl)
+	assert.Equal(t, float32(6.923077), response.PositionAggregation[0].PnlPercentage)
+	assert.Equal(t, int(2), len(response.PositionAggregation[0].Assets))
+
+	//ETFs
+	assert.Equal(t, float32(8325), response.PositionAggregation[1].CurrentTotal)
+	assert.Equal(t, float32(6750), response.PositionAggregation[1].TotalInvested)
+	assert.Equal(t, float32(1575), response.PositionAggregation[1].Pnl)
+	assert.Equal(t, float32(23.333334), response.PositionAggregation[1].PnlPercentage)
+	assert.Equal(t, int(1), len(response.PositionAggregation[1].Assets))
+}
+
+func TestGetAucAggregationWithAuth_Success(t *testing.T) {
+	// Mock dependencies
+	expectedUserId := "user123"
+	verifyToken := middleware.TokenVerifier(func(token string, w http.ResponseWriter) (string, error) {
+		return expectedUserId, nil
+	})
 
 	mockRepo := &MockPositionRepository{
 		aggregations: []domain.AssetsModel{
@@ -58,7 +105,9 @@ func TestGetAucAggregation_Success(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer token")
 
 	rr := httptest.NewRecorder()
-	GetAucAggregation(rr, req, verifyToken, testContainer)
+	// Test the middleware-wrapped handler
+	handler := GetAucAggregationWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	// Check the response
 	assert.Equal(t, http.StatusOK, rr.Code)

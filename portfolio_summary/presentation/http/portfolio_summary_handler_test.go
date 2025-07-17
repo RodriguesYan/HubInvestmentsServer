@@ -2,6 +2,7 @@ package http
 
 import (
 	balDomain "HubInvestments/balance/domain/model"
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"HubInvestments/portfolio_summary/application/usecase"
 	"HubInvestments/portfolio_summary/domain/model"
@@ -29,14 +30,14 @@ func (m *MockPortfolioSummaryUsecase) Execute(userId string) (model.PortfolioSum
 }
 
 // Helper function to create a successful token verifier
-func createSuccessfulTokenVerifier(expectedUserId string) TokenVerifier {
+func createSuccessfulTokenVerifier(expectedUserId string) middleware.TokenVerifier {
 	return func(token string, w http.ResponseWriter) (string, error) {
 		return expectedUserId, nil
 	}
 }
 
 // Helper function to create a failing token verifier
-func createFailingTokenVerifier(errorMsg string) TokenVerifier {
+func createFailingTokenVerifier(errorMsg string) middleware.TokenVerifier {
 	return func(token string, w http.ResponseWriter) (string, error) {
 		return "", errors.New(errorMsg)
 	}
@@ -75,6 +76,57 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 
 	mockUsecase := &MockPortfolioSummaryUsecase{result: expectedResult, err: nil}
 	testContainer := createTestContainer(mockUsecase)
+
+	// Create request
+	req, err := http.NewRequest("GET", "/getPortfolioSummary", nil)
+	assert.NoError(t, err)
+
+	// Act - Test the direct handler (without middleware authentication)
+	rr := httptest.NewRecorder()
+	GetPortfolioSummary(rr, req, expectedUserId, testContainer)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var response model.PortfolioSummaryModel
+	err = json.Unmarshal(rr.Body.Bytes(), &response)
+	assert.NoError(t, err)
+
+	// Verify the response matches expected result
+	assert.Equal(t, expectedResult.Balance.AvailableBalance, response.Balance.AvailableBalance)
+	assert.Equal(t, expectedResult.TotalPortfolio, response.TotalPortfolio)
+	assert.Equal(t, expectedResult.PositionAggregation.TotalInvested, response.PositionAggregation.TotalInvested)
+	assert.Equal(t, expectedResult.PositionAggregation.CurrentTotal, response.PositionAggregation.CurrentTotal)
+}
+
+func TestGetPortfolioSummaryWithAuth_Success(t *testing.T) {
+	// Arrange
+	expectedUserId := "user123"
+	expectedResult := model.PortfolioSummaryModel{
+		Balance:         balDomain.BalanceModel{AvailableBalance: 5000.0},
+		TotalPortfolio:  17000.0,
+		LastUpdatedDate: "",
+		PositionAggregation: posDomain.AucAggregationModel{
+			TotalInvested: 11500.0,
+			CurrentTotal:  12000.0,
+			PositionAggregation: []posDomain.PositionAggregationModel{
+				{
+					Category:      1,
+					TotalInvested: 6500.0,
+					CurrentTotal:  6750.0,
+					Pnl:           250.0,
+					PnlPercentage: 3.85,
+					Assets: []posDomain.AssetsModel{
+						{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
+						{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
+					},
+				},
+			},
+		},
+	}
+
+	mockUsecase := &MockPortfolioSummaryUsecase{result: expectedResult, err: nil}
+	testContainer := createTestContainer(mockUsecase)
 	verifyToken := createSuccessfulTokenVerifier(expectedUserId)
 
 	// Create request
@@ -82,9 +134,10 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 	assert.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer valid-token")
 
-	// Act
+	// Act - Test the middleware-wrapped handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	handler := GetPortfolioSummaryWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	// Assert
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -101,7 +154,7 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 	assert.Equal(t, expectedResult.PositionAggregation.CurrentTotal, response.PositionAggregation.CurrentTotal)
 }
 
-func TestGetPortfolioSummary_AuthenticationFailure(t *testing.T) {
+func TestGetPortfolioSummaryWithAuth_AuthenticationFailure(t *testing.T) {
 	// Arrange
 	mockUsecase := &MockPortfolioSummaryUsecase{result: model.PortfolioSummaryModel{}, err: nil}
 	testContainer := createTestContainer(mockUsecase)
@@ -112,9 +165,10 @@ func TestGetPortfolioSummary_AuthenticationFailure(t *testing.T) {
 	assert.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer invalid-token")
 
-	// Act
+	// Act - Test the middleware-wrapped handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	handler := GetPortfolioSummaryWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	// Assert
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
@@ -129,16 +183,14 @@ func TestGetPortfolioSummary_UseCaseError(t *testing.T) {
 		err:    errors.New("database connection failed"),
 	}
 	testContainer := createTestContainer(mockUsecase)
-	verifyToken := createSuccessfulTokenVerifier(expectedUserId)
 
 	// Create request
 	req, err := http.NewRequest("GET", "/getPortfolioSummary", nil)
 	assert.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer valid-token")
 
-	// Act
+	// Act - Test the direct handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	GetPortfolioSummary(rr, req, expectedUserId, testContainer)
 
 	// Assert
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -162,16 +214,14 @@ func TestGetPortfolioSummary_EmptyPortfolio(t *testing.T) {
 
 	mockUsecase := &MockPortfolioSummaryUsecase{result: expectedResult, err: nil}
 	testContainer := createTestContainer(mockUsecase)
-	verifyToken := createSuccessfulTokenVerifier(expectedUserId)
 
 	// Create request
 	req, err := http.NewRequest("GET", "/getPortfolioSummary", nil)
 	assert.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer valid-token")
 
-	// Act
+	// Act - Test the direct handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	GetPortfolioSummary(rr, req, expectedUserId, testContainer)
 
 	// Assert
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -187,7 +237,7 @@ func TestGetPortfolioSummary_EmptyPortfolio(t *testing.T) {
 	assert.Equal(t, float32(0), response.PositionAggregation.CurrentTotal)
 }
 
-func TestGetPortfolioSummary_MissingAuthorizationHeader(t *testing.T) {
+func TestGetPortfolioSummaryWithAuth_MissingAuthorizationHeader(t *testing.T) {
 	// Arrange
 	mockUsecase := &MockPortfolioSummaryUsecase{result: model.PortfolioSummaryModel{}, err: nil}
 	testContainer := createTestContainer(mockUsecase)
@@ -197,9 +247,10 @@ func TestGetPortfolioSummary_MissingAuthorizationHeader(t *testing.T) {
 	req, err := http.NewRequest("GET", "/getPortfolioSummary", nil)
 	assert.NoError(t, err)
 
-	// Act
+	// Act - Test the middleware-wrapped handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	handler := GetPortfolioSummaryWithAuth(verifyToken, testContainer)
+	handler(rr, req)
 
 	// Assert
 	assert.Equal(t, http.StatusUnauthorized, rr.Code)
@@ -233,20 +284,17 @@ func TestGetPortfolioSummary_JSONResponseStructure(t *testing.T) {
 
 	mockUsecase := &MockPortfolioSummaryUsecase{result: expectedResult, err: nil}
 	testContainer := createTestContainer(mockUsecase)
-	verifyToken := createSuccessfulTokenVerifier(expectedUserId)
 
 	// Create request
 	req, err := http.NewRequest("GET", "/getPortfolioSummary", nil)
 	assert.NoError(t, err)
-	req.Header.Set("Authorization", "Bearer valid-token")
 
-	// Act
+	// Act - Test the direct handler
 	rr := httptest.NewRecorder()
-	GetPortfolioSummary(rr, req, verifyToken, testContainer)
+	GetPortfolioSummary(rr, req, expectedUserId, testContainer)
 
 	// Assert
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
 
 	// Parse JSON response
 	var jsonResponse map[string]interface{}

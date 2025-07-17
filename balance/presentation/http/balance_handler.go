@@ -1,24 +1,15 @@
 package http
 
 import (
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
-type TokenVerifier func(string, http.ResponseWriter) (string, error)
-
-func GetBalance(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) {
-	w.Header().Set("Content-Type", "application/json")
-	tokenString := r.Header.Get("Authorization")
-
-	userId, err := verifyToken(tokenString, w)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
-		return
-	}
-
+// GetBalance handles balance retrieval for authenticated users
+func GetBalance(w http.ResponseWriter, r *http.Request, userId string, container di.Container) {
 	balance, err := container.GetBalanceUseCase().Execute(userId)
 
 	if err != nil {
@@ -33,4 +24,11 @@ func GetBalance(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifie
 	}
 
 	fmt.Fprint(w, string(result))
+}
+
+// GetBalanceWithAuth returns a handler wrapped with authentication middleware
+func GetBalanceWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc {
+	return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) {
+		GetBalance(w, r, userId, container)
+	})
 }
