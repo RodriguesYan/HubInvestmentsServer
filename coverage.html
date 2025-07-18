@@ -59,25 +59,25 @@
 				
 				<option value="file1">HubInvestments/auth/token/token_service.go (0.0%)</option>
 				
-				<option value="file2">HubInvestments/balance/application/service/balance_service.go (0.0%)</option>
+				<option value="file2">HubInvestments/balance/application/usecase/get_balance_usecase.go (100.0%)</option>
 				
-				<option value="file3">HubInvestments/balance/application/usecase/get_balance_usecase.go (100.0%)</option>
+				<option value="file3">HubInvestments/balance/infra/persistence/sqlx_balance_repository.go (0.0%)</option>
 				
-				<option value="file4">HubInvestments/balance/infra/persistence/sqlx_balance_repository.go (0.0%)</option>
+				<option value="file4">HubInvestments/balance/presentation/http/balance_handler.go (100.0%)</option>
 				
-				<option value="file5">HubInvestments/balance/presentation/http/balance_handler.go (0.0%)</option>
+				<option value="file5">HubInvestments/login/login.go (0.0%)</option>
 				
-				<option value="file6">HubInvestments/login/login.go (0.0%)</option>
+				<option value="file6">HubInvestments/main.go (0.0%)</option>
 				
-				<option value="file7">HubInvestments/main.go (0.0%)</option>
+				<option value="file7">HubInvestments/middleware/auth_middleware.go (100.0%)</option>
 				
 				<option value="file8">HubInvestments/pck/container.go (0.0%)</option>
 				
-				<option value="file9">HubInvestments/pck/test_container.go (43.8%)</option>
+				<option value="file9">HubInvestments/pck/test_container.go (76.9%)</option>
 				
 				<option value="file10">HubInvestments/portfolio_summary/application/usecase/get_portfolio_summary_usecase.go (100.0%)</option>
 				
-				<option value="file11">HubInvestments/portfolio_summary/presentation/http/portfolio_summary_handler.go (86.7%)</option>
+				<option value="file11">HubInvestments/portfolio_summary/presentation/http/portfolio_summary_handler.go (81.8%)</option>
 				
 				<option value="file12">HubInvestments/position/application/service/auc_service.go (0.0%)</option>
 				
@@ -87,7 +87,7 @@
 				
 				<option value="file15">HubInvestments/position/infra/persistence/sqlx_position_repository.go (100.0%)</option>
 				
-				<option value="file16">HubInvestments/position/presentation/http/position_handler.go (60.0%)</option>
+				<option value="file16">HubInvestments/position/presentation/http/position_handler.go (63.6%)</option>
 				
 				</select>
 			</div>
@@ -232,31 +232,7 @@ func validateToken(token *jwt.Token) (jwt.MapClaims, error) <span class="cov0" t
 }
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">package service
-
-import (
-        domain "HubInvestments/balance/domain/model"
-        "HubInvestments/balance/domain/repository"
-)
-
-type BalanceServiceInterface interface {
-        GetBalance(userId string) (domain.BalanceModel, error)
-}
-
-type BalanceService struct {
-        repo repository.BalanceRepository
-}
-
-func NewBalanceService(repo repository.BalanceRepository) *BalanceService <span class="cov0" title="0">{
-        return &amp;BalanceService{repo: repo}
-}</span>
-
-func (s *BalanceService) GetBalance(userId string) (domain.BalanceModel, error) <span class="cov0" title="0">{
-        return s.repo.GetBalance(userId)
-}</span>
-</pre>
-		
-		<pre class="file" id="file3" style="display: none">package usecase
+		<pre class="file" id="file2" style="display: none">package usecase
 
 import (
         domain "HubInvestments/balance/domain/model"
@@ -281,7 +257,7 @@ func (uc *GetBalanceUseCase) Execute(userId string) (domain.BalanceModel, error)
 }
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">package persistence
+		<pre class="file" id="file3" style="display: none">package persistence
 
 import (
         domain "HubInvestments/balance/domain/model"
@@ -330,44 +306,43 @@ func (r *SQLXBalanceRepository) GetBalance(userId string) (domain.BalanceModel, 
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">package http
+		<pre class="file" id="file4" style="display: none">package http
 
 import (
+        "HubInvestments/middleware"
         di "HubInvestments/pck"
         "encoding/json"
         "fmt"
         "net/http"
 )
 
-type TokenVerifier func(string, http.ResponseWriter) (string, error)
+// GetBalance handles balance retrieval for authenticated users
+func GetBalance(w http.ResponseWriter, r *http.Request, userId string, container di.Container) <span class="cov8" title="1">{
+        balance, err := container.GetBalanceUseCase().Execute(userId)
 
-func GetBalance(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) <span class="cov0" title="0">{
-        w.Header().Set("Content-Type", "application/json")
-        tokenString := r.Header.Get("Authorization")
-
-        userId, err := verifyToken(tokenString, w)
-        if err != nil </span><span class="cov0" title="0">{
-                http.Error(w, err.Error(), http.StatusUnauthorized)
-        }</span>
-
-        <span class="cov0" title="0">balance, err := container.GetBalanceUseCase().Execute(userId)
-
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 http.Error(w, "Failed to get balance: "+err.Error(), http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov0" title="0">result, err := json.Marshal(balance)
-        if err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">result, err := json.Marshal(balance)
+        if err != nil </span><span class="cov8" title="1">{
                 http.Error(w, err.Error(), http.StatusInternalServerError)
                 return
         }</span>
 
-        <span class="cov0" title="0">fmt.Fprint(w, string(result))</span>
+        <span class="cov8" title="1">fmt.Fprint(w, string(result))</span>
+}
+
+// GetBalanceWithAuth returns a handler wrapped with authentication middleware
+func GetBalanceWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc <span class="cov8" title="1">{
+        return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) </span><span class="cov8" title="1">{
+                GetBalance(w, r, userId, container)
+        }</span>)
 }
 </pre>
 		
-		<pre class="file" id="file6" style="display: none">package login
+		<pre class="file" id="file5" style="display: none">package login
 
 import (
         "HubInvestments/auth"
@@ -472,13 +447,14 @@ func Login(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">
 }
 </pre>
 		
-		<pre class="file" id="file7" style="display: none">package main
+		<pre class="file" id="file6" style="display: none">package main
 
 import (
         "HubInvestments/auth"
         "HubInvestments/auth/token"
         balanceHandler "HubInvestments/balance/presentation/http"
         "HubInvestments/login"
+        "HubInvestments/middleware"
         di "HubInvestments/pck"
         portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
         positionHandler "HubInvestments/position/presentation/http"
@@ -494,9 +470,9 @@ func main() <span class="cov0" title="0">{
         tokenService := token.NewTokenService()
         aucService := auth.NewAuthService(tokenService)
 
-        verifyToken := func(token string, w http.ResponseWriter) (string, error) </span><span class="cov0" title="0">{
+        verifyToken := middleware.TokenVerifier(func(token string, w http.ResponseWriter) (string, error) </span><span class="cov0" title="0">{
                 return aucService.VerifyToken(token, w)
-        }</span>
+        }</span>)
 
         <span class="cov0" title="0">container, err := di.NewContainer()
 
@@ -505,27 +481,54 @@ func main() <span class="cov0" title="0">{
         }</span>
 
         <span class="cov0" title="0">http.HandleFunc("/login", login.Login)
-        http.HandleFunc("/getAucAggregation", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
-                positionHandler.GetAucAggregation(w, r, verifyToken, container)
-        }</span>)
-        <span class="cov0" title="0">http.HandleFunc("/getBalance", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
-                balanceHandler.GetBalance(w, r, verifyToken, container)
-        }</span>)
-        <span class="cov0" title="0">http.HandleFunc("/getPortfolioSummary", func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
-                portfolioSummaryHandler.GetPortfolioSummary(w, r, verifyToken, container)
-        }</span>)
+        http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
+        http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
+        http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
 
-        <span class="cov0" title="0">err = http.ListenAndServe(portNum, nil)
+        err = http.ListenAndServe(portNum, nil)
         if err != nil </span><span class="cov0" title="0">{
                 log.Fatal(err)
         }</span>
 }
 </pre>
 		
+		<pre class="file" id="file7" style="display: none">package middleware
+
+import (
+        "net/http"
+)
+
+type TokenVerifier func(string, http.ResponseWriter) (string, error)
+
+// AuthenticatedHandler represents a handler function that receives the authenticated user ID
+type AuthenticatedHandler func(w http.ResponseWriter, r *http.Request, userId string)
+
+// WithAuthentication creates a middleware that handles JWT authentication
+// It extracts the Authorization header, verifies the token, and passes the user ID to the handler
+func WithAuthentication(verifyToken TokenVerifier, handler AuthenticatedHandler) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                // Set common headers
+                w.Header().Set("Content-Type", "application/json")
+
+                // Extract token from Authorization header
+                tokenString := r.Header.Get("Authorization")
+
+                // Verify token and get user ID
+                userId, err := verifyToken(tokenString, w)
+                if err != nil </span><span class="cov8" title="1">{
+                        http.Error(w, err.Error(), http.StatusUnauthorized)
+                        return
+                }</span>
+
+                // Call the actual handler with the authenticated user ID
+                <span class="cov8" title="1">handler(w, r, userId)</span>
+        }
+}
+</pre>
+		
 		<pre class="file" id="file8" style="display: none">package di
 
 import (
-        balService "HubInvestments/balance/application/service"
         balUsecase "HubInvestments/balance/application/usecase"
         balancePersistence "HubInvestments/balance/infra/persistence"
         portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
@@ -540,14 +543,12 @@ import (
 type Container interface {
         GetAucService() *posService.AucService
         GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
-        GetBalanceService() *balService.BalanceService
         GetBalanceUseCase() *balUsecase.GetBalanceUseCase
         GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 }
 
 type containerImpl struct {
         AucService                 *posService.AucService
-        BalanceService             *balService.BalanceService
         PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
         BalanceUsecase             *balUsecase.GetBalanceUseCase
         PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
@@ -555,10 +556,6 @@ type containerImpl struct {
 
 func (c *containerImpl) GetAucService() *posService.AucService <span class="cov0" title="0">{
         return c.AucService
-}</span>
-
-func (c *containerImpl) GetBalanceService() *balService.BalanceService <span class="cov0" title="0">{
-        return c.BalanceService
 }</span>
 
 func (c *containerImpl) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase <span class="cov0" title="0">{
@@ -585,14 +582,12 @@ func NewContainer() (Container, error) <span class="cov0" title="0">{
         positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
 
         balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
-        balanceService := balService.NewBalanceService(balanceRepo)
-        balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceService)
+        balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
 
         portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
 
         return &amp;containerImpl{
                 AucService:                 aucService,
-                BalanceService:             balanceService,
                 PositionAggregationUseCase: positionAggregationUseCase,
                 BalanceUsecase:             balanceUsecase,
                 PortfolioSummaryUsecase:    portfolioSummaryUseCase,
@@ -603,7 +598,6 @@ func NewContainer() (Container, error) <span class="cov0" title="0">{
 		<pre class="file" id="file9" style="display: none">package di
 
 import (
-        balService "HubInvestments/balance/application/service"
         balUsecase "HubInvestments/balance/application/usecase"
         portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
         posService "HubInvestments/position/application/service"
@@ -614,7 +608,6 @@ import (
 // It implements the Container interface with configurable services
 type TestContainer struct {
         aucService                 *posService.AucService
-        balanceService             *balService.BalanceService
         positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
         getBalanceUsecase          *balUsecase.GetBalanceUseCase
         getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
@@ -631,12 +624,6 @@ func (c *TestContainer) WithAucService(service *posService.AucService) *TestCont
         return c
 }</span>
 
-// WithBalanceService sets the BalanceService for testing
-func (c *TestContainer) WithBalanceService(service *balService.BalanceService) *TestContainer <span class="cov0" title="0">{
-        c.balanceService = service
-        return c
-}</span>
-
 // WithPositionAggregationUseCase sets the PositionAggregationUseCase for testing
 func (c *TestContainer) WithPositionAggregationUseCase(usecase *posUsecase.GetPositionAggregationUseCase) *TestContainer <span class="cov8" title="1">{
         c.positionAggregationUseCase = usecase
@@ -644,7 +631,7 @@ func (c *TestContainer) WithPositionAggregationUseCase(usecase *posUsecase.GetPo
 }</span>
 
 // WithBalanceUseCase sets the BalanceUseCase for testing
-func (c *TestContainer) WithBalanceUseCase(usecase *balUsecase.GetBalanceUseCase) *TestContainer <span class="cov0" title="0">{
+func (c *TestContainer) WithBalanceUseCase(usecase *balUsecase.GetBalanceUseCase) *TestContainer <span class="cov8" title="1">{
         c.getBalanceUsecase = usecase
         return c
 }</span>
@@ -660,17 +647,12 @@ func (c *TestContainer) GetAucService() *posService.AucService <span class="cov0
         return c.aucService
 }</span>
 
-// GetBalanceService returns the configured BalanceService or nil
-func (c *TestContainer) GetBalanceService() *balService.BalanceService <span class="cov0" title="0">{
-        return c.balanceService
-}</span>
-
 // GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil
 func (c *TestContainer) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase <span class="cov8" title="1">{
         return c.positionAggregationUseCase
 }</span>
 
-func (c *TestContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase <span class="cov0" title="0">{
+func (c *TestContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase <span class="cov8" title="1">{
         return c.getBalanceUsecase
 }</span>
 
@@ -742,25 +724,16 @@ func getTotalPortfolio(balance balDomain.BalanceModel, aggregation domain.AucAgg
 		<pre class="file" id="file11" style="display: none">package http
 
 import (
+        "HubInvestments/middleware"
         di "HubInvestments/pck"
         "encoding/json"
         "fmt"
         "net/http"
 )
 
-type TokenVerifier func(string, http.ResponseWriter) (string, error)
-
-func GetPortfolioSummary(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) <span class="cov8" title="1">{
-        w.Header().Set("Content-Type", "application/json")
-        tokenString := r.Header.Get("Authorization")
-
-        userId, err := verifyToken(tokenString, w)
-        if err != nil </span><span class="cov8" title="1">{
-                http.Error(w, err.Error(), http.StatusUnauthorized)
-                return
-        }</span>
-
-        <span class="cov8" title="1">aggregation, err := container.GetPortfolioSummaryUsecase().Execute(userId)
+// GetPortfolioSummary handles portfolio summary retrieval for authenticated users
+func GetPortfolioSummary(w http.ResponseWriter, r *http.Request, userId string, container di.Container) <span class="cov8" title="1">{
+        aggregation, err := container.GetPortfolioSummaryUsecase().Execute(userId)
 
         if err != nil </span><span class="cov8" title="1">{
                 http.Error(w, "Failed to get portfolio summary: "+err.Error(), http.StatusInternalServerError)
@@ -774,6 +747,13 @@ func GetPortfolioSummary(w http.ResponseWriter, r *http.Request, verifyToken Tok
         }</span>
 
         <span class="cov8" title="1">fmt.Fprint(w, string(result))</span>
+}
+
+// GetPortfolioSummaryWithAuth returns a handler wrapped with authentication middleware
+func GetPortfolioSummaryWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc <span class="cov8" title="1">{
+        return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) </span><span class="cov8" title="1">{
+                GetPortfolioSummary(w, r, userId, container)
+        }</span>)
 }
 </pre>
 		
@@ -1001,27 +981,17 @@ func (r *SQLXPositionRepository) GetPositionsByUserId(userId string) ([]domain.A
 		<pre class="file" id="file16" style="display: none">package http
 
 import (
+        "HubInvestments/middleware"
         di "HubInvestments/pck"
         "encoding/json"
         "fmt"
         "net/http"
 )
 
-type TokenVerifier func(string, http.ResponseWriter) (string, error)
-
-func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken TokenVerifier, container di.Container) <span class="cov8" title="1">{
-        w.Header().Set("Content-Type", "application/json")
-        tokenString := r.Header.Get("Authorization")
-
-        // Authentication
-        userId, err := verifyToken(tokenString, w)
-        if err != nil </span><span class="cov0" title="0">{
-                http.Error(w, err.Error(), http.StatusUnauthorized)
-                return
-        }</span>
-
+// GetAucAggregation handles position aggregation retrieval for authenticated users
+func GetAucAggregation(w http.ResponseWriter, r *http.Request, userId string, container di.Container) <span class="cov8" title="1">{
         // Execute use case
-        <span class="cov8" title="1">aucAggregation, err := container.GetPositionAggregationUseCase().Execute(userId)
+        aucAggregation, err := container.GetPositionAggregationUseCase().Execute(userId)
         if err != nil </span><span class="cov0" title="0">{
                 http.Error(w, "Failed to get position aggregation: "+err.Error(), http.StatusInternalServerError)
                 return
@@ -1035,6 +1005,13 @@ func GetAucAggregation(w http.ResponseWriter, r *http.Request, verifyToken Token
         }</span>
 
         <span class="cov8" title="1">fmt.Fprint(w, string(result))</span>
+}
+
+// GetAucAggregationWithAuth returns a handler wrapped with authentication middleware
+func GetAucAggregationWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc <span class="cov8" title="1">{
+        return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) </span><span class="cov8" title="1">{
+                GetAucAggregation(w, r, userId, container)
+        }</span>)
 }
 </pre>
 		
