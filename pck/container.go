@@ -7,9 +7,7 @@ import (
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
 	positionPersistence "HubInvestments/position/infra/persistence"
-
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"HubInvestments/shared/infra/database"
 )
 
 type Container interface {
@@ -43,17 +41,18 @@ func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 }
 
 func NewContainer() (Container, error) {
-	db, err := sqlx.Connect("postgres", "user=yanrodrigues dbname=yanrodrigues sslmode=disable password= host=localhost")
-
+	// Create database connection using the abstraction layer
+	db, err := database.CreateDatabaseConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	positionRepo := positionPersistence.NewSQLXPositionRepository(db)
+	// Create repositories using the database abstraction
+	positionRepo := positionPersistence.NewPositionRepository(db)
 	aucService := posService.NewAucService(positionRepo)
 	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
 
-	balanceRepo := balancePersistence.NewSqlxBalanceRepository(db)
+	balanceRepo := balancePersistence.NewBalanceRepository(db)
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
 
 	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
