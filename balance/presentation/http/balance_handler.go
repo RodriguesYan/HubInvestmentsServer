@@ -9,29 +9,15 @@ import (
 )
 
 // GetBalance handles balance retrieval for authenticated users
-//
-// Endpoint: GET /getBalance
-// Authentication: Bearer token required in Authorization header
-// Content-Type: application/json
-//
-// Request Headers:
-// Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-//
-// Success Response (200 OK):
-//
-//	{
-//	  "availableBalance": 15000.50
-//	}
-//
-// Error Responses:
-// 401 Unauthorized - Missing or invalid token:
-//
-//	{
-//	  "error": "Missing authorization header"
-//	}
-//
-// 500 Internal Server Error - Failed to retrieve balance:
-// "Failed to get balance: database connection error"
+// @Summary Get User Balance
+// @Description Retrieve the available balance for the authenticated user
+// @Tags Balance
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.BalanceResponse "Balance retrieved successfully"
+// @Failure 401 {object} response.ErrorResponse "Unauthorized - Missing or invalid token"
+// @Failure 500 {object} response.ErrorResponse "Internal server error"
+// @Router /getBalance [get]
 func GetBalance(w http.ResponseWriter, r *http.Request, userId string, container di.Container) {
 	balance, err := container.GetBalanceUseCase().Execute(userId)
 

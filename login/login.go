@@ -11,8 +11,13 @@ import (
 
 // LoginModel represents the login request payload
 type LoginModel struct {
-	Email    string
-	Password string
+	Email    string `json:"email" example:"user@example.com"`
+	Password string `json:"password" example:"password123"`
+}
+
+// LoginResponse represents the login response
+type LoginResponse struct {
+	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
 
 // UserCredentials represents user data from the database
@@ -40,42 +45,17 @@ func NewLoginHandler(db database.Database) *LoginHandler {
 }
 
 // Login handles the login HTTP request
-//
-// Endpoint: POST /login
-// Authentication: None required
-// Content-Type: application/json
-//
-// Request Body Example:
-//
-//	{
-//	  "Email": "user@example.com",
-//	  "Password": "password123"
-//	}
-//
-// Success Response (200 OK):
-//
-//	{
-//	  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-//	}
-//
-// Error Responses:
-// 400 Bad Request - Invalid request body:
-//
-//	{
-//	  "error": "Invalid request body"
-//	}
-//
-// 401 Unauthorized - Invalid credentials:
-//
-//	{
-//	  "error": "Invalid credentials"
-//	}
-//
-// 500 Internal Server Error - Token generation failed:
-//
-//	{
-//	  "error": "Failed to generate token"
-//	}
+// @Summary User Login
+// @Description Authenticate user with email and password, returns JWT token on success
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param login body LoginModel true "Login credentials"
+// @Success 200 {object} LoginResponse "Login successful"
+// @Failure 400 {object} response.ErrorResponse "Invalid request body"
+// @Failure 401 {object} response.ErrorResponse "Invalid credentials"
+// @Failure 500 {object} response.ErrorResponse "Token generation failed"
+// @Router /login [post]
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

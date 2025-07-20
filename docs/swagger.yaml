@@ -1,0 +1,244 @@
+basePath: /
+definitions:
+  domain.AssetsModel:
+    description: Individual asset information in a user's portfolio
+    properties:
+      averagePrice:
+        example: 150
+        type: number
+      category:
+        example: 1
+        type: integer
+      currentPrice:
+        example: 155
+        type: number
+      quantity:
+        example: 10
+        type: number
+      symbol:
+        example: AAPL
+        type: string
+    type: object
+  domain.AucAggregationModel:
+    description: Complete position aggregation response
+    properties:
+      currentTotal:
+        example: 12000
+        type: number
+      positionAggregation:
+        items:
+          $ref: '#/definitions/domain.PositionAggregationModel'
+        type: array
+      totalInvested:
+        example: 11500
+        type: number
+    type: object
+  domain.BalanceModel:
+    description: User balance information
+    properties:
+      availableBalance:
+        example: 15000.5
+        type: number
+    type: object
+  domain.PositionAggregationModel:
+    description: Position aggregation grouped by asset category
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/domain.AssetsModel'
+        type: array
+      category:
+        example: 1
+        type: integer
+      currentTotal:
+        example: 6750
+        type: number
+      pnl:
+        example: 250
+        type: number
+      pnlPercentage:
+        example: 3.85
+        type: number
+      totalInvested:
+        example: 6500
+        type: number
+    type: object
+  login.LoginModel:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+    type: object
+  login.LoginResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  response.BalanceResponse:
+    description: User balance information
+    properties:
+      availableBalance:
+        example: 15000.5
+        type: number
+    type: object
+  response.ErrorResponse:
+    properties:
+      error:
+        example: Missing authorization header
+        type: string
+    type: object
+  response.PortfolioSummaryResponse:
+    description: Complete portfolio summary including balance and positions
+    properties:
+      Balance:
+        $ref: '#/definitions/domain.BalanceModel'
+      LastUpdatedDate:
+        example: ""
+        type: string
+      PositionAggregation:
+        $ref: '#/definitions/domain.AucAggregationModel'
+      TotalPortfolio:
+        example: 17000
+        type: number
+    type: object
+  response.PositionAggregationResponse:
+    description: Complete position aggregation response
+    properties:
+      currentTotal:
+        example: 12000
+        type: number
+      positionAggregation:
+        items:
+          $ref: '#/definitions/domain.PositionAggregationModel'
+        type: array
+      totalInvested:
+        example: 11500
+        type: number
+    type: object
+host: 192.168.0.6:8080
+info:
+  contact:
+    email: support@hubinvestments.com
+    name: HubInvestments Development Team
+  description: HubInvestments is a comprehensive financial investment platform API
+    that provides portfolio management, market data access, and user authentication.
+  title: HubInvestments API
+  version: "1.0"
+paths:
+  /getAucAggregation:
+    get:
+      description: Retrieve aggregated position data including total invested, current
+        total, and detailed breakdown by category
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Position aggregation retrieved successfully
+          schema:
+            $ref: '#/definitions/response.PositionAggregationResponse'
+        "401":
+          description: Unauthorized - Missing or invalid token
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Position Aggregation
+      tags:
+      - Positions
+  /getBalance:
+    get:
+      description: Retrieve the available balance for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Balance retrieved successfully
+          schema:
+            $ref: '#/definitions/response.BalanceResponse'
+        "401":
+          description: Unauthorized - Missing or invalid token
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Balance
+      tags:
+      - Balance
+  /getPortfolioSummary:
+    get:
+      description: Retrieve complete portfolio summary including balance, total portfolio
+        value, and position aggregation
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Portfolio summary retrieved successfully
+          schema:
+            $ref: '#/definitions/response.PortfolioSummaryResponse'
+        "401":
+          description: Unauthorized - Missing or invalid token
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Portfolio Summary
+      tags:
+      - Portfolio
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, returns JWT token on
+        success
+      parameters:
+      - description: Login credentials
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/login.LoginModel'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            $ref: '#/definitions/login.LoginResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Token generation failed
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: User Login
+      tags:
+      - Authentication
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
