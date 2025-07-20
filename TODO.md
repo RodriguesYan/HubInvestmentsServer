@@ -57,18 +57,9 @@
 - **Dependencies**: Balance Use Case implementation, existing Position Use Case
 - **Result**: Single endpoint providing complete portfolio overview
 
-### ⏳ Phase 6: Watchlist Management System
-- [ ] Create watchlist CRUD operations
-- [ ] Implement support for multiple watchlists per user
-- [ ] Add real-time price updates for watchlisted assets
-- [ ] Support up to 20 assets per watchlist
-- [ ] Implement watchlist sharing capabilities
-- [ ] Add Redis caching for fast watchlist access
-- [ ] Create watchlist showcase endpoint
-- **Priority**: Medium - User experience enhancement
-
 ### ⏳ Phase 5: Market Data Service Implementation
 - [ ] Design and implement market data service architecture
+- [ ] See possibility to provider endpoint REST and gRCP (watchlist will call this endpoint and gRCP is better. Clients will also call this endpoint and it is better json/REST)
 - [ ] Create asset search and discovery functionality
 - [ ] Implement asset details and metadata endpoints
 - [ ] Add Redis caching layer for market data
@@ -76,6 +67,13 @@
 - [ ] Implement market data API integration framework
 - [ ] Add asset comparison tools and filtering
 - **Priority**: High - Core business functionality
+
+### ⏳ Phase 6: Watchlist Management System
+- [ ] Create watchlist CRUD operations
+- [ ] Support up to 20 assets per watchlist
+- [ ] Call market data to fetch quote, symbol, name and other needed info via gRCP
+- [ ] Add Redis caching for fast watchlist access
+- **Priority**: Medium - User experience enhancement
 
 ### ⏳ Phase 7: Order Management System
 - [ ] Design comprehensive order management architecture
