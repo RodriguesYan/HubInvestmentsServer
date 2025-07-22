@@ -6,10 +6,10 @@ import (
 )
 
 type GetBalanceUseCase struct {
-	repo repository.BalanceRepository
+	repo repository.IBalanceRepository
 }
 
-func NewGetBalanceUseCase(repo repository.BalanceRepository) *GetBalanceUseCase {
+func NewGetBalanceUseCase(repo repository.IBalanceRepository) *GetBalanceUseCase {
 	return &GetBalanceUseCase{repo: repo}
 }
 
