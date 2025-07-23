@@ -58,15 +58,136 @@
 - **Result**: Single endpoint providing complete portfolio overview
 
 ### ⏳ Phase 5: Market Data Service Implementation
-- [ ] Design and implement market data service architecture
-- [ ] See possibility to provider endpoint REST and gRCP (watchlist will call this endpoint and gRCP is better. Clients will also call this endpoint and it is better json/REST)
-- [ ] Create asset search and discovery functionality
-- [ ] Implement asset details and metadata endpoints
-- [ ] Add Redis caching layer for market data
-- [ ] Create comprehensive asset information display
-- [ ] Implement market data API integration framework
-- [ ] Add asset comparison tools and filtering
-- **Priority**: High - Core business functionality
+- [x] **Step 1**: Core Market Data Architecture (COMPLETED)
+  - [x] Create market data domain models and repository interfaces
+  - [x] Implement market data use case with clean architecture
+  - [x] Create HTTP handler for REST API endpoints
+  - [x] Add comprehensive unit tests (100% coverage for usecase, 94.7% for repository, 65% for handler)
+  - [x] Integration with dependency injection container
+- [ ] **Step 2**: Redis Cache Aside Pattern Implementation
+  - [ ] **Step 2.1**: Redis Infrastructure Setup
+    - [ ] Add Redis dependency: `go get github.com/redis/go-redis/v9`
+    - [ ] Create `shared/infra/cache/` directory structure
+    - [ ] Implement `redis_client.go` with connection management and configuration
+    - [ ] Add Redis connection to dependency injection container
+    - [ ] Create Redis Docker container configuration for development
+  - [ ] **Step 2.2**: Cache Service Layer (Repository Layer)
+    - [ ] Create `market_data/infra/cache/` directory
+    - [ ] Implement `market_data_cache_repository.go` as a decorator/wrapper around existing repository
+    - [ ] Cache key strategy: `market_data:{symbol}` for individual symbols, `market_data:bulk:{hash}` for multiple symbols
+    - [ ] TTL strategy: 5 minutes for real-time quotes, 1 hour for symbol metadata
+    - [ ] Implement cache aside pattern:
+      ```
+      1. Check Redis cache first
+      2. If cache hit: return cached data
+      3. If cache miss: fetch from database
+      4. Store result in cache with TTL
+      5. Return data
+      ```
+  - [ ] **Step 2.3**: Cache Configuration and Management
+    - [ ] Add cache configuration to environment variables (Redis host, port, password, TTL values)
+    - [ ] Implement cache invalidation strategy for data updates
+    - [ ] Add cache warming functionality for popular symbols
+    - [ ] Create cache health check and monitoring
+  - [ ] **Step 2.4**: Error Handling and Fallback
+    - [ ] Implement graceful degradation when Redis is unavailable
+    - [ ] Add circuit breaker pattern for cache failures
+    - [ ] Ensure original functionality works even if cache layer fails
+    - [ ] Add comprehensive logging for cache hits/misses and errors
+  - [ ] **Step 2.5**: Testing and Validation
+    - [ ] Create unit tests for cache repository with Redis mocks
+    - [ ] Add integration tests with real Redis instance
+    - [ ] Performance testing to validate cache effectiveness
+    - [ ] Load testing to ensure cache doesn't become bottleneck
+- [ ] **Step 3**: gRPC Service Implementation
+  - [ ] **Step 3.1**: Protocol Buffers Setup
+    - [ ] Add gRPC dependencies: `go get google.golang.org/grpc` and `go get google.golang.org/protobuf`
+    - [ ] Install protoc compiler and Go plugins
+    - [ ] Create `market_data/presentation/grpc/` directory structure
+    - [ ] Define `market_data.proto` file with service definitions:
+      ```proto
+      service MarketDataService {
+        rpc GetMarketData(GetMarketDataRequest) returns (GetMarketDataResponse);
+        rpc StreamMarketData(StreamMarketDataRequest) returns (stream MarketDataUpdate);
+      }
+      ```
+  - [ ] **Step 3.2**: gRPC Server Implementation
+    - [ ] Generate Go code from proto files: `protoc --go_out=. --go-grpc_out=. market_data.proto`
+    - [ ] Create `market_data_grpc_server.go` implementing the generated service interface
+    - [ ] Implement unary RPC for batch market data requests
+    - [ ] Implement streaming RPC for real-time market data updates
+    - [ ] Add proper error handling and status codes
+  - [ ] **Step 3.3**: gRPC Service Integration
+    - [ ] Update dependency injection container to include gRPC server
+    - [ ] Configure gRPC server startup in main.go (separate port from HTTP)
+    - [ ] Add gRPC interceptors for authentication, logging, and metrics
+    - [ ] Implement graceful shutdown for gRPC server
+  - [ ] **Step 3.4**: gRPC Client Library (for other services)
+    - [ ] Create `market_data/client/` directory for gRPC client
+    - [ ] Implement `market_data_grpc_client.go` with connection pooling
+    - [ ] Add client-side caching and connection management
+    - [ ] Create client interface for easy mocking in tests
+  - [ ] **Step 3.5**: Service Discovery and Load Balancing
+    - [ ] Implement service registration for gRPC endpoints
+    - [ ] Add health checks for gRPC service
+    - [ ] Configure load balancing for multiple gRPC instances
+    - [ ] Add monitoring and metrics for gRPC performance
+  - [ ] **Step 3.6**: Testing gRPC Implementation
+    - [ ] Create unit tests for gRPC server handlers
+    - [ ] Add integration tests for gRPC client-server communication
+    - [ ] Performance testing for streaming vs unary RPCs
+    - [ ] Load testing with multiple concurrent gRPC connections
+- [ ] **Step 4**: Architecture Integration and Optimization
+  - [ ] **Step 4.1**: Dual Protocol Support
+    - [ ] HTTP REST API for external clients (web, mobile apps)
+    - [ ] gRPC for internal service-to-service communication (watchlist service)
+    - [ ] Shared business logic between HTTP and gRPC handlers
+    - [ ] Consistent error handling and response formats
+  - [ ] **Step 4.2**: Performance Optimization
+    - [ ] Database connection pooling optimization for high throughput
+    - [ ] Implement database query optimization (indexes, query patterns)
+    - [ ] Add metrics and monitoring for all layers (HTTP, gRPC, Cache, DB)
+    - [ ] Profile and optimize memory usage and garbage collection
+  - [ ] **Step 4.3**: Production Readiness
+    - [ ] Add comprehensive logging with structured logs (JSON format)
+    - [ ] Implement distributed tracing across all layers
+    - [ ] Add Prometheus metrics for monitoring and alerting
+    - [ ] Create health check endpoints for both HTTP and gRPC
+    - [ ] Add graceful shutdown handling for all components
+- [ ] **Implementation Architecture Overview**:
+  ```
+  External Clients (Web/Mobile)
+           ↓ HTTP/REST
+  ┌─────────────────────────┐
+  │  HTTP Handler Layer     │
+  └─────────────────────────┘
+           ↓
+  Internal Services (Watchlist)
+           ↓ gRPC
+  ┌─────────────────────────┐
+  │   gRPC Server Layer     │
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │   Use Case Layer        │ ← Shared business logic
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │  Cache Repository       │ ← Redis Cache Aside
+  │  (Decorator Pattern)    │
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │ Database Repository     │ ← PostgreSQL
+  └─────────────────────────┘
+  ```
+- **Priority**: High - Core business functionality with performance optimization
+- **Dependencies**: Existing market data implementation, Redis infrastructure, gRPC tooling
+- **Performance Targets**: 
+  - < 50ms response time with cache hits
+  - < 200ms response time with cache misses
+  - Support 10,000+ concurrent gRPC connections
+  - 95%+ cache hit ratio for popular symbols
 
 ### ⏳ Phase 6: Watchlist Management System
 - [ ] Create watchlist CRUD operations
