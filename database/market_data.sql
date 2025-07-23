@@ -5,10 +5,10 @@ CREATE TABLE market_data (
     symbol varchar(50) not null,
     name varchar(50) not null,
     category integer not null,
-    last_price decimal not null
+    last_quote decimal not null
 );
 
-INSERT INTO market_data (id, symbol, name, category, last_price) 
+INSERT INTO market_data (id, symbol, name, category, last_quote) 
 VALUES 	(5, 'VBR', 'Vanguard small caps value', 2, 240.5),
 		(2, 'AMZN', 'Amazon prime', 1, 140.5),
  		(3, 'DIS', 'Disneylandia', 1, 244.5),

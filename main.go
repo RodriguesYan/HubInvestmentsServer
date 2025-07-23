@@ -17,6 +17,7 @@ import (
 	balanceHandler "HubInvestments/balance/presentation/http"
 	_ "HubInvestments/docs"
 	"HubInvestments/login"
+	marketDataHandler "HubInvestments/market_data/presentation"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
@@ -50,6 +51,7 @@ func main() {
 	http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
 	http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
 	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
+	http.HandleFunc("/getMarketData", marketDataHandler.GetMarketDataWithAuth(verifyToken, container))
 
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)

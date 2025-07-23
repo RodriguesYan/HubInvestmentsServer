@@ -3,6 +3,8 @@ package di
 import (
 	balUsecase "HubInvestments/balance/application/usecase"
 	balancePersistence "HubInvestments/balance/infra/persistence"
+	mktUsecase "HubInvestments/market_data/application/usecase"
+	mktPersistence "HubInvestments/market_data/infra"
 	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
@@ -15,6 +17,7 @@ type Container interface {
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
+	GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase
 }
 
 type containerImpl struct {
@@ -22,6 +25,7 @@ type containerImpl struct {
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
+	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -40,6 +44,10 @@ func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 	return c.PortfolioSummaryUsecase
 }
 
+func (c *containerImpl) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
+	return c.MarketDataUsecase
+}
+
 func NewContainer() (Container, error) {
 	// Create database connection using the abstraction layer
 	db, err := database.CreateDatabaseConnection()
@@ -54,13 +62,16 @@ func NewContainer() (Container, error) {
 
 	balanceRepo := balancePersistence.NewBalanceRepository(db)
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
-
 	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
+
+	marketDataRepo := mktPersistence.NewMarketDataRepository(db)
+	marketDataUsecase := mktUsecase.NewGetMarketDataUseCase(marketDataRepo)
 
 	return &containerImpl{
 		AucService:                 aucService,
 		PositionAggregationUseCase: positionAggregationUseCase,
 		BalanceUsecase:             balanceUsecase,
 		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
+		MarketDataUsecase:          marketDataUsecase,
 	}, nil
 }

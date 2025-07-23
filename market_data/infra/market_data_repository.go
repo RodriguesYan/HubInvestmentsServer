@@ -6,6 +6,7 @@ import (
 	"HubInvestments/market_data/infra/dto"
 	"HubInvestments/shared/infra/database"
 	"fmt"
+	"strings"
 )
 
 type MarketDataRepository struct {
@@ -13,18 +14,28 @@ type MarketDataRepository struct {
 	mapper *dto.MarketDataMapper
 }
 
-func NewBalanceRepository(db database.Database) repository.IMarketDataRepository {
+func NewMarketDataRepository(db database.Database) repository.IMarketDataRepository {
 	return &MarketDataRepository{db: db, mapper: dto.NewMarketDataMapper()}
 }
 
 func (m *MarketDataRepository) GetMarketData(symbols []string) ([]model.MarketDataModel, error) {
-	query := `SELECT * from market_data where symbol in $1`
+	// Create placeholders for the IN clause
+	placeholders := make([]string, len(symbols))
+	args := make([]interface{}, len(symbols))
+
+	for i, symbol := range symbols {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = symbol
+	}
+
+	query := fmt.Sprintf("SELECT * FROM market_data WHERE symbol IN (%s)",
+		strings.Join(placeholders, ","))
 
 	var marketDataList []dto.MarketDataDTO
-	err := m.db.Select(&marketDataList, query, symbols)
+	err := m.db.Select(&marketDataList, query, args...)
 
-	if err == nil {
-		return nil, fmt.Errorf("failed to fetch market data %s: %w", symbols, err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch market data %v: %w", symbols, err)
 	}
 
 	return m.mapper.ToDomainSlice(marketDataList), nil
