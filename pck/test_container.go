@@ -47,6 +47,12 @@ func (c *TestContainer) WithPortfolioSummaryUsecase(usecase portfolioUsecase.Por
 	return c
 }
 
+// WithMarketDataUsecase sets the MarketDataUsecase for testing
+func (c *TestContainer) WithMarketDataUsecase(usecase mktUsecase.IGetMarketDataUsecase) *TestContainer {
+	c.getMarketDataUsecase = usecase
+	return c
+}
+
 // GetAucService returns the configured AucService or nil
 func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
