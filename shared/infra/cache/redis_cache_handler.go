@@ -34,9 +34,17 @@ func (r *RedisCacheHandler) Get(key string) (string, error) {
 }
 
 func (r *RedisCacheHandler) Set(key string, value string, ttl time.Duration) error {
-	return nil //TODO: fazer implementaçao do set aqui
+	err := r.redis.Set(ctx, key, value, ttl).Err()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *RedisCacheHandler) Delete(key string) error {
+	err := r.redis.Del(ctx, key).Err()
+	if err != nil {
+		return err
+	}
 	return nil
 }
