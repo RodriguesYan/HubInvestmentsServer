@@ -24,6 +24,10 @@ type Container interface {
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 	GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase
+	
+	// Cache management methods for admin operations
+	InvalidateMarketDataCache(symbols []string) error
+	WarmMarketDataCache(symbols []string) error
 }
 
 type containerImpl struct {
@@ -32,6 +36,7 @@ type containerImpl struct {
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
 	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
+	MarketDataCacheManager     mktCache.CacheManager
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -52,6 +57,15 @@ func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 
 func (c *containerImpl) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
 	return c.MarketDataUsecase
+}
+
+// Cache management methods implementation
+func (c *containerImpl) InvalidateMarketDataCache(symbols []string) error {
+	return c.MarketDataCacheManager.InvalidateCache(symbols)
+}
+
+func (c *containerImpl) WarmMarketDataCache(symbols []string) error {
+	return c.MarketDataCacheManager.WarmCache(symbols)
 }
 
 func NewContainer() (Container, error) {
@@ -92,11 +106,15 @@ func NewContainer() (Container, error) {
 	// Step 4: Create use case with cached repository
 	marketDataUsecase := mktUsecase.NewGetMarketDataUseCase(marketDataRepo)
 
+	// Step 5: Extract cache manager for admin operations
+	cacheManager := mktCache.GetCacheManager(marketDataRepo)
+
 	return &containerImpl{
 		AucService:                 aucService,
 		PositionAggregationUseCase: positionAggregationUseCase,
 		BalanceUsecase:             balanceUsecase,
 		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
 		MarketDataUsecase:          marketDataUsecase,
+		MarketDataCacheManager:     cacheManager,
 	}, nil
 }

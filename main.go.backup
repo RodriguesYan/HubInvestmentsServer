@@ -19,7 +19,6 @@ import (
 	"HubInvestments/login"
 	grpcHandler "HubInvestments/market_data/presentation/grpc"
 	marketDataHandler "HubInvestments/market_data/presentation/http"
-	adminHandler "HubInvestments/market_data/presentation/http"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
@@ -61,17 +60,10 @@ func main() {
 	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
 	http.HandleFunc("/getMarketData", marketDataHandler.GetMarketDataWithAuth(verifyToken, container))
 
-	// Admin Routes for Cache Management
-	http.HandleFunc("/admin/market-data/cache/invalidate", adminHandler.AdminInvalidateCacheWithAuth(verifyToken, container))
-	http.HandleFunc("/admin/market-data/cache/warm", adminHandler.AdminWarmCacheWithAuth(verifyToken, container))
-
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Printf("HTTP server starting on %s", portNum)
-	log.Printf("Admin cache endpoints available:")
-	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", portNum)
-	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", portNum)
 	log.Printf("Swagger documentation available at: http://%s/swagger/index.html", portNum)
 
 	err = http.ListenAndServe(portNum, nil)
