@@ -31,6 +31,7 @@ External Services (Watchlist, etc.)
 market_data/presentation/grpc/
 ├── README.md                           # This file
 ├── market_data.proto                   # Protocol Buffers definition
+├── grpc_server.go                      # gRPC server startup functions
 ├── market_data_grpc_server.go          # gRPC server implementation
 ├── interceptors/                       # Authentication layer
 │   └── auth_interceptor.go             # JWT authentication interceptor
@@ -107,6 +108,13 @@ Protocol Buffers definition file that defines:
 - `MarketDataService` with `GetMarketData` RPC method
 - Request/Response message types
 - Streaming support (for future real-time data)
+
+### `grpc_server.go`
+gRPC server startup functions that:
+- Configure and start the gRPC server with authentication
+- Set up authentication interceptors
+- Handle server lifecycle (start/stop)
+- Support both synchronous and asynchronous startup
 
 ### `market_data_grpc_server.go`
 gRPC server implementation that:
