@@ -75,6 +75,17 @@ func (c *TestContainer) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase 
 	return c.getMarketDataUsecase
 }
 
+// Cache management methods for testing (no-op implementations)
+func (c *TestContainer) InvalidateMarketDataCache(symbols []string) error {
+	// No-op implementation for testing
+	return nil
+}
+
+func (c *TestContainer) WarmMarketDataCache(symbols []string) error {
+	// No-op implementation for testing
+	return nil
+}
+
 // Add new methods here as you add them to the Container interface
 // Example:
 // func (c *TestContainer) GetNewService() *NewService {
