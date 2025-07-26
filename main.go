@@ -17,7 +17,8 @@ import (
 	balanceHandler "HubInvestments/balance/presentation/http"
 	_ "HubInvestments/docs"
 	"HubInvestments/login"
-	marketDataHandler "HubInvestments/market_data/presentation"
+	grpcHandler "HubInvestments/market_data/presentation/grpc"
+	marketDataHandler "HubInvestments/market_data/presentation/http"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
@@ -31,6 +32,8 @@ import (
 // const portNum string = "localhost:8080"
 const portNum string = "192.168.0.6:8080" //My home IP
 // const portNum string = "192.168.0.48:8080" //Camila's home IP
+
+const grpcPortNum string = "192.168.0.6:50051" // gRPC server port
 
 func main() {
 	tokenService := token.NewTokenService()
@@ -46,6 +49,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Start gRPC server in background
+	grpcHandler.StartGRPCServerAsync(container, grpcPortNum)
+	log.Printf("gRPC server will start on %s", grpcPortNum)
+
 	// API Routes
 	http.HandleFunc("/login", login.Login)
 	http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
@@ -56,7 +63,7 @@ func main() {
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
-	log.Printf("Server starting on %s", portNum)
+	log.Printf("HTTP server starting on %s", portNum)
 	log.Printf("Swagger documentation available at: http://%s/swagger/index.html", portNum)
 
 	err = http.ListenAndServe(portNum, nil)

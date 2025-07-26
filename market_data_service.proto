@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package market_data;
+
+option go_package = "./proto";
+
+// MarketDataService provides market data operations
+service MarketDataService {
+  // GetMarketData retrieves market data for multiple symbols
+  rpc GetMarketData(GetMarketDataRequest) returns (GetMarketDataResponse);
+  
+  // StreamMarketData provides real-time market data updates (for future implementation)
+  rpc StreamMarketData(StreamMarketDataRequest) returns (stream MarketDataUpdate);
+}
+
+// Request message for getting market data
+message GetMarketDataRequest {
+  repeated string symbols = 1; // List of symbols to fetch
+}
+
+// Response message containing market data
+message GetMarketDataResponse {
+  repeated MarketData market_data = 1;
+}
+
+// Individual market data item
+message MarketData {
+  string symbol = 1;
+  string name = 2;
+  float last_quote = 3;
+  int32 category = 4;
+}
+
+// Request for streaming market data
+message StreamMarketDataRequest {
+  repeated string symbols = 1;
+}
+
+// Streaming market data update
+message MarketDataUpdate {
+  MarketData data = 1;
+  int64 timestamp = 2;
+} 
