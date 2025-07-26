@@ -1,6 +1,11 @@
 package cache
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var ErrCacheKeyNotFound = errors.New("cache key not found")
 
 type CacheHandler interface {
 	Get(key string) (string, error)

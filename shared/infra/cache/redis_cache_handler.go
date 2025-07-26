@@ -18,18 +18,13 @@ func NewRedisCacheHandler(redis *redis.Client) CacheHandler {
 var ctx = context.Background()
 
 func (r *RedisCacheHandler) Get(key string) (string, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-
-	val, err := rdb.Get(ctx, "key").Result()
-
+	val, err := r.redis.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", ErrCacheKeyNotFound
+	}
 	if err != nil {
 		return "", err
 	}
-
 	return val, nil
 }
 
