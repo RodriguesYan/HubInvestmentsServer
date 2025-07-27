@@ -6,6 +6,7 @@ import (
 	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
 	posService "HubInvestments/position/application/service"
 	posUsecase "HubInvestments/position/application/usecase"
+	watchlistUsecase "HubInvestments/watchlist/application/usecase"
 )
 
 // TestContainer is a simple mock container for testing
@@ -16,6 +17,7 @@ type TestContainer struct {
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
 	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
 	getMarketDataUsecase       mktUsecase.IGetMarketDataUsecase
+	getWatchlistUsecase        watchlistUsecase.IGetWatchlistUsecase
 }
 
 // NewTestContainer creates a new test container with optional services
@@ -53,6 +55,11 @@ func (c *TestContainer) WithMarketDataUsecase(usecase mktUsecase.IGetMarketDataU
 	return c
 }
 
+func (c *TestContainer) WithWatchlistUsecase(usecase watchlistUsecase.IGetWatchlistUsecase) *TestContainer {
+	c.getWatchlistUsecase = usecase
+	return c
+}
+
 // GetAucService returns the configured AucService or nil
 func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
@@ -73,6 +80,11 @@ func (c *TestContainer) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 
 func (c *TestContainer) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
 	return c.getMarketDataUsecase
+}
+
+func (c *TestContainer) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase {
+	// No-op implementation for testing
+	return c.getWatchlistUsecase
 }
 
 // Cache management methods for testing (no-op implementations)

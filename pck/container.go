@@ -14,6 +14,8 @@ import (
 	positionPersistence "HubInvestments/position/infra/persistence"
 	"HubInvestments/shared/infra/cache"
 	"HubInvestments/shared/infra/database"
+	watchlistUsecase "HubInvestments/watchlist/application/usecase"
+	watchPersistence "HubInvestments/watchlist/infra/persistence"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -24,7 +26,8 @@ type Container interface {
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 	GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase
-	
+	GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase
+
 	// Cache management methods for admin operations
 	InvalidateMarketDataCache(symbols []string) error
 	WarmMarketDataCache(symbols []string) error
@@ -37,6 +40,7 @@ type containerImpl struct {
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
 	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
 	MarketDataCacheManager     mktCache.CacheManager
+	WatchlistUsecase           watchlistUsecase.IGetWatchlistUsecase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
@@ -68,6 +72,10 @@ func (c *containerImpl) WarmMarketDataCache(symbols []string) error {
 	return c.MarketDataCacheManager.WarmCache(symbols)
 }
 
+func (c *containerImpl) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase {
+	return c.WatchlistUsecase
+}
+
 func NewContainer() (Container, error) {
 	// Create database connection using the abstraction layer
 	db, err := database.CreateDatabaseConnection()
@@ -84,11 +92,9 @@ func NewContainer() (Container, error) {
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
 	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
 
-	// Create market data repository with cache-aside pattern
-	// Step 1: Create base database repository
+	//====== Market data begin============
 	marketDataDbRepo := mktPersistence.NewMarketDataRepository(db)
 
-	// Step 2: Create Redis client and cache handler
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
@@ -98,9 +104,9 @@ func NewContainer() (Container, error) {
 
 	// Step 3: Wrap database repository with cache-aside pattern
 	marketDataRepo := mktCache.NewMarketDataCacheRepository(
-		marketDataDbRepo,    // Database repository
-		cacheHandler,        // Your cache handler
-		5*time.Minute,      // TTL for cached data
+		marketDataDbRepo, // Database repository
+		cacheHandler,     // Your cache handler
+		5*time.Minute,    // TTL for cached data
 	)
 
 	// Step 4: Create use case with cached repository
@@ -108,6 +114,10 @@ func NewContainer() (Container, error) {
 
 	// Step 5: Extract cache manager for admin operations
 	cacheManager := mktCache.GetCacheManager(marketDataRepo)
+	//====== Market data end============
+
+	watchRepo := watchPersistence.NewWatchlistRepository(db)
+	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, marketDataUsecase)
 
 	return &containerImpl{
 		AucService:                 aucService,
@@ -116,5 +126,6 @@ func NewContainer() (Container, error) {
 		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
 		MarketDataUsecase:          marketDataUsecase,
 		MarketDataCacheManager:     cacheManager,
+		WatchlistUsecase:           watchlistUsecase,
 	}, nil
 }
