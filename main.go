@@ -18,12 +18,13 @@ import (
 	_ "HubInvestments/docs"
 	"HubInvestments/login"
 	grpcHandler "HubInvestments/market_data/presentation/grpc"
-	marketDataHandler "HubInvestments/market_data/presentation/http"
 	adminHandler "HubInvestments/market_data/presentation/http"
+	marketDataHandler "HubInvestments/market_data/presentation/http"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/position/presentation/http"
+	watchlistHandler "HubInvestments/watchlist/presentation/http"
 	"log"
 	"net/http"
 
@@ -60,6 +61,7 @@ func main() {
 	http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
 	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
 	http.HandleFunc("/getMarketData", marketDataHandler.GetMarketDataWithAuth(verifyToken, container))
+	http.HandleFunc("/getWatchlist", watchlistHandler.GetWatchlistWithAuth(verifyToken, container))
 
 	// Admin Routes for Cache Management
 	http.HandleFunc("/admin/market-data/cache/invalidate", adminHandler.AdminInvalidateCacheWithAuth(verifyToken, container))

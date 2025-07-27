@@ -18,9 +18,9 @@ func NewWatchlistRepository(db database.Database) repository.IWatchlistRepositor
 func (w *WatchlistRepository) GetWatchlist(userId string) ([]string, error) {
 	var symbols string
 
-	query := `SELECT * FROM watchlist WHERE user_id = $1`
+	query := `SELECT symbols FROM watchlist WHERE user_id = $1`
 
-	err := w.db.Select(&symbols, query, userId)
+	err := w.db.Get(&symbols, query, userId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get watchlist for user %s: %w", userId, err)
 	}

@@ -7,6 +7,7 @@ CREATE TABLE watchlist (
 );
 
 INSERT INTO watchlist (id, user_id, symbols) 
-VALUES 	(1, 1, 'AAPL,AMZN,DIS,VOO,VBR');
+VALUES 	(1, 1, 'DIS');
+-- VALUES 	(1, 1, 'AAPL,AMZN,DIS,VOO,VBR');
 
 select * from watchlist;

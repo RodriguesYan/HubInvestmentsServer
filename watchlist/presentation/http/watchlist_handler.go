@@ -1,6 +1,7 @@
 package http
 
 import (
+	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"encoding/json"
 	"fmt"
@@ -23,4 +24,10 @@ func GetWatchlist(w http.ResponseWriter, r *http.Request, container di.Container
 	}
 
 	fmt.Fprint(w, string(result))
+}
+
+func GetWatchlistWithAuth(verifyToken middleware.TokenVerifier, container di.Container) http.HandlerFunc {
+	return middleware.WithAuthentication(verifyToken, func(w http.ResponseWriter, r *http.Request, userId string) {
+		GetWatchlist(w, r, container, userId)
+	})
 }
