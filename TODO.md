@@ -148,28 +148,12 @@
     - [x] Add integration tests for gRPC client-server communication
     - [x] Test authentication flow for gRPC requests
     - [x] Add comprehensive test coverage for gRPC functionality
-  - [ ] **Step 3.7**: Service Discovery and Load Balancing (PENDING)
-    - [ ] Implement service registration for gRPC endpoints
-    - [ ] Add health checks for gRPC service
-    - [ ] Configure load balancing for multiple gRPC instances
-    - [ ] Add monitoring and metrics for gRPC performance
 - [ ] **Step 4**: Architecture Integration and Optimization
   - [ ] **Step 4.1**: Dual Protocol Support
     - [ ] HTTP REST API for external clients (web, mobile apps)
     - [ ] gRPC for internal service-to-service communication (watchlist service)
     - [ ] Shared business logic between HTTP and gRPC handlers
     - [ ] Consistent error handling and response formats
-  - [ ] **Step 4.2**: Performance Optimization
-    - [ ] Database connection pooling optimization for high throughput
-    - [ ] Implement database query optimization (indexes, query patterns)
-    - [ ] Add metrics and monitoring for all layers (HTTP, gRPC, Cache, DB)
-    - [ ] Profile and optimize memory usage and garbage collection
-  - [ ] **Step 4.3**: Production Readiness
-    - [ ] Add comprehensive logging with structured logs (JSON format)
-    - [ ] Implement distributed tracing across all layers
-    - [ ] Add Prometheus metrics for monitoring and alerting
-    - [ ] Create health check endpoints for both HTTP and gRPC
-    - [ ] Add graceful shutdown handling for all components
 - [ ] **Implementation Architecture Overview**:
   ```
   External Clients (Web/Mobile)
@@ -254,6 +238,11 @@
 - [ ] Add database migration scripts and versioning
 - [ ] Implement database seeding with realistic test data
 - [ ] Set up Redis containerization for caching
+- [ ] **Step 4.2**: Performance Optimization
+    - [ ] Database connection pooling optimization for high throughput
+    - [ ] Implement database query optimization (indexes, query patterns)
+    - [ ] Add metrics and monitoring for all layers (HTTP, gRPC, Cache, DB)
+    - [ ] Profile and optimize memory usage and garbage collection
 - **Priority**: High - Foundation for all other features
 
 ### ⏳ Phase 9: Security & Production Readiness
@@ -291,6 +280,11 @@
 - [ ] Add distributed tracing and monitoring
 - [ ] Create independent service deployment capabilities
 - [ ] Implement horizontal scaling considerations
+- [ ] **Step 3.7**: Service Discovery and Load Balancing (PENDING)
+    - [ ] Implement service registration for gRPC endpoints
+    - [ ] Add health checks for gRPC service
+    - [ ] Configure load balancing for multiple gRPC instances
+    - [ ] Add monitoring and metrics for gRPC performance
 - **Priority**: Low - Advanced architecture (optional but recommended)
 
 ### ⏳ Phase 12: Performance & Monitoring
@@ -302,6 +296,12 @@
 - [ ] Support 1000+ concurrent users
 - [ ] Achieve 99.9% uptime target
 - [ ] Implement real-time data within 100ms latency
+- [ ] **Step 4.3**: Production Readiness
+    - [ ] Add comprehensive logging with structured logs (JSON format)
+    - [ ] Implement distributed tracing across all layers
+    - [ ] Add Prometheus metrics for monitoring and alerting
+    - [ ] Create health check endpoints for both HTTP and gRPC
+    - [ ] Add graceful shutdown handling for all components
 - **Priority**: Medium - Production performance requirements
 
 ### ⏳ Phase 13: CI/CD & DevOps Pipeline
