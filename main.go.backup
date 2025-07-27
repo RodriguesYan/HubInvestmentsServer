@@ -12,13 +12,13 @@
 package main
 
 import (
-	"HubInvestments/auth"
-	"HubInvestments/auth/token"
-	balanceHandler "HubInvestments/balance/presentation/http"
+	"HubInvestments/internal/auth"
+	"HubInvestments/internal/auth/token"
+	balanceHandler "HubInvestments/internal/balance/presentation/http"
 	_ "HubInvestments/docs"
 	"HubInvestments/login"
-	grpcHandler "HubInvestments/market_data/presentation/grpc"
-	marketDataHandler "HubInvestments/market_data/presentation/http"
+	grpcHandler "HubInvestments/internal/market_data/presentation/grpc"
+	marketDataHandler "HubInvestments/internal/market_data/presentation/http"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	portfolioSummaryHandler "HubInvestments/portfolio_summary/presentation/http"

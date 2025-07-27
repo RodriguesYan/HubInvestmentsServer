@@ -104,7 +104,7 @@
 		<pre class="file" id="file0" style="display: none">package auth
 
 import (
-        "HubInvestments/auth/token"
+        "HubInvestments/internal/auth/token"
         "errors"
         "fmt"
         "net/http"
@@ -345,8 +345,8 @@ func GetBalanceWithAuth(verifyToken middleware.TokenVerifier, container di.Conta
 		<pre class="file" id="file5" style="display: none">package login
 
 import (
-        "HubInvestments/auth"
-        "HubInvestments/auth/token"
+        "HubInvestments/internal/auth"
+        "HubInvestments/internal/auth/token"
         "encoding/json"
         "fmt"
         "log"
@@ -450,9 +450,9 @@ func Login(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">
 		<pre class="file" id="file6" style="display: none">package main
 
 import (
-        "HubInvestments/auth"
-        "HubInvestments/auth/token"
-        balanceHandler "HubInvestments/balance/presentation/http"
+        "HubInvestments/internal/auth"
+        "HubInvestments/internal/auth/token"
+        balanceHandler "HubInvestments/internal/balance/presentation/http"
         "HubInvestments/login"
         "HubInvestments/middleware"
         di "HubInvestments/pck"

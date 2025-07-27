@@ -1,8 +1,8 @@
 package main
 
 import (
-	"HubInvestments/auth"
-	"HubInvestments/auth/token"
+	"HubInvestments/internal/auth"
+	"HubInvestments/internal/auth/token"
 	"HubInvestments/middleware"
 	di "HubInvestments/pck"
 	"errors"

@@ -1,12 +1,12 @@
 package di
 
 import (
-	balUsecase "HubInvestments/balance/application/usecase"
-	mktUsecase "HubInvestments/market_data/application/usecase"
-	portfolioUsecase "HubInvestments/portfolio_summary/application/usecase"
-	posService "HubInvestments/position/application/service"
-	posUsecase "HubInvestments/position/application/usecase"
-	watchlistUsecase "HubInvestments/watchlist/application/usecase"
+	balUsecase "HubInvestments/internal/balance/application/usecase"
+	mktUsecase "HubInvestments/internal/market_data/application/usecase"
+	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
+	posService "HubInvestments/internal/position/application/service"
+	posUsecase "HubInvestments/internal/position/application/usecase"
+	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 )
 
 // TestContainer is a simple mock container for testing
