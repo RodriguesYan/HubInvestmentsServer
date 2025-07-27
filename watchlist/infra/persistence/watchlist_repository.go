@@ -3,6 +3,8 @@ package persistence
 import (
 	"HubInvestments/shared/infra/database"
 	"HubInvestments/watchlist/domain/repository"
+	"fmt"
+	"strings"
 )
 
 type WatchlistRepository struct {
@@ -14,5 +16,17 @@ func NewWatchlistRepository(db database.Database) repository.IWatchlistRepositor
 }
 
 func (w *WatchlistRepository) GetWatchlist(userId string) ([]string, error) {
-	result := w.db.Get()
+	var symbols string
+
+	query := `SELECT * FROM watchlist WHERE user_id = $1`
+
+	err := w.db.Select(&symbols, query, userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get watchlist for user %s: %w", userId, err)
+	}
+
+	// Split comma-separated symbols into array
+	symbolsArray := strings.Split(symbols, ",")
+
+	return symbolsArray, nil
 }
