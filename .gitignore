@@ -1,0 +1,57 @@
+# Environment Configuration
+config.env
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Binary
+HubInvestments
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Redis data
+dump.rdb
+*.rdb
+
+# Test coverage
+*.html
+*.out
+coverage.html
+coverage.out
+position_coverage.html
+position_coverage.out
+position_final_coverage.out
+
+# Build artifacts
+bin/
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Backup files
+*.backup

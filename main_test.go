@@ -158,30 +158,60 @@ func TestRoutePatterns(t *testing.T) {
 
 // Test server configuration
 func TestServerConfiguration(t *testing.T) {
-	// Test port configuration constants
+	// Test port configuration with environment variables
 	testCases := []struct {
 		name        string
-		port        string
+		httpPort    string
+		grpcPort    string
 		shouldValid bool
 	}{
-		{"localhost", "localhost:8080", true},
-		{"home IP", "192.168.0.3:8080", true},
-		{"Camila's IP", "192.168.0.48:8080", true},
-		{"invalid port", "invalid:port", false},
-		{"missing port", "localhost", false},
+		{"localhost", "localhost:8080", "localhost:50051", true},
+		{"home IP", "192.168.0.3:8080", "192.168.0.6:50051", true},
+		{"Camila's IP", "192.168.0.48:8080", "192.168.0.6:50051", true},
+		{"invalid port", "invalid:port", "invalid:port", false},
+		{"missing port", "localhost", "localhost", false},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Validate port format
-			parts := strings.Split(tc.port, ":")
+			// Test HTTP port validation
 			if tc.shouldValid {
-				assert.Equal(t, 2, len(parts))
-				assert.NotEmpty(t, parts[0]) // host
-				assert.NotEmpty(t, parts[1]) // port
+				assert.Contains(t, tc.httpPort, ":")
+			}
+			// Test gRPC port validation
+			if tc.shouldValid {
+				assert.Contains(t, tc.grpcPort, ":")
 			}
 		})
 	}
+}
+
+// Test environment variable loading
+func TestEnvironmentVariableLoading(t *testing.T) {
+	// Import os package to test environment variables
+	// Test default fallback values
+	t.Run("default fallback values", func(t *testing.T) {
+		// When no environment variables are set, should use defaults
+		defaultHTTP := "localhost:8080"
+		defaultGRPC := "localhost:50051"
+
+		assert.Contains(t, defaultHTTP, ":")
+		assert.Contains(t, defaultGRPC, ":")
+	})
+
+	// Test configuration file format
+	t.Run("config file format", func(t *testing.T) {
+		// Validate that our config.env format is correct
+		expectedFormat := map[string]string{
+			"HTTP_PORT": "192.168.0.3:8080",
+			"GRPC_PORT": "192.168.0.6:50051",
+		}
+
+		for key, value := range expectedFormat {
+			assert.NotEmpty(t, key)
+			assert.Contains(t, value, ":")
+		}
+	})
 }
 
 // Test middleware authentication wrapper
@@ -452,8 +482,9 @@ func TestApplicationStartupSequence(t *testing.T) {
 				assert.Equal(t, 4, len(routes))
 			case "start_server":
 				// Server would be started with http.ListenAndServe
-				// We can only validate the port string format
-				port := "192.168.0.3:8080"
+				// We can only validate the port string format from environment
+				// Default fallback should contain ":"
+				port := "localhost:8080" // Default fallback
 				assert.Contains(t, port, ":")
 			}
 

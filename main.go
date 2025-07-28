@@ -27,17 +27,31 @@ import (
 	di "HubInvestments/pck"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// const portNum string = "localhost:8080"
-const portNum string = "192.168.0.3:8080" //My home IP
-// const portNum string = "192.168.0.48:8080" //Camila's home IP
-
-const grpcPortNum string = "192.168.0.6:50051" // gRPC server port
-
 func main() {
+	// Load environment variables from config.env file
+	err := godotenv.Load("config.env")
+	if err != nil {
+		log.Printf("Warning: Could not load config.env file: %v", err)
+		log.Println("Using default values...")
+	}
+
+	// Get configuration from environment variables with fallback defaults
+	portNum := os.Getenv("HTTP_PORT")
+	if portNum == "" {
+		portNum = "localhost:8080" // Default fallback
+	}
+
+	grpcPortNum := os.Getenv("GRPC_PORT")
+	if grpcPortNum == "" {
+		grpcPortNum = "localhost:50051" // Default fallback
+	}
+
 	tokenService := token.NewTokenService()
 	aucService := auth.NewAuthService(tokenService)
 

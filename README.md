@@ -1,16 +1,50 @@
 # HubInvestmentsServer
 
-## 📖 API Documentation (Swagger)
+## 🚀 Quick Start
 
-**Start the server and access interactive Swagger documentation:**
+### Environment Configuration
+
+Before running the server, set up your environment configuration:
 
 ```bash
-# Start the server
-go run main.go
+# Copy the example configuration
+cp config.example.env config.env
 
-# The server will start on 192.168.0.3:8080
-# Swagger documentation will be available at:
-# http://192.168.0.3:8080/swagger/index.html
+# Edit config.env with your preferred settings
+nano config.env
+```
+
+The `config.env` file contains:
+```bash
+# Server Configuration
+HTTP_PORT=192.168.0.3:8080
+GRPC_PORT=192.168.0.6:50051
+```
+
+**Available configurations:**
+- **Production**: Use your actual IP address (default: `192.168.0.3:8080`)
+- **Local Development**: Use `localhost:8080` for local testing
+- **Custom**: Configure any IP:PORT combination
+
+### Start the Server
+
+```bash
+go run main.go
+```
+
+The server will:
+- Load configuration from `config.env`
+- Start HTTP server on the configured `HTTP_PORT`
+- Start gRPC server on the configured `GRPC_PORT`
+- Display Swagger documentation URL in the startup logs
+
+## 📖 API Documentation (Swagger)
+
+**Access interactive Swagger documentation:**
+
+The Swagger UI URL will be displayed in the startup logs. For the default configuration:
+```
+http://192.168.0.3:8080/swagger/index.html
 ```
 
 **Quick access to Swagger UI:**
@@ -18,8 +52,7 @@ go run main.go
 # Start server in background and open Swagger in browser
 go run main.go &
 sleep 3
-open http://192.168.0.3:8080/swagger/index.html  # macOS
-# or manually open: http://192.168.0.3:8080/swagger/index.html
+# The exact URL will be shown in the server logs
 ```
 
 **Available API endpoints documented:**
@@ -128,11 +161,11 @@ redisClient := redis.NewClient(&redis.Options{
 **🔧 Admin Cache Management:**
 ```bash
 # Invalidate specific symbols (requires JWT auth)
-curl -X DELETE "http://192.168.0.3:8080/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL" \
+curl -X DELETE "http://[YOUR_HTTP_PORT]/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Warm cache with symbols (requires JWT auth)
-curl -X POST "http://192.168.0.3:8080/admin/market-data/cache/warm?symbols=AAPL,GOOGL" \
+curl -X POST "http://[YOUR_HTTP_PORT]/admin/market-data/cache/warm?symbols=AAPL,GOOGL" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -244,7 +277,7 @@ For detailed information about all available scripts and commands, see [scripts/
 
 1. **Start Redis**: `redis-server --daemonize yes`
 2. **Quick coverage check**: `make coverage-open`
-3. **View API documentation**: `go run main.go` → http://192.168.0.3:8080/swagger/index.html
+3. **View API documentation**: `go run main.go` → Check console output for Swagger URL
 4. **Before committing**: `make check` 
 5. **While writing tests**: `./scripts/test.sh watch`
 6. **Test cache functionality**: `go test ./market_data/infra/cache/`
