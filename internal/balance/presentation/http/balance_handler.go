@@ -1,8 +1,8 @@
 package http
 
 import (
-	"HubInvestments/middleware"
 	di "HubInvestments/pck"
+	"HubInvestments/shared/middleware"
 	"encoding/json"
 	"fmt"
 	"net/http"

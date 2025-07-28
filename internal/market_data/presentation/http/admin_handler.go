@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"HubInvestments/middleware"
 	di "HubInvestments/pck"
+	"HubInvestments/shared/middleware"
 )
 
 // AdminInvalidateCache handles cache invalidation requests

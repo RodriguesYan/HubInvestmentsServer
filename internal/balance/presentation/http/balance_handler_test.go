@@ -3,8 +3,8 @@ package http
 import (
 	usecase "HubInvestments/internal/balance/application/usecase"
 	domain "HubInvestments/internal/balance/domain/model"
-	"HubInvestments/middleware"
 	di "HubInvestments/pck"
+	"HubInvestments/shared/middleware"
 	"encoding/json"
 	"errors"
 	"math"

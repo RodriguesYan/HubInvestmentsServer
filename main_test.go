@@ -3,8 +3,8 @@ package main
 import (
 	"HubInvestments/internal/auth"
 	"HubInvestments/internal/auth/token"
-	"HubInvestments/middleware"
 	di "HubInvestments/pck"
+	"HubInvestments/shared/middleware"
 	"errors"
 	"net/http"
 	"net/http/httptest"
