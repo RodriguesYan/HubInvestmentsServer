@@ -1,5 +1,6 @@
 # Environment Configuration
 config.env
+config.example.env
 
 # Go specific
 *.exe
