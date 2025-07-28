@@ -1,8 +1,0 @@
-mode: set
-HubInvestments/position/presentation/http/position_handler.go:12.103,15.16 2 1
-HubInvestments/position/presentation/http/position_handler.go:15.16,18.3 2 1
-HubInvestments/position/presentation/http/position_handler.go:21.2,22.16 2 1
-HubInvestments/position/presentation/http/position_handler.go:22.16,25.3 2 1
-HubInvestments/position/presentation/http/position_handler.go:27.2,27.31 1 1
-HubInvestments/position/presentation/http/position_handler.go:31.111,32.112 1 1
-HubInvestments/position/presentation/http/position_handler.go:32.112,34.3 1 1
