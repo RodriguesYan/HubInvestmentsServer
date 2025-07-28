@@ -1,7 +1,9 @@
 package di
 
 import (
+	"HubInvestments/internal/auth"
 	balUsecase "HubInvestments/internal/balance/application/usecase"
+	doLoginUsecase "HubInvestments/internal/login/application/usecase"
 	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posService "HubInvestments/internal/position/application/service"
@@ -13,16 +15,30 @@ import (
 // It implements the Container interface with configurable services
 type TestContainer struct {
 	aucService                 *posService.AucService
+	authService                auth.IAuthService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
 	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
 	getMarketDataUsecase       mktUsecase.IGetMarketDataUsecase
 	getWatchlistUsecase        watchlistUsecase.IGetWatchlistUsecase
+	loginUsecase               doLoginUsecase.IDoLoginUsecase
 }
 
 // NewTestContainer creates a new test container with optional services
 func NewTestContainer() *TestContainer {
 	return &TestContainer{}
+}
+
+// WithLoginUsecase sets the LoginUsecase for testing
+func (c *TestContainer) WithLoginUsecase(usecase doLoginUsecase.IDoLoginUsecase) *TestContainer {
+	c.loginUsecase = usecase
+	return c
+}
+
+// WithAuthService sets the AuthService for testing
+func (c *TestContainer) WithAuthService(service auth.IAuthService) *TestContainer {
+	c.authService = service
+	return c
 }
 
 // WithAucService sets the AucService for testing
@@ -65,6 +81,11 @@ func (c *TestContainer) GetAucService() *posService.AucService {
 	return c.aucService
 }
 
+// GetAuthService returns the configured AuthService or nil
+func (c *TestContainer) GetAuthService() auth.IAuthService {
+	return c.authService
+}
+
 // GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil
 func (c *TestContainer) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
 	return c.positionAggregationUseCase
@@ -85,6 +106,10 @@ func (c *TestContainer) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase 
 func (c *TestContainer) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase {
 	// No-op implementation for testing
 	return c.getWatchlistUsecase
+}
+
+func (c *TestContainer) DoLoginUsecase() doLoginUsecase.IDoLoginUsecase {
+	return c.loginUsecase
 }
 
 // Cache management methods for testing (no-op implementations)

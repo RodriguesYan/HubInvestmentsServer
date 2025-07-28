@@ -3,8 +3,12 @@ package di
 import (
 	"time"
 
+	"HubInvestments/internal/auth"
+	"HubInvestments/internal/auth/token"
 	balUsecase "HubInvestments/internal/balance/application/usecase"
 	balancePersistence "HubInvestments/internal/balance/infra/persistence"
+	doLoginUsecase "HubInvestments/internal/login/application/usecase"
+	loginPersistence "HubInvestments/internal/login/infra/persistense"
 	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	mktCache "HubInvestments/internal/market_data/infra/cache"
 	mktPersistence "HubInvestments/internal/market_data/infra/persistence"
@@ -21,6 +25,8 @@ import (
 )
 
 type Container interface {
+	DoLoginUsecase() doLoginUsecase.IDoLoginUsecase
+	GetAuthService() auth.IAuthService
 	GetAucService() *posService.AucService
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
@@ -35,16 +41,22 @@ type Container interface {
 
 type containerImpl struct {
 	AucService                 *posService.AucService
+	AuthService                auth.IAuthService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
 	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
 	MarketDataCacheManager     mktCache.CacheManager
 	WatchlistUsecase           watchlistUsecase.IGetWatchlistUsecase
+	LoginUsecase               doLoginUsecase.IDoLoginUsecase
 }
 
 func (c *containerImpl) GetAucService() *posService.AucService {
 	return c.AucService
+}
+
+func (c *containerImpl) GetAuthService() auth.IAuthService {
+	return c.AuthService
 }
 
 func (c *containerImpl) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
@@ -61,6 +73,10 @@ func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 
 func (c *containerImpl) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
 	return c.MarketDataUsecase
+}
+
+func (c *containerImpl) DoLoginUsecase() doLoginUsecase.IDoLoginUsecase {
+	return c.LoginUsecase
 }
 
 // Cache management methods implementation
@@ -82,6 +98,11 @@ func NewContainer() (Container, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	loginRepo := loginPersistence.NewLoginRepository(db)
+	loginUsecase := doLoginUsecase.NewDoLoginUsecase(loginRepo)
+	tokenService := token.NewTokenService()
+	authService := auth.NewAuthService(tokenService)
 
 	// Create repositories using the database abstraction
 	positionRepo := positionPersistence.NewPositionRepository(db)
@@ -127,5 +148,7 @@ func NewContainer() (Container, error) {
 		MarketDataUsecase:          marketDataUsecase,
 		MarketDataCacheManager:     cacheManager,
 		WatchlistUsecase:           watchlistUsecase,
+		LoginUsecase:               loginUsecase,
+		AuthService:                authService,
 	}, nil
 }

@@ -16,7 +16,7 @@ import (
 	"HubInvestments/internal/auth"
 	"HubInvestments/internal/auth/token"
 	balanceHandler "HubInvestments/internal/balance/presentation/http"
-	"HubInvestments/internal/login"
+	doLoginHandler "HubInvestments/internal/login/presentation/http"
 	grpcHandler "HubInvestments/internal/market_data/presentation/grpc"
 	adminHandler "HubInvestments/internal/market_data/presentation/http"
 	marketDataHandler "HubInvestments/internal/market_data/presentation/http"
@@ -54,7 +54,10 @@ func main() {
 	log.Printf("gRPC server will start on %s", cfg.GRPCPort)
 
 	// API Routes
-	http.HandleFunc("/login", login.Login)
+	// http.HandleFunc("/login", login.Login)
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		doLoginHandler.DoLogin(w, r, container)
+	})
 	http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
 	http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
 	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
