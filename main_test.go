@@ -165,7 +165,7 @@ func TestServerConfiguration(t *testing.T) {
 		shouldValid bool
 	}{
 		{"localhost", "localhost:8080", true},
-		{"home IP", "192.168.0.6:8080", true},
+		{"home IP", "192.168.0.3:8080", true},
 		{"Camila's IP", "192.168.0.48:8080", true},
 		{"invalid port", "invalid:port", false},
 		{"missing port", "localhost", false},
@@ -453,7 +453,7 @@ func TestApplicationStartupSequence(t *testing.T) {
 			case "start_server":
 				// Server would be started with http.ListenAndServe
 				// We can only validate the port string format
-				port := "192.168.0.6:8080"
+				port := "192.168.0.3:8080"
 				assert.Contains(t, port, ":")
 			}
 

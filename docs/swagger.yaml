@@ -119,7 +119,7 @@ definitions:
         example: 11500
         type: number
     type: object
-host: 192.168.0.6:8080
+host: 192.168.0.3:8080
 info:
   contact:
     email: support@hubinvestments.com

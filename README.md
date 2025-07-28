@@ -8,9 +8,9 @@
 # Start the server
 go run main.go
 
-# The server will start on 192.168.0.6:8080
+# The server will start on 192.168.0.3:8080
 # Swagger documentation will be available at:
-# http://192.168.0.6:8080/swagger/index.html
+# http://192.168.0.3:8080/swagger/index.html
 ```
 
 **Quick access to Swagger UI:**
@@ -18,8 +18,8 @@ go run main.go
 # Start server in background and open Swagger in browser
 go run main.go &
 sleep 3
-open http://192.168.0.6:8080/swagger/index.html  # macOS
-# or manually open: http://192.168.0.6:8080/swagger/index.html
+open http://192.168.0.3:8080/swagger/index.html  # macOS
+# or manually open: http://192.168.0.3:8080/swagger/index.html
 ```
 
 **Available API endpoints documented:**
@@ -128,11 +128,11 @@ redisClient := redis.NewClient(&redis.Options{
 **🔧 Admin Cache Management:**
 ```bash
 # Invalidate specific symbols (requires JWT auth)
-curl -X DELETE "http://192.168.0.6:8080/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL" \
+curl -X DELETE "http://192.168.0.3:8080/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 
 # Warm cache with symbols (requires JWT auth)
-curl -X POST "http://192.168.0.6:8080/admin/market-data/cache/warm?symbols=AAPL,GOOGL" \
+curl -X POST "http://192.168.0.3:8080/admin/market-data/cache/warm?symbols=AAPL,GOOGL" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -244,7 +244,7 @@ For detailed information about all available scripts and commands, see [scripts/
 
 1. **Start Redis**: `redis-server --daemonize yes`
 2. **Quick coverage check**: `make coverage-open`
-3. **View API documentation**: `go run main.go` → http://192.168.0.6:8080/swagger/index.html
+3. **View API documentation**: `go run main.go` → http://192.168.0.3:8080/swagger/index.html
 4. **Before committing**: `make check` 
 5. **While writing tests**: `./scripts/test.sh watch`
 6. **Test cache functionality**: `go test ./market_data/infra/cache/`

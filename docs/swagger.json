@@ -9,7 +9,7 @@
         },
         "version": "1.0"
     },
-    "host": "192.168.0.6:8080",
+    "host": "192.168.0.3:8080",
     "basePath": "/",
     "paths": {
         "/getAucAggregation": {

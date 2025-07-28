@@ -3,7 +3,7 @@
 // @description HubInvestments is a comprehensive financial investment platform API that provides portfolio management, market data access, and user authentication.
 // @contact.name HubInvestments Development Team
 // @contact.email support@hubinvestments.com
-// @host 192.168.0.6:8080
+// @host 192.168.0.3:8080
 // @BasePath /
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -32,7 +32,7 @@ import (
 )
 
 // const portNum string = "localhost:8080"
-const portNum string = "192.168.0.6:8080" //My home IP
+const portNum string = "192.168.0.3:8080" //My home IP
 // const portNum string = "192.168.0.48:8080" //Camila's home IP
 
 const grpcPortNum string = "192.168.0.6:50051" // gRPC server port

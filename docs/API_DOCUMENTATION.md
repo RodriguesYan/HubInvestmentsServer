@@ -7,7 +7,7 @@ HubInvestments is a comprehensive financial investment platform API that provide
 ## Accessing the API Documentation
 
 The interactive Swagger documentation is available at:
-**http://192.168.0.6:8080/swagger/index.html**
+**http://192.168.0.3:8080/swagger/index.html**
 
 ## Available Endpoints
 
@@ -42,20 +42,20 @@ All endpoints return JSON responses with appropriate HTTP status codes:
 
 ### 1. Login
 ```bash
-curl -X POST http://192.168.0.6:8080/login \
+curl -X POST http://192.168.0.3:8080/login \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "password123"}'
 ```
 
 ### 2. Get Balance (with authentication)
 ```bash
-curl -X GET http://192.168.0.6:8080/getBalance \
+curl -X GET http://192.168.0.3:8080/getBalance \
   -H "Authorization: Bearer your_jwt_token_here"
 ```
 
 ### 3. Get Portfolio Summary (with authentication)
 ```bash
-curl -X GET http://192.168.0.6:8080/getPortfolioSummary \
+curl -X GET http://192.168.0.3:8080/getPortfolioSummary \
   -H "Authorization: Bearer your_jwt_token_here"
 ```
 

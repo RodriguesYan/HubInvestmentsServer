@@ -212,7 +212,7 @@ defer client.Close()
 
 ### **1. Get JWT Token (same as HTTP)**
 ```bash
-curl -X POST http://192.168.0.6:8080/login \
+curl -X POST http://192.168.0.3:8080/login \
   -H "Content-Type: application/json" \
   -d '{"username": "your_username", "password": "your_password"}'
 ```

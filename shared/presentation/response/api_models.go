@@ -1,9 +1,9 @@
 package response
 
 import (
-	balanceDomain "HubInvestments/balance/domain/model"
-	portfolioDomain "HubInvestments/portfolio_summary/domain/model"
-	positionDomain "HubInvestments/position/domain/model"
+	balanceDomain "HubInvestments/internal/balance/domain/model"
+	portfolioDomain "HubInvestments/internal/portfolio_summary/domain/model"
+	positionDomain "HubInvestments/internal/position/domain/model"
 )
 
 // BalanceResponse represents the balance response using domain model
