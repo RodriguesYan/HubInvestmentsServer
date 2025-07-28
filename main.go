@@ -24,33 +24,17 @@ import (
 	positionHandler "HubInvestments/internal/position/presentation/http"
 	watchlistHandler "HubInvestments/internal/watchlist/presentation/http"
 	di "HubInvestments/pck"
+	"HubInvestments/shared/config"
 	"HubInvestments/shared/middleware"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/joho/godotenv"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func main() {
-	// Load environment variables from config.env file
-	err := godotenv.Load("config.env")
-	if err != nil {
-		log.Printf("Warning: Could not load config.env file: %v", err)
-		log.Println("Using default values...")
-	}
-
-	// Get configuration from environment variables with fallback defaults
-	portNum := os.Getenv("HTTP_PORT")
-	if portNum == "" {
-		portNum = "localhost:8080" // Default fallback
-	}
-
-	grpcPortNum := os.Getenv("GRPC_PORT")
-	if grpcPortNum == "" {
-		grpcPortNum = "localhost:50051" // Default fallback
-	}
+	// Load configuration once at startup
+	cfg := config.Load()
 
 	tokenService := token.NewTokenService()
 	aucService := auth.NewAuthService(tokenService)
@@ -66,8 +50,8 @@ func main() {
 	}
 
 	// Start gRPC server in background
-	grpcHandler.StartGRPCServerAsync(container, grpcPortNum)
-	log.Printf("gRPC server will start on %s", grpcPortNum)
+	grpcHandler.StartGRPCServerAsync(container, cfg.GRPCPort)
+	log.Printf("gRPC server will start on %s", cfg.GRPCPort)
 
 	// API Routes
 	http.HandleFunc("/login", login.Login)
@@ -84,13 +68,13 @@ func main() {
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
-	log.Printf("HTTP server starting on %s", portNum)
+	log.Printf("HTTP server starting on %s", cfg.HTTPPort)
 	log.Printf("Admin cache endpoints available:")
-	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", portNum)
-	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", portNum)
-	log.Printf("Swagger documentation available at: http://%s/swagger/index.html", portNum)
+	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", cfg.HTTPPort)
+	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", cfg.HTTPPort)
+	log.Printf("Swagger documentation available at: http://%s/swagger/index.html", cfg.HTTPPort)
 
-	err = http.ListenAndServe(portNum, nil)
+	err = http.ListenAndServe(cfg.HTTPPort, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

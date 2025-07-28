@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"HubInvestments/shared/config"
+
 	"github.com/golang-jwt/jwt"
 )
-
-var secretKey = []byte("secret-key") //TODO: por essa key em um env file da vida
 
 type ITokenService interface {
 	CreateAndSignToken(userName string, userId string) (string, error)
@@ -24,14 +24,16 @@ func NewTokenService() ITokenService {
 }
 
 func (s *TokenService) CreateAndSignToken(userName string, userId string) (string, error) {
+	cfg := config.Get()
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"username": userName,
 			"userId":   userId,
-			"exp":      time.Now().Add(time.Minute * 10).Unix(), //token expiration time = 1 min
+			"exp":      time.Now().Add(time.Minute * 10).Unix(), //token expiration time = 10 min
 		})
 
-	tokenString, err := token.SignedString(secretKey)
+	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
 
 	if err != nil {
 		return "", err
@@ -60,9 +62,10 @@ func (s *TokenService) ValidateToken(tokenString string) (map[string]interface{}
 
 func (s *TokenService) parseToken(token string) (*jwt.Token, error) {
 	token = token[len("Bearer "):]
+	cfg := config.Get()
 
 	jwtToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		return []byte(cfg.JWTSecret), nil
 	})
 
 	return jwtToken, err
