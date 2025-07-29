@@ -59,6 +59,18 @@ func validatePassword(password string) error {
 		return errors.New("password must contain at least one uppercase letter")
 	}
 
+	// Check for at least one lowercase letter
+	hasLowercase := false
+	for _, char := range password {
+		if unicode.IsLower(char) {
+			hasLowercase = true
+			break
+		}
+	}
+	if !hasLowercase {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+
 	// Check for at least one digit
 	hasDigit := false
 	for _, char := range password {

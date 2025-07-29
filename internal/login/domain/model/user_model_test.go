@@ -130,7 +130,7 @@ func TestUser_ChangeEmail_Invalid(t *testing.T) {
 	err = user.ChangeEmail(invalidEmail)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid email format")
+	assert.Contains(t, err.Error(), "email must contain exactly one @ symbol")
 	// Original email should remain unchanged
 	assert.Equal(t, "valid@example.com", user.GetEmailString())
 }

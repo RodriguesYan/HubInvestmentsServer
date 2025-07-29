@@ -49,22 +49,33 @@ func validateEmail(email string) error {
 	}
 
 	// Check length constraints (RFC 5321 limits)
-	if len(email) > 60 {
-		return errors.New("email address is too long (maximum 60 characters)")
+	if len(email) > 254 {
+		return errors.New("email address is too long (maximum 254 characters)")
 	}
 
-	// Check for valid email format using regex first (faster check)
-	if !emailRegex.MatchString(email) {
-		return errors.New("invalid email format")
-	}
-
-	// Additional validations (only if regex passes)
+	// Check for exactly one @ symbol first (before regex)
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 {
 		return errors.New("email must contain exactly one @ symbol")
 	}
 
 	localPart := parts[0]
+	domainPart := parts[1]
+
+	// Check local part length
+	if len(localPart) < 1 || len(localPart) > 64 {
+		return errors.New("email local part must be between 1 and 64 characters")
+	}
+
+	// Check domain part length
+	if len(domainPart) < 1 || len(domainPart) > 253 {
+		return errors.New("email domain part must be between 1 and 253 characters")
+	}
+
+	// Check for valid email format using regex
+	if !emailRegex.MatchString(email) {
+		return errors.New("invalid email format")
+	}
 
 	// Check for consecutive dots
 	if strings.Contains(email, "..") {
