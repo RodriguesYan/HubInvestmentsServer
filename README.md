@@ -249,6 +249,12 @@ redis-cli info memory
 make coverage-open
 ```
 
+**If you have failing tests but still want to see coverage:**
+
+```bash
+make coverage-open-force
+```
+
 **Alternative commands for the same result:**
 ```bash
 # Using bash script (with colored output)
@@ -263,9 +269,19 @@ open coverage.html  # macOS
 **Other useful coverage commands:**
 ```bash
 make coverage-summary          # Show detailed coverage summary in terminal
+make coverage-summary-force    # Show coverage summary even if tests fail
 make coverage                  # Show basic coverage percentages
 make check                     # Run format + lint + tests + coverage summary
+make check-force               # Run format + lint + coverage summary (skip test failures)
 ```
+
+**Force commands (useful when some tests are failing):**
+- `make coverage-open-force` - Generate and open coverage report even with failing tests
+- `make coverage-html-force` - Generate HTML coverage report even with failing tests
+- `make coverage-summary-force` - Show coverage summary even with failing tests
+- `make check-force` - Run all checks but ignore test failures
+
+**Note:** The regular `make coverage-open` command requires all tests to pass. If you have failing tests and want to see coverage for the passing tests, use the `-force` variants.
 
 ---
 
@@ -276,8 +292,13 @@ For detailed information about all available scripts and commands, see [scripts/
 ## 🎯 Development Workflow
 
 1. **Start Redis**: `redis-server --daemonize yes`
-2. **Quick coverage check**: `make coverage-open`
+2. **Quick coverage check**: `make coverage-open` (or `make coverage-open-force` if tests fail)
 3. **View API documentation**: `go run main.go` → Check console output for Swagger URL
-4. **Before committing**: `make check` 
+4. **Before committing**: `make check` (or `make check-force` to ignore test failures)
 5. **While writing tests**: `./scripts/test.sh watch`
 6. **Test cache functionality**: `go test ./market_data/infra/cache/`
+
+**Quick command reference:**
+- `make help` - Show all available make commands
+- `make coverage-open-force` - Always works, even with failing tests
+- `make check-force` - Run all checks, ignore test failures
