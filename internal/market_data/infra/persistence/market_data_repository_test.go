@@ -2,9 +2,7 @@ package persistence
 
 import (
 	"HubInvestments/internal/market_data/infra/dto"
-	"HubInvestments/shared/infra/database"
-	"context"
-	"database/sql"
+	"HubInvestments/shared/test"
 	"errors"
 	"fmt"
 	"strings"
@@ -14,84 +12,9 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockDatabase implements the database.Database interface for testing
-type MockDatabase struct {
-	mock.Mock
-}
-
-func (m *MockDatabase) Query(query string, args ...interface{}) (database.Rows, error) {
-	arguments := m.Called(query, args)
-	return arguments.Get(0).(database.Rows), arguments.Error(1)
-}
-
-func (m *MockDatabase) QueryContext(ctx context.Context, query string, args ...interface{}) (database.Rows, error) {
-	arguments := m.Called(ctx, query, args)
-	return arguments.Get(0).(database.Rows), arguments.Error(1)
-}
-
-func (m *MockDatabase) QueryRow(query string, args ...interface{}) database.Row {
-	arguments := m.Called(query, args)
-	return arguments.Get(0).(database.Row)
-}
-
-func (m *MockDatabase) QueryRowContext(ctx context.Context, query string, args ...interface{}) database.Row {
-	arguments := m.Called(ctx, query, args)
-	return arguments.Get(0).(database.Row)
-}
-
-func (m *MockDatabase) Exec(query string, args ...interface{}) (database.Result, error) {
-	arguments := m.Called(query, args)
-	return arguments.Get(0).(database.Result), arguments.Error(1)
-}
-
-func (m *MockDatabase) ExecContext(ctx context.Context, query string, args ...interface{}) (database.Result, error) {
-	arguments := m.Called(ctx, query, args)
-	return arguments.Get(0).(database.Result), arguments.Error(1)
-}
-
-func (m *MockDatabase) Begin() (database.Transaction, error) {
-	arguments := m.Called()
-	return arguments.Get(0).(database.Transaction), arguments.Error(1)
-}
-
-func (m *MockDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (database.Transaction, error) {
-	arguments := m.Called(ctx, opts)
-	return arguments.Get(0).(database.Transaction), arguments.Error(1)
-}
-
-func (m *MockDatabase) Get(dest interface{}, query string, args ...interface{}) error {
-	arguments := m.Called(dest, query, args)
-	return arguments.Error(0)
-}
-
-func (m *MockDatabase) Select(dest interface{}, query string, args ...interface{}) error {
-	arguments := m.Called(dest, query, args)
-
-	// If we're expecting a successful result, populate the destination
-	if arguments.Error(0) == nil && len(arguments) > 1 {
-		if expectedData, ok := arguments.Get(1).([]dto.MarketDataDTO); ok {
-			if destSlice, ok := dest.(*[]dto.MarketDataDTO); ok {
-				*destSlice = expectedData
-			}
-		}
-	}
-
-	return arguments.Error(0)
-}
-
-func (m *MockDatabase) Ping() error {
-	arguments := m.Called()
-	return arguments.Error(0)
-}
-
-func (m *MockDatabase) Close() error {
-	arguments := m.Called()
-	return arguments.Error(0)
-}
-
 func TestNewMarketDataRepository(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 
 	// Act
 	repo := NewMarketDataRepository(mockDB)
@@ -103,7 +26,7 @@ func TestNewMarketDataRepository(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_Success(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"AAPL", "GOOGL", "MSFT"}
@@ -145,7 +68,7 @@ func TestMarketDataRepository_GetMarketData_Success(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_SingleSymbol(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"AAPL"}
@@ -180,7 +103,7 @@ func TestMarketDataRepository_GetMarketData_SingleSymbol(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_EmptySymbols(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{}
@@ -209,7 +132,7 @@ func TestMarketDataRepository_GetMarketData_EmptySymbols(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_DatabaseError(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"AAPL", "GOOGL"}
@@ -240,7 +163,7 @@ func TestMarketDataRepository_GetMarketData_DatabaseError(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_NoDataFound(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"INVALID", "NOTFOUND"}
@@ -269,7 +192,7 @@ func TestMarketDataRepository_GetMarketData_NoDataFound(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_PartialDataFound(t *testing.T) {
 	// Arrange - Request 3 symbols but only 2 found
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"AAPL", "INVALID", "GOOGL"}
@@ -303,7 +226,7 @@ func TestMarketDataRepository_GetMarketData_PartialDataFound(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_DifferentCategories(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"AAPL", "VOO", "BTC"}
@@ -341,7 +264,7 @@ func TestMarketDataRepository_GetMarketData_DifferentCategories(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_LargeSymbolList(t *testing.T) {
 	// Arrange - Test with many symbols
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	// Create 50 symbols
@@ -393,7 +316,7 @@ func TestMarketDataRepository_GetMarketData_LargeSymbolList(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_SpecialCharacters(t *testing.T) {
 	// Arrange - Test symbols with special characters
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"BRK.B", "BRK.A", "SPY"}
@@ -456,7 +379,7 @@ func TestMarketDataRepository_GetMarketData_QueryGeneration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockDB := &MockDatabase{}
+			mockDB := test.NewMockDatabase()
 			defer mockDB.AssertExpectations(t)
 
 			expectedDTOs := make([]dto.MarketDataDTO, len(tc.symbols))
@@ -491,7 +414,7 @@ func TestMarketDataRepository_GetMarketData_QueryGeneration(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_DataMapping(t *testing.T) {
 	// Arrange - Test that DTO to Domain mapping works correctly
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	symbols := []string{"TEST"}
@@ -537,7 +460,7 @@ func TestMarketDataRepository_GetMarketData_DataMapping(t *testing.T) {
 
 func TestMarketDataRepository_GetMarketData_NilSymbols(t *testing.T) {
 	// Arrange
-	mockDB := &MockDatabase{}
+	mockDB := test.NewMockDatabase()
 	defer mockDB.AssertExpectations(t)
 
 	var symbols []string = nil
