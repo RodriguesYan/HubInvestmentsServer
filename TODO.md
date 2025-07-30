@@ -148,12 +148,12 @@
     - [x] Add integration tests for gRPC client-server communication
     - [x] Test authentication flow for gRPC requests
     - [x] Add comprehensive test coverage for gRPC functionality
-- [ ] **Step 4**: Architecture Integration and Optimization
-  - [ ] **Step 4.1**: Dual Protocol Support
-    - [ ] HTTP REST API for external clients (web, mobile apps)
-    - [ ] gRPC for internal service-to-service communication (watchlist service)
-    - [ ] Shared business logic between HTTP and gRPC handlers
-    - [ ] Consistent error handling and response formats
+- [x] **Step 4**: Architecture Integration and Optimization
+  - [x] **Step 4.1**: Dual Protocol Support
+    - [x] HTTP REST API for external clients (web, mobile apps)
+    - [x] gRPC for internal service-to-service communication (watchlist service)
+    - [x] Shared business logic between HTTP and gRPC handlers
+    - [x] Consistent error handling and response formats
 - [ ] **Implementation Architecture Overview**:
   ```
   External Clients (Web/Mobile)
@@ -189,14 +189,7 @@
   - Support 10,000+ concurrent gRPC connections
   - 95%+ cache hit ratio for popular symbols
 
-### ⏳ Phase 6: Watchlist Management System
-- [ ] Create watchlist CRUD operations
-- [ ] Support up to 20 assets per watchlist
-- [ ] Call market data to fetch quote, symbol, name and other needed info via gRCP
-- [ ] Add Redis caching for fast watchlist access
-- **Priority**: Medium - User experience enhancement
-
-### ⏳ Phase 7: Order Management System
+### ⏳ Phase 6: Order Management System
 - [ ] Design comprehensive order management architecture
 - [ ] Implement RabbitMQ for order queue management
 - [ ] Create order validation service with risk management
@@ -207,7 +200,7 @@
 - [ ] Add compliance checks and audit trails
 - **Priority**: High - Core trading functionality
 
-### ⏳ Phase 8: Real-time Data & WebSocket Infrastructure
+### ⏳ Phase 7: Real-time Data & WebSocket Infrastructure
 - [ ] Implement WebSocket infrastructure for real-time asset quotations
 - [ ] Design and implement market data streaming architecture
 - [ ] Add SSE (Server-Sent Events) as fallback for real-time updates
@@ -217,7 +210,7 @@
 - [ ] Support 10,000+ concurrent WebSocket connections
 - **Priority**: Medium - Real-time features
 
-### ⏳ Phase 3: Authentication & Login Improvements
+### ⏳ Phase 8: Authentication & Login Improvements
 - [ ] Apply DDD pattern to login module
 - [ ] Refactor login methods into smaller, more maintainable functions
 - [ ] Implement comprehensive unit tests for login functionality
@@ -227,7 +220,7 @@
 - [ ] Implement secure password handling improvements
 - **Priority**: High - Security and maintainability improvements
 
-### ⏳ Phase 4: Database Infrastructure & DevOps Setup
+### ⏳ Phase 9: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
   - [ ] Instruments table with asset details
   - [ ] Enhanced balances table structure
@@ -245,7 +238,7 @@
     - [ ] Profile and optimize memory usage and garbage collection
 - **Priority**: High - Foundation for all other features
 
-### ⏳ Phase 9: Security & Production Readiness
+### ⏳ Phase 10: Security & Production Readiness
 - [ ] Implement SSL/TLS encryption for all communications
 - [ ] Set up Nginx load balancer with caching and security features
 - [ ] Add WAF (Web Application Firewall) protection
@@ -256,7 +249,7 @@
 - [ ] Create security headers and protection policies
 - **Priority**: High - Production security requirements
 
-### ⏳ Phase 10: API Documentation & Testing
+### ⏳ Phase 11: API Documentation & Testing
 - [ ] Implement Swagger/OpenAPI documentation
 - [ ] Create interactive API explorer
 - [ ] Add automated API documentation generation
@@ -272,7 +265,7 @@
 - [ ] Test for memory leaks and connection issues during concurrent access
 - **Priority**: Medium - Quality assurance and developer experience
 
-### ⏳ Phase 11: Advanced Architecture & Microservices
+### ⏳ Phase 12: Advanced Architecture & Microservices
 - [ ] Implement gRPC for inter-service communication
 - [ ] Design microservices decomposition strategy
 - [ ] Add service discovery and registration
@@ -287,7 +280,7 @@
     - [ ] Add monitoring and metrics for gRPC performance
 - **Priority**: Low - Advanced architecture (optional but recommended)
 
-### ⏳ Phase 12: Performance & Monitoring
+### ⏳ Phase 13: Performance & Monitoring
 - [ ] Implement application and infrastructure monitoring
 - [ ] Add performance metrics and alerting
 - [ ] Create database performance optimization
@@ -304,7 +297,7 @@
     - [ ] Add graceful shutdown handling for all components
 - **Priority**: Medium - Production performance requirements
 
-### ⏳ Phase 13: CI/CD & DevOps Pipeline
+### ⏳ Phase 14: CI/CD & DevOps Pipeline
 - [ ] Set up automated CI/CD pipeline
 - [ ] Implement automated testing in pipeline
 - [ ] Add code quality checks and linting
