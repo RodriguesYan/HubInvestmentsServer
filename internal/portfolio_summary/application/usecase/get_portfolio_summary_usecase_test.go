@@ -13,11 +13,11 @@ import (
 
 // Mock repository for positions
 type MockPositionRepository struct {
-	positions []posModel.AssetsModel
+	positions []posModel.AssetModel
 	err       error
 }
 
-func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]posModel.AssetsModel, error) {
+func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]posModel.AssetModel, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -40,7 +40,7 @@ func (m *MockBalanceRepository) GetBalance(userId string) (balDomain.BalanceMode
 func TestGetPortfolioSummary_Success(t *testing.T) {
 	// Arrange - Create mock data
 	mockBalance := balDomain.BalanceModel{AvailableBalance: 5000.0}
-	mockPositions := []posModel.AssetsModel{
+	mockPositions := []posModel.AssetModel{
 		{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
 		{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
 	}
@@ -100,7 +100,7 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 func TestGetPortfolioSummary_BalanceFailure(t *testing.T) {
 	// Arrange - Create mock data
 	mockBalance := balDomain.BalanceModel{}
-	mockPositions := []posModel.AssetsModel{
+	mockPositions := []posModel.AssetModel{
 		{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
 		{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
 	}
@@ -124,7 +124,7 @@ func TestGetPortfolioSummary_BalanceFailure(t *testing.T) {
 func TestGetPortfolioSummary_PositionFailure(t *testing.T) {
 	// Arrange - Create mock data
 	mockBalance := balDomain.BalanceModel{}
-	mockPositions := []posModel.AssetsModel{}
+	mockPositions := []posModel.AssetModel{}
 
 	// Create mock repositories
 	mockBalanceRepo := &MockBalanceRepository{balance: mockBalance, err: nil}

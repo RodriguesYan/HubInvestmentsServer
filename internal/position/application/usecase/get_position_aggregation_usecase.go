@@ -31,15 +31,15 @@ func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggre
 	return aucAggregation, nil
 }
 
-func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []domain.AssetsModel) (aggregation []domain.PositionAggregationModel, totalInvested float32, currentTotal float32) {
+func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []domain.AssetModel) (aggregation []domain.PositionAggregationModel, totalInvested float32, currentTotal float32) {
 	var positionAggregations []domain.PositionAggregationModel
 	var invested float32 = 0
 	var current float32 = 0
 
 	for _, element := range assets {
-		// Calculate individual asset values
-		assetInvestment := element.AveragePrice * element.Quantity
-		assetCurrentValue := element.LastPrice * element.Quantity
+		// Calculate individual asset values using domain methods
+		assetInvestment := element.CalculateInvestment()
+		assetCurrentValue := element.CalculateCurrentValue()
 
 		// Add to running totals (this is the correct place to accumulate)
 		invested += assetInvestment
@@ -69,12 +69,12 @@ func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []doma
 	return positionAggregations, invested, current
 }
 
-func (uc *GetPositionAggregationUseCase) updateExistingAggregation(aggregation *domain.PositionAggregationModel, asset domain.AssetsModel) {
+func (uc *GetPositionAggregationUseCase) updateExistingAggregation(aggregation *domain.PositionAggregationModel, asset domain.AssetModel) {
 	aggregation.Assets = append(aggregation.Assets, asset)
 
-	assetInvestment := asset.AveragePrice * asset.Quantity
-	assetCurrentValue := asset.LastPrice * asset.Quantity
-	assetPnl := assetCurrentValue - assetInvestment
+	assetInvestment := asset.CalculateInvestment()
+	assetCurrentValue := asset.CalculateCurrentValue()
+	assetPnl := asset.CalculatePnL()
 
 	aggregation.TotalInvested += assetInvestment
 	aggregation.CurrentTotal += assetCurrentValue
@@ -85,10 +85,10 @@ func (uc *GetPositionAggregationUseCase) updateExistingAggregation(aggregation *
 	}
 }
 
-func (uc *GetPositionAggregationUseCase) createNewAggregation(asset domain.AssetsModel) domain.PositionAggregationModel {
-	assetInvestment := asset.AveragePrice * asset.Quantity
-	assetCurrentValue := asset.LastPrice * asset.Quantity
-	assetPnl := assetCurrentValue - assetInvestment
+func (uc *GetPositionAggregationUseCase) createNewAggregation(asset domain.AssetModel) domain.PositionAggregationModel {
+	assetInvestment := asset.CalculateInvestment()
+	assetCurrentValue := asset.CalculateCurrentValue()
+	assetPnl := asset.CalculatePnL()
 
 	var pnlPercentage float32 = 0
 	if assetInvestment > 0 {
@@ -101,6 +101,6 @@ func (uc *GetPositionAggregationUseCase) createNewAggregation(asset domain.Asset
 		CurrentTotal:  assetCurrentValue,
 		Pnl:           assetPnl,
 		PnlPercentage: pnlPercentage,
-		Assets:        []domain.AssetsModel{asset},
+		Assets:        []domain.AssetModel{asset},
 	}
 }

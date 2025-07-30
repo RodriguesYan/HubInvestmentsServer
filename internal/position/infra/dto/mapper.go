@@ -11,8 +11,8 @@ func NewAssetMapper() *AssetMapper {
 }
 
 // ToDomain converts AssetDTO to domain.AssetsModel
-func (m *AssetMapper) ToDomain(dto AssetDTO) domain.AssetsModel {
-	return domain.AssetsModel{
+func (m *AssetMapper) ToDomain(dto AssetDTO) domain.AssetModel {
+	return domain.AssetModel{
 		Symbol:       dto.Symbol,
 		Quantity:     dto.Quantity,
 		AveragePrice: dto.AveragePrice,
@@ -22,7 +22,7 @@ func (m *AssetMapper) ToDomain(dto AssetDTO) domain.AssetsModel {
 }
 
 // ToDTO converts domain.AssetsModel to AssetDTO
-func (m *AssetMapper) ToDTO(model domain.AssetsModel) AssetDTO {
+func (m *AssetMapper) ToDTO(model domain.AssetModel) AssetDTO {
 	return AssetDTO{
 		Symbol:       model.Symbol,
 		Quantity:     model.Quantity,
@@ -33,8 +33,8 @@ func (m *AssetMapper) ToDTO(model domain.AssetsModel) AssetDTO {
 }
 
 // ToDomainSlice converts a slice of AssetDTO to slice of domain.AssetsModel
-func (m *AssetMapper) ToDomainSlice(dtos []AssetDTO) []domain.AssetsModel {
-	models := make([]domain.AssetsModel, len(dtos))
+func (m *AssetMapper) ToDomainSlice(dtos []AssetDTO) []domain.AssetModel {
+	models := make([]domain.AssetModel, len(dtos))
 	for i, dto := range dtos {
 		models[i] = m.ToDomain(dto)
 	}

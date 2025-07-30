@@ -22,7 +22,7 @@ func NewPositionRepository(db database.Database) repository.PositionRepository {
 	}
 }
 
-func (r *PositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) {
+func (r *PositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
 	query := `
 	SELECT 	i.symbol, 
 			p.average_price, 

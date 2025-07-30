@@ -65,7 +65,7 @@ func TestGetPortfolioSummary_Success(t *testing.T) {
 					CurrentTotal:  6750.0,
 					Pnl:           250.0,
 					PnlPercentage: 3.85,
-					Assets: []posDomain.AssetsModel{
+					Assets: []posDomain.AssetModel{
 						{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
 						{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
 					},
@@ -116,7 +116,7 @@ func TestGetPortfolioSummaryWithAuth_Success(t *testing.T) {
 					CurrentTotal:  6750.0,
 					Pnl:           250.0,
 					PnlPercentage: 3.85,
-					Assets: []posDomain.AssetsModel{
+					Assets: []posDomain.AssetModel{
 						{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
 						{Symbol: "GOOGL", Category: 1, AveragePrice: 2500.0, LastPrice: 2600.0, Quantity: 2.0},
 					},
@@ -274,7 +274,7 @@ func TestGetPortfolioSummary_JSONResponseStructure(t *testing.T) {
 					CurrentTotal:  1550.0,
 					Pnl:           50.0,
 					PnlPercentage: 3.33,
-					Assets: []posDomain.AssetsModel{
+					Assets: []posDomain.AssetModel{
 						{Symbol: "AAPL", Category: 1, AveragePrice: 150.0, LastPrice: 155.0, Quantity: 10.0},
 					},
 				},

@@ -10,13 +10,13 @@ import (
 )
 
 type MockPositionRepository struct {
-	model []domain.AssetsModel
+	model []domain.AssetModel
 	err   error
 }
 
-func (r MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) {
+func (r MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
 	if r.err != nil {
-		return []domain.AssetsModel{}, r.err
+		return []domain.AssetModel{}, r.err
 	}
 
 	return r.model, nil
@@ -25,7 +25,7 @@ func (r MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.As
 func Test_GetPositionAggregationUseCase_Success(t *testing.T) {
 	userId := "some id"
 
-	assets := []domain.AssetsModel{
+	assets := []domain.AssetModel{
 		{Symbol: "AAPL", Quantity: 5, AveragePrice: 10, LastPrice: 11, Category: 1},
 		{Symbol: "AAPL", Quantity: 7, AveragePrice: 11, LastPrice: 11, Category: 1},
 	}
@@ -58,7 +58,7 @@ func Test_GetPositionAggregationUseCase_Success(t *testing.T) {
 func Test_GetPositionAggregationUseCase_FailRepo(t *testing.T) {
 	userId := "some id"
 
-	assets := []domain.AssetsModel{}
+	assets := []domain.AssetModel{}
 
 	repo := MockPositionRepository{
 		model: assets,

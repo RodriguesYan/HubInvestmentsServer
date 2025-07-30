@@ -6,7 +6,6 @@ import (
 	doLoginUsecase "HubInvestments/internal/login/application/usecase"
 	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
-	posService "HubInvestments/internal/position/application/service"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 )
@@ -14,7 +13,6 @@ import (
 // TestContainer is a simple mock container for testing
 // It implements the Container interface with configurable services
 type TestContainer struct {
-	aucService                 *posService.AucService
 	authService                auth.IAuthService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
@@ -38,12 +36,6 @@ func (c *TestContainer) WithLoginUsecase(usecase doLoginUsecase.IDoLoginUsecase)
 // WithAuthService sets the AuthService for testing
 func (c *TestContainer) WithAuthService(service auth.IAuthService) *TestContainer {
 	c.authService = service
-	return c
-}
-
-// WithAucService sets the AucService for testing
-func (c *TestContainer) WithAucService(service *posService.AucService) *TestContainer {
-	c.aucService = service
 	return c
 }
 
@@ -74,11 +66,6 @@ func (c *TestContainer) WithMarketDataUsecase(usecase mktUsecase.IGetMarketDataU
 func (c *TestContainer) WithWatchlistUsecase(usecase watchlistUsecase.IGetWatchlistUsecase) *TestContainer {
 	c.getWatchlistUsecase = usecase
 	return c
-}
-
-// GetAucService returns the configured AucService or nil
-func (c *TestContainer) GetAucService() *posService.AucService {
-	return c.aucService
 }
 
 // GetAuthService returns the configured AuthService or nil

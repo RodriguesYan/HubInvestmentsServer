@@ -13,7 +13,6 @@ import (
 	mktCache "HubInvestments/internal/market_data/infra/cache"
 	mktPersistence "HubInvestments/internal/market_data/infra/persistence"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
-	posService "HubInvestments/internal/position/application/service"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
@@ -27,7 +26,6 @@ import (
 type Container interface {
 	DoLoginUsecase() doLoginUsecase.IDoLoginUsecase
 	GetAuthService() auth.IAuthService
-	GetAucService() *posService.AucService
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
@@ -40,7 +38,6 @@ type Container interface {
 }
 
 type containerImpl struct {
-	AucService                 *posService.AucService
 	AuthService                auth.IAuthService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
@@ -49,10 +46,6 @@ type containerImpl struct {
 	MarketDataCacheManager     mktCache.CacheManager
 	WatchlistUsecase           watchlistUsecase.IGetWatchlistUsecase
 	LoginUsecase               doLoginUsecase.IDoLoginUsecase
-}
-
-func (c *containerImpl) GetAucService() *posService.AucService {
-	return c.AucService
 }
 
 func (c *containerImpl) GetAuthService() auth.IAuthService {
@@ -106,7 +99,6 @@ func NewContainer() (Container, error) {
 
 	// Create repositories using the database abstraction
 	positionRepo := positionPersistence.NewPositionRepository(db)
-	aucService := posService.NewAucService(positionRepo)
 	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
 
 	balanceRepo := balancePersistence.NewBalanceRepository(db)
@@ -141,7 +133,6 @@ func NewContainer() (Container, error) {
 	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, marketDataUsecase)
 
 	return &containerImpl{
-		AucService:                 aucService,
 		PositionAggregationUseCase: positionAggregationUseCase,
 		BalanceUsecase:             balanceUsecase,
 		PortfolioSummaryUsecase:    portfolioSummaryUseCase,

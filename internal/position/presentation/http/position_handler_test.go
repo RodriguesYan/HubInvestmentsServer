@@ -28,11 +28,11 @@ func (m *MockAuth) VerifyToken(token string, w http.ResponseWriter) (string, err
 }
 
 type MockPositionRepository struct {
-	aggregations []domain.AssetsModel
+	aggregations []domain.AssetModel
 	err          error
 }
 
-func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetsModel, error) {
+func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -89,7 +89,7 @@ func TestGetAucAggregation_Success(t *testing.T) {
 	expectedUserId := "user123"
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
 			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
 			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
@@ -158,7 +158,7 @@ func TestGetAucAggregation_EmptyPositions(t *testing.T) {
 	expectedUserId := "user123"
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{}, // Empty slice
+		aggregations: []domain.AssetModel{}, // Empty slice
 		err:          nil,
 	}
 
@@ -189,7 +189,7 @@ func TestGetAucAggregation_SinglePosition(t *testing.T) {
 	expectedUserId := "user123"
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
 		},
 	}
@@ -226,7 +226,7 @@ func TestGetAucAggregationWithAuth_Success(t *testing.T) {
 	})
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
 			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
 			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
@@ -276,7 +276,7 @@ func TestGetAucAggregationWithAuth_AuthenticationFailure(t *testing.T) {
 	})
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{},
+		aggregations: []domain.AssetModel{},
 		err:          nil,
 	}
 
@@ -306,7 +306,7 @@ func TestGetAucAggregationWithAuth_MissingAuthHeader(t *testing.T) {
 	})
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{},
+		aggregations: []domain.AssetModel{},
 		err:          nil,
 	}
 
@@ -360,7 +360,7 @@ func TestGetAucAggregation_EdgeCaseWithZeroValues(t *testing.T) {
 	expectedUserId := "user123"
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{Symbol: "FREE", Category: 1, AveragePrice: 0, LastPrice: 0, Quantity: 0},
 			{Symbol: "ZERO", Category: 1, AveragePrice: 100, LastPrice: 50, Quantity: 0},
 		},
@@ -394,7 +394,7 @@ func TestGetAucAggregation_MultipleCategories(t *testing.T) {
 	expectedUserId := "user123"
 
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10}, // Stock
 			{Symbol: "BOND", Category: 3, AveragePrice: 100, LastPrice: 105, Quantity: 20}, // Bond
 			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 455, Quantity: 5},   // ETF
@@ -433,7 +433,7 @@ func TestGetAucAggregation_MultipleCategories(t *testing.T) {
 func TestGetAucAggregation_HTTPMethods(t *testing.T) {
 	expectedUserId := "user123"
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{},
+		aggregations: []domain.AssetModel{},
 		err:          nil,
 	}
 
@@ -473,7 +473,7 @@ func TestGetAucAggregation_UserIdVariations(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockRepo := &MockPositionRepository{
-				aggregations: []domain.AssetsModel{},
+				aggregations: []domain.AssetModel{},
 				err:          nil,
 			}
 
@@ -498,7 +498,7 @@ func TestGetAucAggregation_JSONMarshalError(t *testing.T) {
 
 	// Create mock repository that returns data with invalid float values
 	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetsModel{
+		aggregations: []domain.AssetModel{
 			{
 				Symbol:       "TEST",
 				Category:     1,
