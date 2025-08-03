@@ -5,8 +5,19 @@
 
 # Default target
 help: ## Show this help message
-	@echo "Available commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo "📋 Available commands:"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "🗄️  Database Migration Commands:"
+	@echo "   migrate-help            Show detailed migration usage"
+	@echo "   migrate-balance-up      Run balance migrations"
+	@echo "   migrate-balance-version Show current migration version"
+	@echo ""
+	@echo "📖 Quick starts:"
+	@echo "   make coverage-open      Generate and view test coverage"
+	@echo "   make check              Run all quality checks"
+	@echo "   make migrate-help       Show migration commands"
 
 # Testing commands
 test: ## Run all tests
@@ -128,4 +139,32 @@ db-migrate: ## Run database migrations (customize as needed)
 	@echo "Add your database migration commands here"
 
 db-seed: ## Seed database with test data (customize as needed)
-	@echo "Add your database seeding commands here" 
+	@echo "Add your database seeding commands here"
+
+# Migration commands for balance module
+migrate-balance-up: ## Run balance migrations up
+	go run cmd/migrate/main.go -command=up -module=balance
+
+migrate-balance-down: ## Rollback last balance migration
+	go run cmd/migrate/main.go -command=down -module=balance
+
+migrate-balance-version: ## Show current balance migration version
+	go run cmd/migrate/main.go -command=version -module=balance
+
+migrate-balance-steps: ## Run specific number of balance migration steps (use STEPS=n)
+	go run cmd/migrate/main.go -command=steps -module=balance -steps=$(or $(STEPS),1)
+
+migrate-balance-force: ## Force balance migration to specific version (use VERSION=n)
+	go run cmd/migrate/main.go -command=force -module=balance -version=$(or $(VERSION),0)
+
+migrate-help: ## Show migration usage examples
+	@echo "Database Migration Commands:"
+	@echo "  make migrate-balance-up        - Run all pending balance migrations"
+	@echo "  make migrate-balance-down      - Rollback the most recent balance migration"
+	@echo "  make migrate-balance-version   - Show current migration version"
+	@echo "  make migrate-balance-steps STEPS=2  - Run 2 migration steps forward"
+	@echo "  make migrate-balance-steps STEPS=-1 - Run 1 migration step backward"
+	@echo "  make migrate-balance-force VERSION=1 - Force migration to version 1 (use with caution)"
+	@echo ""
+	@echo "Custom database URL:"
+	@echo "  go run cmd/migrate/main.go -command=up -module=balance -db='postgres://user:pass@host/db?sslmode=disable'" 

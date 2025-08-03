@@ -81,6 +81,271 @@ go install github.com/swaggo/swag/cmd/swag@latest
 
 ---
 
+## 🗄️ Database Migrations
+
+**HubInvestments uses structured database migrations to manage schema changes safely across different environments.**
+
+### What are Database Migrations?
+
+Database migrations are version-controlled scripts that define incremental changes to your database schema. They allow you to:
+- **Track Changes**: Every schema change is recorded as a versioned migration file
+- **Environment Consistency**: Ensure development, staging, and production databases have identical structures  
+- **Team Collaboration**: All developers work with the same database structure
+- **Safe Deployments**: Apply schema changes automatically and safely during deployments
+- **Rollback Capability**: Revert problematic changes using down migrations
+
+### Migration Structure
+
+Migrations are organized by module in the following structure:
+```
+internal/[module]/infra/migration/
+├── migration_manager.go          # Migration logic for the module
+├── migration_manager_test.go     # Tests for migration functionality
+└── sql/                          # Migration SQL files
+    ├── 000001_create_table.up.sql    # Up migration (apply changes)
+    ├── 000001_create_table.down.sql  # Down migration (revert changes)
+    ├── 000002_seed_data.up.sql       # Seed initial data
+    └── 000002_seed_data.down.sql     # Remove seed data
+```
+
+### Available Migration Commands
+
+**Quick Commands (via Makefile):**
+```bash
+# Balance module migrations
+make migrate-balance-up          # Run all pending balance migrations
+make migrate-balance-down        # Rollback the most recent balance migration  
+make migrate-balance-version     # Show current migration version
+make migrate-help               # Show all migration commands and examples
+
+# Advanced usage
+make migrate-balance-steps STEPS=2    # Run 2 migration steps forward
+make migrate-balance-steps STEPS=-1   # Run 1 migration step backward
+make migrate-balance-force VERSION=1  # Force migration to version 1 (use with caution)
+```
+
+**Direct CLI Usage:**
+```bash
+# Basic commands
+go run cmd/migrate/main.go -command=up -module=balance
+go run cmd/migrate/main.go -command=down -module=balance
+go run cmd/migrate/main.go -command=version -module=balance
+
+# With custom database URL
+go run cmd/migrate/main.go -command=up -module=balance -db='postgres://user:pass@host/db?sslmode=disable'
+
+# Advanced commands
+go run cmd/migrate/main.go -command=steps -module=balance -steps=2
+go run cmd/migrate/main.go -command=force -module=balance -version=1
+```
+
+### When to Use Migrations
+
+**✅ Always use migrations for:**
+- **Schema Changes**: Creating, altering, or dropping tables, columns, indexes
+- **Data Changes**: Inserting, updating, or deleting data that affects application logic
+- **Constraint Changes**: Adding or removing foreign keys, unique constraints, check constraints
+- **Index Management**: Creating or dropping database indexes for performance
+- **Function/Trigger Changes**: Adding or modifying stored procedures, triggers, functions
+
+**❌ Don't use migrations for:**
+- **Application Data**: User-generated content (use application logic instead)
+- **Environment-Specific Data**: Configuration that varies between environments
+- **Temporary Testing Data**: Use test fixtures or seed scripts instead
+
+### Migration Workflow
+
+**1. Development Workflow:**
+```bash
+# 1. Create a new feature requiring database changes
+git checkout -b feature/new-balance-fields
+
+# 2. Check current migration status
+make migrate-balance-version
+
+# 3. Create new migration files manually in internal/balance/infra/migration/sql/
+# Example: 000003_add_balance_currency.up.sql and 000003_add_balance_currency.down.sql
+
+# 4. Test migration locally
+make migrate-balance-up
+
+# 5. Test rollback works
+make migrate-balance-down
+make migrate-balance-up
+
+# 6. Commit migration files with your code changes
+git add internal/balance/infra/migration/sql/000003_*
+git commit -m "Add currency column to balance table"
+```
+
+**2. Team Collaboration:**
+```bash
+# When pulling changes from teammates
+git pull origin main
+
+# Check if new migrations are available
+make migrate-balance-version
+
+# Apply new migrations
+make migrate-balance-up
+```
+
+**3. Production Deployment:**
+```bash
+# In CI/CD pipeline or deployment script
+make migrate-balance-up
+
+# Or with production database URL
+go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
+```
+
+### Creating New Migrations
+
+**1. File Naming Convention:**
+- Format: `NNNNNN_description.up.sql` and `NNNNNN_description.down.sql`
+- Use sequential numbering (000001, 000002, etc.)
+- Use descriptive names: `create_balance_table`, `add_user_index`, `seed_initial_data`
+
+**2. Migration Best Practices:**
+
+**✅ Good Migration Example:**
+```sql
+-- 000003_add_balance_currency.up.sql
+ALTER TABLE balances 
+ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'USD';
+
+CREATE INDEX idx_balances_currency ON balances(currency);
+```
+
+```sql
+-- 000003_add_balance_currency.down.sql  
+DROP INDEX IF EXISTS idx_balances_currency;
+ALTER TABLE balances DROP COLUMN IF EXISTS currency;
+```
+
+**❌ Avoid These Patterns:**
+```sql
+-- Don't modify existing migrations after they've been committed
+-- Don't use database-specific features without fallbacks
+-- Don't forget to create corresponding down migrations
+-- Don't make destructive changes without backups
+```
+
+**3. Testing Migrations:**
+```bash
+# Always test both directions
+make migrate-balance-up    # Apply your migration
+make migrate-balance-down  # Test rollback works
+make migrate-balance-up    # Apply again to ensure idempotency
+```
+
+### Migration Module Architecture
+
+**Current Modules:**
+- **balance**: User account balance management
+- **position**: Investment position tracking (planned)
+- **user**: User account management (planned)
+
+**Adding New Modules:**
+1. Create migration manager: `internal/[module]/infra/migration/migration_manager.go`
+2. Add SQL directory: `internal/[module]/infra/migration/sql/`
+3. Update CLI tool: `cmd/migrate/main.go`
+4. Add Makefile commands: `Makefile`
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **"Dirty" Migration State:**
+   ```bash
+   # Check migration status
+   make migrate-balance-version
+   
+   # If dirty, manually fix the issue and force clean state
+   make migrate-balance-force VERSION=N
+   ```
+
+2. **Migration File Not Found:**
+   ```bash
+   # Ensure migration files are in correct location:
+   ls internal/balance/infra/migration/sql/
+   
+   # Check file naming convention (must end with .up.sql/.down.sql)
+   ```
+
+3. **Database Connection Issues:**
+   ```bash
+   # Test database connection
+   psql -h localhost -U yanrodrigues -d yanrodrigues
+   
+   # Use custom database URL
+   go run cmd/migrate/main.go -command=version -module=balance -db="your-db-url"
+   ```
+
+4. **Permission Errors:**
+   ```bash
+   # Ensure database user has necessary permissions:
+   # - CREATE/DROP TABLE
+   # - CREATE/DROP INDEX  
+   # - INSERT/UPDATE/DELETE data
+   # - CREATE/DROP FUNCTION (for triggers)
+   ```
+
+### Migration Testing
+
+**Run migration tests:**
+```bash
+# Test migration functionality
+go test ./internal/balance/infra/migration/
+
+# Test with verbose output
+go test -v ./internal/balance/infra/migration/
+```
+
+**Integration with CI/CD:**
+```bash
+# In your CI pipeline, always run migrations before application deployment
+make migrate-balance-up
+go test ./...  # Ensure migrations don't break existing tests
+```
+
+### Advanced Usage
+
+**Multiple Steps:**
+```bash
+# Move forward 2 migrations
+make migrate-balance-steps STEPS=2
+
+# Move backward 1 migration  
+make migrate-balance-steps STEPS=-1
+```
+
+**Environment-Specific Migrations:**
+```bash
+# Development
+make migrate-balance-up
+
+# Staging
+go run cmd/migrate/main.go -command=up -module=balance -db="$STAGING_DB_URL"
+
+# Production  
+go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
+```
+
+**Backup Before Major Migrations:**
+```bash
+# Always backup before running migrations in production
+pg_dump -h localhost -U yanrodrigues yanrodrigues > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Run migrations
+make migrate-balance-up
+
+# If something goes wrong, restore from backup
+# psql -h localhost -U yanrodrigues yanrodrigues < backup_YYYYMMDD_HHMMSS.sql
+```
+
+---
+
 ## 🗄️ Redis Setup & Configuration
 
 **HubInvestments uses Redis for high-performance caching of market data.**
