@@ -1,5 +1,7 @@
--- Drop balances table and related objects
--- This migration reverts the creation of the balances table
+-- Migration: Drop balances table (ROLLBACK)
+-- Module: Balance Management
+-- Created: 2024-12-19
+-- Description: Rollback the balances table creation
 
 -- Drop trigger first
 DROP TRIGGER IF EXISTS update_balance_updated_at ON balances;

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"HubInvestments/internal/balance/infra/migration"
 	"HubInvestments/shared/infra/database"
+	"HubInvestments/shared/infra/migration"
 )
 
 const (
@@ -16,7 +16,6 @@ const (
 func main() {
 	var (
 		command     = flag.String("command", "up", "Migration command: up, down, steps, force, version")
-		module      = flag.String("module", "balance", "Module to migrate: balance")
 		steps       = flag.Int("steps", 1, "Number of steps for 'steps' command")
 		version     = flag.Int("version", 0, "Version for 'force' command")
 		databaseURL = flag.String("db", "", "Database URL (defaults to local development)")
@@ -29,49 +28,43 @@ func main() {
 		dbURL = defaultDatabaseURL
 	}
 
-	// Validate module
-	if *module != "balance" {
-		log.Fatalf("Unsupported module: %s. Supported modules: balance", *module)
-	}
-
-	// Run migration based on module
-	switch *module {
-	case "balance":
-		err := runBalanceMigration(*command, *steps, *version, dbURL)
-		if err != nil {
-			log.Fatalf("Balance migration failed: %v", err)
-		}
-	default:
-		log.Fatalf("Unknown module: %s", *module)
+	// Run migrations
+	err := runMigration(*command, *steps, *version, dbURL)
+	if err != nil {
+		log.Fatalf("Migration failed: %v", err)
 	}
 }
 
-func runBalanceMigration(command string, steps, version int, databaseURL string) error {
-	mgr, err := migration.NewBalanceMigrationManager(databaseURL)
+func runMigration(command string, steps, version int, databaseURL string) error {
+	mgr, err := migration.NewMigrationManager(databaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to create balance migration manager: %w", err)
+		return fmt.Errorf("failed to create migration manager: %w", err)
 	}
 	defer mgr.Close()
 
 	switch command {
 	case "up":
-		fmt.Println("Running balance migrations up...")
+		fmt.Println("Running all pending migrations...")
 		err = mgr.Up()
 		if err != nil {
 			return fmt.Errorf("failed to run migrations up: %w", err)
 		}
-		fmt.Println("✅ Balance migrations completed successfully")
+		fmt.Println("✅ All migrations completed successfully")
 
 	case "down":
-		fmt.Println("Running balance migration down...")
+		fmt.Println("Rolling back the most recent migration...")
 		err = mgr.Down()
 		if err != nil {
 			return fmt.Errorf("failed to run migration down: %w", err)
 		}
-		fmt.Println("✅ Balance migration rolled back successfully")
+		fmt.Println("✅ Migration rolled back successfully")
 
 	case "steps":
-		fmt.Printf("Running %d migration steps...\n", steps)
+		if steps > 0 {
+			fmt.Printf("Running %d migration steps forward...\n", steps)
+		} else {
+			fmt.Printf("Running %d migration steps backward...\n", -steps)
+		}
 		err = mgr.Steps(steps)
 		if err != nil {
 			return fmt.Errorf("failed to run migration steps: %w", err)

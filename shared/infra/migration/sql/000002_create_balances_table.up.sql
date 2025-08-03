@@ -1,5 +1,8 @@
--- Create balances table
--- This migration creates the main balances table for user account balances
+-- Migration: Create balances table
+-- Module: Balance Management
+-- Dependencies: 000001_create_users_table
+-- Created: 2024-12-19
+-- Description: Create the balances table for user account balances with proper relationships
 
 CREATE TABLE IF NOT EXISTS balances (
     id SERIAL PRIMARY KEY,

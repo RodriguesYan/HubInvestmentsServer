@@ -83,7 +83,7 @@ go install github.com/swaggo/swag/cmd/swag@latest
 
 ## 🗄️ Database Migrations
 
-**HubInvestments uses structured database migrations to manage schema changes safely across different environments.**
+**HubInvestments uses a project-wide database migration system to manage schema changes safely across different environments.**
 
 ### What are Database Migrations?
 
@@ -96,53 +96,57 @@ Database migrations are version-controlled scripts that define incremental chang
 
 ### Migration Structure
 
-Migrations are organized by module in the following structure:
+All database migrations are centrally located in the shared infrastructure:
 ```
-internal/[module]/infra/migration/
-├── migration_manager.go          # Migration logic for the module
+shared/infra/migration/
+├── migration_manager.go          # Migration logic for the entire project
 ├── migration_manager_test.go     # Tests for migration functionality
-└── sql/                          # Migration SQL files
-    ├── 000001_create_table.up.sql    # Up migration (apply changes)
-    ├── 000001_create_table.down.sql  # Down migration (revert changes)
-    ├── 000002_seed_data.up.sql       # Seed initial data
-    └── 000002_seed_data.down.sql     # Remove seed data
+└── sql/                          # All migration SQL files in chronological order
+    ├── 000001_create_users_table.up.sql       # Users table creation
+    ├── 000001_create_users_table.down.sql     # Users table rollback
+    ├── 000002_create_balances_table.up.sql    # Balances table (depends on users)
+    ├── 000002_create_balances_table.down.sql  # Balances table rollback
+    ├── 000003_seed_initial_data.up.sql        # Initial data seeding
+    ├── 000003_seed_initial_data.down.sql      # Remove initial data
+    └── 000004_your_next_migration.up.sql      # Your future migrations
 ```
 
 ### Available Migration Commands
 
 **Quick Commands (via Makefile):**
 ```bash
-# Balance module migrations
-make migrate-balance-up          # Run all pending balance migrations
-make migrate-balance-down        # Rollback the most recent balance migration  
-make migrate-balance-version     # Show current migration version
-make migrate-help               # Show all migration commands and examples
+# Project-wide migrations
+make migrate-up              # Run all pending migrations
+make migrate-down            # Rollback the most recent migration  
+make migrate-version         # Show current migration version
+make migrate-help            # Show all migration commands and examples
 
 # Advanced usage
-make migrate-balance-steps STEPS=2    # Run 2 migration steps forward
-make migrate-balance-steps STEPS=-1   # Run 1 migration step backward
-make migrate-balance-force VERSION=1  # Force migration to version 1 (use with caution)
+make migrate-steps STEPS=2   # Run 2 migration steps forward
+make migrate-steps STEPS=-1  # Run 1 migration step backward
+make migrate-force VERSION=1 # Force migration to version 1 (use with caution)
 ```
 
 **Direct CLI Usage:**
 ```bash
 # Basic commands
-go run cmd/migrate/main.go -command=up -module=balance
-go run cmd/migrate/main.go -command=down -module=balance
-go run cmd/migrate/main.go -command=version -module=balance
+go run cmd/migrate/main.go -command=up
+go run cmd/migrate/main.go -command=down
+go run cmd/migrate/main.go -command=version
 
 # With custom database URL
-go run cmd/migrate/main.go -command=up -module=balance -db='postgres://user:pass@host/db?sslmode=disable'
+go run cmd/migrate/main.go -command=up -db='postgres://user:pass@host/db?sslmode=disable'
 
 # Advanced commands
-go run cmd/migrate/main.go -command=steps -module=balance -steps=2
-go run cmd/migrate/main.go -command=force -module=balance -version=1
+go run cmd/migrate/main.go -command=steps -steps=2
+go run cmd/migrate/main.go -command=force -version=1
 ```
 
 ### When to Use Migrations
 
 **✅ Always use migrations for:**
 - **Schema Changes**: Creating, altering, or dropping tables, columns, indexes
+- **Cross-Module Relationships**: Foreign keys between users, balances, positions
 - **Data Changes**: Inserting, updating, or deleting data that affects application logic
 - **Constraint Changes**: Adding or removing foreign keys, unique constraints, check constraints
 - **Index Management**: Creating or dropping database indexes for performance
@@ -158,24 +162,28 @@ go run cmd/migrate/main.go -command=force -module=balance -version=1
 **1. Development Workflow:**
 ```bash
 # 1. Create a new feature requiring database changes
-git checkout -b feature/new-balance-fields
+git checkout -b feature/add-positions-table
 
 # 2. Check current migration status
-make migrate-balance-version
+make migrate-version
 
-# 3. Create new migration files manually in internal/balance/infra/migration/sql/
-# Example: 000003_add_balance_currency.up.sql and 000003_add_balance_currency.down.sql
+# 3. Create new migration files
+./scripts/create-migration.sh create_positions_table
 
-# 4. Test migration locally
-make migrate-balance-up
+# 4. Edit the generated SQL files to add your changes
+# Edit: shared/infra/migration/sql/000004_create_positions_table.up.sql
+# Edit: shared/infra/migration/sql/000004_create_positions_table.down.sql
 
-# 5. Test rollback works
-make migrate-balance-down
-make migrate-balance-up
+# 5. Test migration locally
+make migrate-up
 
-# 6. Commit migration files with your code changes
-git add internal/balance/infra/migration/sql/000003_*
-git commit -m "Add currency column to balance table"
+# 6. Test rollback works
+make migrate-down
+make migrate-up
+
+# 7. Commit migration files with your code changes
+git add shared/infra/migration/sql/000004_*
+git commit -m "Add positions table with user relationships"
 ```
 
 **2. Team Collaboration:**
@@ -184,19 +192,19 @@ git commit -m "Add currency column to balance table"
 git pull origin main
 
 # Check if new migrations are available
-make migrate-balance-version
+make migrate-version
 
 # Apply new migrations
-make migrate-balance-up
+make migrate-up
 ```
 
 **3. Production Deployment:**
 ```bash
 # In CI/CD pipeline or deployment script
-make migrate-balance-up
+make migrate-up
 
 # Or with production database URL
-go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
+go run cmd/migrate/main.go -command=up -db="$PRODUCTION_DB_URL"
 ```
 
 ### Creating New Migrations
@@ -204,21 +212,33 @@ go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
 **1. File Naming Convention:**
 - Format: `NNNNNN_description.up.sql` and `NNNNNN_description.down.sql`
 - Use sequential numbering (000001, 000002, etc.)
-- Use descriptive names: `create_balance_table`, `add_user_index`, `seed_initial_data`
+- Use descriptive names: `create_positions_table`, `add_balance_currency`, `create_user_indexes`
 
 **2. Migration Best Practices:**
 
 **✅ Good Migration Example:**
 ```sql
--- 000003_add_balance_currency.up.sql
+-- 000004_add_balance_currency.up.sql
+-- Migration: Add currency support to balances
+-- Dependencies: 000002_create_balances_table
+-- Description: Add currency column with USD default
+
 ALTER TABLE balances 
 ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'USD';
 
 CREATE INDEX idx_balances_currency ON balances(currency);
+
+-- Add constraint to validate currency codes
+ALTER TABLE balances 
+ADD CONSTRAINT valid_currency 
+CHECK (currency IN ('USD', 'EUR', 'GBP', 'BRL'));
 ```
 
 ```sql
--- 000003_add_balance_currency.down.sql  
+-- 000004_add_balance_currency.down.sql  
+-- Migration: Remove currency support (ROLLBACK)
+
+ALTER TABLE balances DROP CONSTRAINT IF EXISTS valid_currency;
 DROP INDEX IF EXISTS idx_balances_currency;
 ALTER TABLE balances DROP COLUMN IF EXISTS currency;
 ```
@@ -234,23 +254,43 @@ ALTER TABLE balances DROP COLUMN IF EXISTS currency;
 **3. Testing Migrations:**
 ```bash
 # Always test both directions
-make migrate-balance-up    # Apply your migration
-make migrate-balance-down  # Test rollback works
-make migrate-balance-up    # Apply again to ensure idempotency
+make migrate-up    # Apply your migration
+make migrate-down  # Test rollback works
+make migrate-up    # Apply again to ensure idempotency
 ```
 
-### Migration Module Architecture
+### Cross-Module Relationships
 
-**Current Modules:**
-- **balance**: User account balance management
-- **position**: Investment position tracking (planned)
-- **user**: User account management (planned)
+One of the key advantages of project-wide migrations is managing relationships between different domains:
 
-**Adding New Modules:**
-1. Create migration manager: `internal/[module]/infra/migration/migration_manager.go`
-2. Add SQL directory: `internal/[module]/infra/migration/sql/`
-3. Update CLI tool: `cmd/migrate/main.go`
-4. Add Makefile commands: `Makefile`
+```sql
+-- Example: 000005_create_positions_table.up.sql
+CREATE TABLE positions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    symbol VARCHAR(10) NOT NULL,
+    quantity DECIMAL(15, 4) NOT NULL,
+    average_price DECIMAL(15, 2) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Cross-module constraint: ensure user has sufficient balance
+    CONSTRAINT positive_quantity CHECK (quantity > 0),
+    CONSTRAINT positive_price CHECK (average_price > 0)
+);
+
+-- Index for efficient user queries (used by position module)
+CREATE INDEX idx_positions_user_id ON positions(user_id);
+-- Index for symbol queries (used across modules)
+CREATE INDEX idx_positions_symbol ON positions(symbol);
+```
+
+### Migration Timeline
+
+Current migration history:
+1. **000001**: Create users table (foundation for all user-related features)
+2. **000002**: Create balances table (depends on users)
+3. **000003**: Seed initial data (development/testing data)
+4. **000004+**: Your future migrations (positions, market data, etc.)
 
 ### Troubleshooting
 
@@ -259,16 +299,16 @@ make migrate-balance-up    # Apply again to ensure idempotency
 1. **"Dirty" Migration State:**
    ```bash
    # Check migration status
-   make migrate-balance-version
+   make migrate-version
    
    # If dirty, manually fix the issue and force clean state
-   make migrate-balance-force VERSION=N
+   make migrate-force VERSION=N
    ```
 
 2. **Migration File Not Found:**
    ```bash
    # Ensure migration files are in correct location:
-   ls internal/balance/infra/migration/sql/
+   ls shared/infra/migration/sql/
    
    # Check file naming convention (must end with .up.sql/.down.sql)
    ```
@@ -279,16 +319,14 @@ make migrate-balance-up    # Apply again to ensure idempotency
    psql -h localhost -U yanrodrigues -d yanrodrigues
    
    # Use custom database URL
-   go run cmd/migrate/main.go -command=version -module=balance -db="your-db-url"
+   go run cmd/migrate/main.go -command=version -db="your-db-url"
    ```
 
-4. **Permission Errors:**
+4. **Foreign Key Constraint Errors:**
    ```bash
-   # Ensure database user has necessary permissions:
-   # - CREATE/DROP TABLE
-   # - CREATE/DROP INDEX  
-   # - INSERT/UPDATE/DELETE data
-   # - CREATE/DROP FUNCTION (for triggers)
+   # When creating relationships, ensure parent tables exist
+   # Check migration order in shared/infra/migration/sql/
+   # Users must be created before balances, balances before positions
    ```
 
 ### Migration Testing
@@ -296,16 +334,16 @@ make migrate-balance-up    # Apply again to ensure idempotency
 **Run migration tests:**
 ```bash
 # Test migration functionality
-go test ./internal/balance/infra/migration/
+go test ./shared/infra/migration/
 
 # Test with verbose output
-go test -v ./internal/balance/infra/migration/
+go test -v ./shared/infra/migration/
 ```
 
 **Integration with CI/CD:**
 ```bash
 # In your CI pipeline, always run migrations before application deployment
-make migrate-balance-up
+make migrate-up
 go test ./...  # Ensure migrations don't break existing tests
 ```
 
@@ -314,22 +352,22 @@ go test ./...  # Ensure migrations don't break existing tests
 **Multiple Steps:**
 ```bash
 # Move forward 2 migrations
-make migrate-balance-steps STEPS=2
+make migrate-steps STEPS=2
 
 # Move backward 1 migration  
-make migrate-balance-steps STEPS=-1
+make migrate-steps STEPS=-1
 ```
 
 **Environment-Specific Migrations:**
 ```bash
 # Development
-make migrate-balance-up
+make migrate-up
 
 # Staging
-go run cmd/migrate/main.go -command=up -module=balance -db="$STAGING_DB_URL"
+go run cmd/migrate/main.go -command=up -db="$STAGING_DB_URL"
 
 # Production  
-go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
+go run cmd/migrate/main.go -command=up -db="$PRODUCTION_DB_URL"
 ```
 
 **Backup Before Major Migrations:**
@@ -338,11 +376,29 @@ go run cmd/migrate/main.go -command=up -module=balance -db="$PRODUCTION_DB_URL"
 pg_dump -h localhost -U yanrodrigues yanrodrigues > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Run migrations
-make migrate-balance-up
+make migrate-up
 
 # If something goes wrong, restore from backup
 # psql -h localhost -U yanrodrigues yanrodrigues < backup_YYYYMMDD_HHMMSS.sql
 ```
+
+### Creating Migrations for New Features
+
+**Example: Adding a new positions module**
+```bash
+# 1. Create migration for positions table
+./scripts/create-migration.sh create_positions_table
+
+# 2. Edit the up migration
+# shared/infra/migration/sql/000004_create_positions_table.up.sql
+
+# 3. Add foreign key to users, indexes, constraints
+# 4. Create corresponding down migration
+# 5. Test thoroughly
+# 6. Commit and deploy
+```
+
+This project-wide approach ensures all your database changes are coordinated, and relationships between users, balances, positions, and future modules are properly managed.
 
 ---
 

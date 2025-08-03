@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Script to create new database migration files
-# Usage: ./scripts/create-migration.sh <module> <description>
-# Example: ./scripts/create-migration.sh balance add_currency_column
+# Usage: ./scripts/create-migration.sh <description>
+# Example: ./scripts/create-migration.sh add_currency_column
 
 set -e
 
@@ -31,37 +31,26 @@ print_error() {
 }
 
 # Check arguments
-if [ $# -ne 2 ]; then
-    print_error "Usage: $0 <module> <description>"
-    print_error "Example: $0 balance add_currency_column"
-    print_error "Available modules: balance"
+if [ $# -ne 1 ]; then
+    print_error "Usage: $0 <description>"
+    print_error "Example: $0 add_currency_column"
+    print_error "Example: $0 create_positions_table"
+    print_error "Example: $0 add_balance_indexes"
     exit 1
 fi
 
-MODULE=$1
-DESCRIPTION=$2
-
-# Validate module
-case $MODULE in
-    "balance")
-        ;;
-    *)
-        print_error "Unsupported module: $MODULE"
-        print_error "Available modules: balance"
-        exit 1
-        ;;
-esac
+DESCRIPTION=$1
 
 # Validate description
 if [[ ! $DESCRIPTION =~ ^[a-z0-9_]+$ ]]; then
     print_error "Description must contain only lowercase letters, numbers, and underscores"
-    print_error "Good: add_currency_column, create_index_on_user_id"
+    print_error "Good: add_currency_column, create_positions_table, add_indexes"
     print_error "Bad: Add Currency Column, add-currency-column"
     exit 1
 fi
 
 # Migration directory
-MIGRATION_DIR="internal/$MODULE/infra/migration/sql"
+MIGRATION_DIR="shared/infra/migration/sql"
 
 # Create migration directory if it doesn't exist
 if [ ! -d "$MIGRATION_DIR" ]; then
@@ -77,37 +66,39 @@ NEXT_NUMBER=$(printf "%06d" $((10#$LAST_MIGRATION + 1)))
 UP_FILE="${MIGRATION_DIR}/${NEXT_NUMBER}_${DESCRIPTION}.up.sql"
 DOWN_FILE="${MIGRATION_DIR}/${NEXT_NUMBER}_${DESCRIPTION}.down.sql"
 
-print_info "Creating migration files for module: $MODULE"
+print_info "Creating migration files for HubInvestments project"
 print_info "Migration number: $NEXT_NUMBER"
 print_info "Description: $DESCRIPTION"
 
 # Create UP migration file
 cat > "$UP_FILE" << EOF
 -- Migration: $DESCRIPTION
--- Module: $MODULE
 -- Created: $(date '+%Y-%m-%d %H:%M:%S')
 -- Description: Add your migration description here
 
 -- TODO: Add your UP migration SQL here
--- Example:
+-- Examples:
 -- CREATE TABLE new_table (
 --     id SERIAL PRIMARY KEY,
---     name VARCHAR(255) NOT NULL
+--     name VARCHAR(255) NOT NULL,
+--     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 -- );
 -- 
 -- CREATE INDEX idx_new_table_name ON new_table(name);
+--
+-- ALTER TABLE existing_table ADD COLUMN new_column VARCHAR(100);
 
 EOF
 
 # Create DOWN migration file
 cat > "$DOWN_FILE" << EOF
 -- Migration: $DESCRIPTION (ROLLBACK)
--- Module: $MODULE
 -- Created: $(date '+%Y-%m-%d %H:%M:%S')
 -- Description: Rollback changes from $DESCRIPTION migration
 
 -- TODO: Add your DOWN migration SQL here (reverse of the UP migration)
--- Example:
+-- Examples:
+-- ALTER TABLE existing_table DROP COLUMN IF EXISTS new_column;
 -- DROP INDEX IF EXISTS idx_new_table_name;
 -- DROP TABLE IF EXISTS new_table;
 
@@ -120,13 +111,14 @@ print_success "  DOWN: $DOWN_FILE"
 print_info ""
 print_info "Next steps:"
 print_info "1. Edit the SQL files to add your migration logic"
-print_info "2. Test the migration: make migrate-${MODULE}-up"
-print_info "3. Test the rollback: make migrate-${MODULE}-down"
-print_info "4. Apply again: make migrate-${MODULE}-up"
+print_info "2. Test the migration: make migrate-up"
+print_info "3. Test the rollback: make migrate-down"
+print_info "4. Apply again: make migrate-up"
 print_info "5. Commit the files: git add $MIGRATION_DIR/${NEXT_NUMBER}_*"
 
 print_info ""
 print_info "Quick commands for this migration:"
-print_info "  make migrate-${MODULE}-up      # Apply migration"
-print_info "  make migrate-${MODULE}-down    # Rollback migration"
-print_info "  make migrate-${MODULE}-version # Check current version" 
+print_info "  make migrate-up          # Apply migration"
+print_info "  make migrate-down        # Rollback migration"
+print_info "  make migrate-version     # Check current version"
+print_info "  make migrate-help        # Show all migration commands" 

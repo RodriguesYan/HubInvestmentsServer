@@ -11,13 +11,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// BalanceMigrationManager handles database migrations for the balance module
-type BalanceMigrationManager struct {
+// MigrationManager handles database migrations for the entire HubInvestments project
+type MigrationManager struct {
 	migrate *migrate.Migrate
 }
 
-// NewBalanceMigrationManager creates a new migration manager for balance module
-func NewBalanceMigrationManager(databaseURL string) (*BalanceMigrationManager, error) {
+// NewMigrationManager creates a new migration manager for the entire project
+func NewMigrationManager(databaseURL string) (*MigrationManager, error) {
 	// Connect to database to create the postgres driver instance
 	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
@@ -31,7 +31,7 @@ func NewBalanceMigrationManager(databaseURL string) (*BalanceMigrationManager, e
 	}
 
 	// Get absolute path to migrations directory
-	migrationsPath, err := filepath.Abs("internal/balance/infra/migration/sql")
+	migrationsPath, err := filepath.Abs("shared/infra/migration/sql")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path for migrations: %w", err)
 	}
@@ -46,12 +46,12 @@ func NewBalanceMigrationManager(databaseURL string) (*BalanceMigrationManager, e
 		return nil, fmt.Errorf("failed to create migrate instance: %w", err)
 	}
 
-	return &BalanceMigrationManager{migrate: m}, nil
+	return &MigrationManager{migrate: m}, nil
 }
 
 // Up runs all pending migrations
-func (bmm *BalanceMigrationManager) Up() error {
-	err := bmm.migrate.Up()
+func (mm *MigrationManager) Up() error {
+	err := mm.migrate.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migrations up: %w", err)
 	}
@@ -59,8 +59,8 @@ func (bmm *BalanceMigrationManager) Up() error {
 }
 
 // Down reverts the most recent migration
-func (bmm *BalanceMigrationManager) Down() error {
-	err := bmm.migrate.Down()
+func (mm *MigrationManager) Down() error {
+	err := mm.migrate.Down()
 	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migration down: %w", err)
 	}
@@ -68,8 +68,8 @@ func (bmm *BalanceMigrationManager) Down() error {
 }
 
 // Steps runs a specific number of migrations (positive for up, negative for down)
-func (bmm *BalanceMigrationManager) Steps(n int) error {
-	err := bmm.migrate.Steps(n)
+func (mm *MigrationManager) Steps(n int) error {
+	err := mm.migrate.Steps(n)
 	if err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run %d migration steps: %w", n, err)
 	}
@@ -77,8 +77,8 @@ func (bmm *BalanceMigrationManager) Steps(n int) error {
 }
 
 // Force sets the migration version without running migrations (use with caution)
-func (bmm *BalanceMigrationManager) Force(version int) error {
-	err := bmm.migrate.Force(version)
+func (mm *MigrationManager) Force(version int) error {
+	err := mm.migrate.Force(version)
 	if err != nil {
 		return fmt.Errorf("failed to force migration to version %d: %w", version, err)
 	}
@@ -86,8 +86,8 @@ func (bmm *BalanceMigrationManager) Force(version int) error {
 }
 
 // Version returns the current migration version
-func (bmm *BalanceMigrationManager) Version() (uint, bool, error) {
-	version, dirty, err := bmm.migrate.Version()
+func (mm *MigrationManager) Version() (uint, bool, error) {
+	version, dirty, err := mm.migrate.Version()
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to get migration version: %w", err)
 	}
@@ -95,8 +95,8 @@ func (bmm *BalanceMigrationManager) Version() (uint, bool, error) {
 }
 
 // Close closes the migration instance
-func (bmm *BalanceMigrationManager) Close() error {
-	sourceErr, dbErr := bmm.migrate.Close()
+func (mm *MigrationManager) Close() error {
+	sourceErr, dbErr := mm.migrate.Close()
 	if sourceErr != nil {
 		return fmt.Errorf("failed to close migration source: %w", sourceErr)
 	}
