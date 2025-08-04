@@ -3,25 +3,41 @@ package usecase
 import (
 	domain "HubInvestments/internal/position/domain/model"
 	repository "HubInvestments/internal/position/domain/repository"
-	"sort"
+	service "HubInvestments/internal/position/domain/service"
 )
 
 type GetPositionAggregationUseCase struct {
-	repo repository.PositionRepository
+	repo               repository.PositionRepository
+	aggregationService service.PositionAggregationService
 }
 
 func NewGetPositionAggregationUseCase(repo repository.PositionRepository) *GetPositionAggregationUseCase {
-	return &GetPositionAggregationUseCase{repo: repo}
+	return &GetPositionAggregationUseCase{
+		repo:               repo,
+		aggregationService: service.NewPositionAggregationService(),
+	}
+}
+
+// NewGetPositionAggregationUseCaseWithService allows dependency injection of the aggregation service for testing
+func NewGetPositionAggregationUseCaseWithService(repo repository.PositionRepository, aggregationService service.PositionAggregationService) *GetPositionAggregationUseCase {
+	return &GetPositionAggregationUseCase{
+		repo:               repo,
+		aggregationService: aggregationService,
+	}
 }
 
 func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggregationModel, error) {
+	// 1. Get data from repository
 	assets, err := uc.repo.GetPositionsByUserId(userId)
 	if err != nil {
 		return domain.AucAggregationModel{}, err
 	}
 
-	positionAggregations, totalInvested, currentTotal := uc.aggregateAssetsByCategory(assets)
+	// 2. Orchestrate domain services to process the data
+	positionAggregations := uc.aggregationService.AggregateAssetsByCategory(assets)
+	totalInvested, currentTotal := uc.aggregationService.CalculateTotals(assets)
 
+	// 3. Assemble and return the response
 	aucAggregation := domain.AucAggregationModel{
 		TotalInvested:       totalInvested,
 		CurrentTotal:        currentTotal,
@@ -29,78 +45,4 @@ func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggre
 	}
 
 	return aucAggregation, nil
-}
-
-func (uc *GetPositionAggregationUseCase) aggregateAssetsByCategory(assets []domain.AssetModel) (aggregation []domain.PositionAggregationModel, totalInvested float32, currentTotal float32) {
-	var positionAggregations []domain.PositionAggregationModel
-	var invested float32 = 0
-	var current float32 = 0
-
-	for _, element := range assets {
-		// Calculate individual asset values using domain methods
-		assetInvestment := element.CalculateInvestment()
-		assetCurrentValue := element.CalculateCurrentValue()
-
-		// Add to running totals (this is the correct place to accumulate)
-		invested += assetInvestment
-		current += assetCurrentValue
-
-		// sort.Search returns the index where element.Category should be inserted
-		// to maintain sorted order. We need to check two things:
-		// 1. If the index is within bounds (index < len)
-		// 2. If the category at that index matches our element's category
-		//
-		// If both conditions are true, we found an existing aggregation for this category
-		// If either condition is false, we need to create a new aggregation
-		index := sort.Search(len(positionAggregations), func(i int) bool {
-			return positionAggregations[i].Category >= element.Category
-		})
-
-		if index < len(positionAggregations) && positionAggregations[index].Category == element.Category {
-			uc.updateExistingAggregation(&positionAggregations[index], element)
-		} else {
-			newAggregation := uc.createNewAggregation(element)
-			positionAggregations = append(positionAggregations, domain.PositionAggregationModel{})
-			copy(positionAggregations[index+1:], positionAggregations[index:])
-			positionAggregations[index] = newAggregation
-		}
-	}
-
-	return positionAggregations, invested, current
-}
-
-func (uc *GetPositionAggregationUseCase) updateExistingAggregation(aggregation *domain.PositionAggregationModel, asset domain.AssetModel) {
-	aggregation.Assets = append(aggregation.Assets, asset)
-
-	assetInvestment := asset.CalculateInvestment()
-	assetCurrentValue := asset.CalculateCurrentValue()
-	assetPnl := asset.CalculatePnL()
-
-	aggregation.TotalInvested += assetInvestment
-	aggregation.CurrentTotal += assetCurrentValue
-	aggregation.Pnl += assetPnl
-
-	if aggregation.TotalInvested > 0 {
-		aggregation.PnlPercentage = (aggregation.Pnl / aggregation.TotalInvested) * 100
-	}
-}
-
-func (uc *GetPositionAggregationUseCase) createNewAggregation(asset domain.AssetModel) domain.PositionAggregationModel {
-	assetInvestment := asset.CalculateInvestment()
-	assetCurrentValue := asset.CalculateCurrentValue()
-	assetPnl := asset.CalculatePnL()
-
-	var pnlPercentage float32 = 0
-	if assetInvestment > 0 {
-		pnlPercentage = (assetPnl / assetInvestment) * 100
-	}
-
-	return domain.PositionAggregationModel{
-		Category:      asset.Category,
-		TotalInvested: assetInvestment,
-		CurrentTotal:  assetCurrentValue,
-		Pnl:           assetPnl,
-		PnlPercentage: pnlPercentage,
-		Assets:        []domain.AssetModel{asset},
-	}
 }
