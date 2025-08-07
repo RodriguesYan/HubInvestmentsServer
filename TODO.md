@@ -190,16 +190,244 @@
   - 95%+ cache hit ratio for popular symbols
 
 ### ⏳ Phase 6: Order Management System
-- [ ] Design comprehensive order management architecture
-- [ ] Implement RabbitMQ for order queue management
-- [ ] DLQ - define  a timing for the worker to rerun the unack messages
-- [ ] Create order validation service with risk management
-- [ ] Build order worker for asynchronous processing
-- [ ] Add order execution and settlement logic
-- [ ] Implement order status tracking and history
-- [ ] Create order reporting and analytics
-- [ ] Add compliance checks and audit trails
-- **Priority**: High - Core trading functionality
+- [ ] **Step 1**: Core Order Domain Model
+  - [ ] Create `order_mngmt_system/domain/model/` directory structure
+  - [ ] Implement `order.go` with Order aggregate root (UUID, UserID, Symbol, Quantity, Price, Status, Timestamps)
+  - [ ] Create `order_status.go` value object (PENDING, PROCESSING, EXECUTED, FAILED, CANCELLED)
+  - [ ] Create `order_type.go` value object (MARKET, LIMIT, STOP_LOSS, etc.)
+  - [ ] Implement `order_events.go` for domain events (OrderSubmitted, OrderExecuted, OrderFailed)
+  - [ ] Add business logic methods (Validate, CanCancel, MarkAsExecuted, etc.)
+- [ ] **Step 2**: Order Repository Interface
+  - [ ] Create `order_mngmt_system/domain/repository/order_repository.go`
+  - [ ] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus
+  - [ ] Add query methods for order history and filtering
+- [ ] **Step 3**: Domain Services
+  - [ ] Create `order_validation_service.go` for business validation rules
+  - [ ] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
+  - [ ] Add order pricing and execution logic services
+- [ ] **Step 4**: Market Data Integration via gRPC Client
+  - [ ] **Step 4.1**: Market Data Client Infrastructure
+    - [ ] Create `infra/external/market_data_client.go` 
+    - [ ] Implement wrapper around existing market data gRPC client
+    - [ ] Create interface `IMarketDataClient` in domain layer for dependency inversion
+    - [ ] Add methods: `GetAssetDetails(symbol)`, `ValidateSymbol(symbol)`, `GetCurrentPrice(symbol)`
+    - [ ] Include error handling for gRPC communication failures
+  - [ ] **Step 4.2**: Market Data Integration in Use Cases
+    - [ ] Update `submit_order_usecase.go` to validate symbol exists via market data service
+    - [ ] Add price validation against current market price (for limit orders)
+    - [ ] Check trading hours and asset availability
+    - [ ] Update `process_order_usecase.go` to fetch current market price during execution
+  - [ ] **Step 4.3**: Order Domain Service Enhancement
+    - [ ] Update `order_validation_service.go` to use market data client
+    - [ ] Add symbol existence validation
+    - [ ] Implement price range validation (market price ± tolerance)
+    - [ ] Add trading session validation (market open/closed)
+  - [ ] **Step 4.4**: Dependency Injection Integration
+    - [ ] Add market data gRPC client to dependency injection container
+    - [ ] Configure gRPC client connection in `NewContainer()` function
+    - [ ] Inject market data client into order use cases and domain services
+    - [ ] Add proper client lifecycle management (connection, reconnection, shutdown)
+- [ ] **Step 5**: Application Use Cases
+  - [ ] Create `application/usecase/submit_order_usecase.go`
+    - [ ] Generate UUID for new orders
+    - [ ] Validate order through domain services (including market data validation)
+    - [ ] Save order with PENDING status to database
+    - [ ] Publish order to RabbitMQ for async processing
+    - [ ] Return order ID immediately (202 Accepted response)
+  - [ ] Create `get_order_status_usecase.go` for status tracking
+  - [ ] Create `cancel_order_usecase.go` for order cancellation
+  - [ ] Create `process_order_usecase.go` for worker order processing
+    - [ ] Fetch current market data via gRPC client
+    - [ ] Execute order with real-time price information
+    - [ ] Update order with execution price and timestamp
+- [ ] **Step 6**: RabbitMQ Infrastructure Implementation
+  - [ ] **Step 6.1**: RabbitMQ Connection Management
+    - [ ] Add RabbitMQ dependency: `go get github.com/streadway/amqp`
+    - [ ] Create `shared/infra/messaging/` directory structure
+    - [ ] Implement `rabbitmq_connection.go` with connection pooling and reconnection logic
+    - [ ] Add RabbitMQ configuration with environment-friendly defaults
+    - [ ] Create health check functionality for RabbitMQ connection
+  - [ ] **Step 6.2**: Queue Configuration and Setup
+    - [ ] Define queue structure:
+      ```
+      Primary Queues:
+      - orders.submit (order submission)
+      - orders.processing (order execution)
+      - orders.settlement (order settlement)
+      
+      Management Queues:
+      - orders.dlq (dead letter queue)
+      - orders.retry (retry with TTL)
+      - orders.status (status updates)
+      ```
+    - [ ] Implement queue declaration and binding logic
+    - [ ] Configure message persistence and TTL settings
+    - [ ] Set up Dead Letter Queue (DLQ) with retry timing (5min, 15min, 1hr, 6hr)
+  - [ ] **Step 6.3**: Order Producer Implementation
+    - [ ] Create `infra/messaging/rabbitmq/order_producer.go`
+    - [ ] Implement `PublishOrderForProcessing(order)` method
+    - [ ] Add message serialization and routing logic
+    - [ ] Include error handling and fallback mechanisms
+    - [ ] Add message confirmation and delivery guarantees
+  - [ ] **Step 6.4**: Order Consumer Implementation
+    - [ ] Create `infra/messaging/rabbitmq/order_consumer.go`
+    - [ ] Implement message consumption with acknowledgment
+    - [ ] Add message deserialization and validation
+    - [ ] Include graceful shutdown and reconnection handling
+- [ ] **Step 7**: Order Worker for Asynchronous Processing
+  - [ ] Create `infra/worker/order_worker.go`
+  - [ ] Implement worker lifecycle management (Start, Stop, Health Check)
+  - [ ] Add order processing logic:
+    - [ ] Consume messages from RabbitMQ
+    - [ ] Execute order processing use case (with market data integration)
+    - [ ] Update order status in database
+    - [ ] Publish status updates
+    - [ ] Handle processing errors and retries
+  - [ ] Create `worker_manager.go` for worker scaling and monitoring
+  - [ ] Add worker metrics and performance monitoring
+- [ ] **Step 8**: Database Implementation
+  - [ ] Create `infra/persistence/order_repository.go`
+  - [ ] Implement database schema for orders table:
+    ```sql
+    orders (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL,
+      symbol VARCHAR NOT NULL,
+      order_type VARCHAR NOT NULL,
+      quantity DECIMAL NOT NULL,
+      price DECIMAL,
+      status VARCHAR NOT NULL,
+      created_at TIMESTAMP,
+      updated_at TIMESTAMP,
+      executed_at TIMESTAMP,
+      execution_price DECIMAL,
+      market_price_at_submission DECIMAL,
+      market_data_timestamp TIMESTAMP
+    )
+    ```
+  - [ ] Add proper indexes for performance (user_id, status, created_at, symbol)
+  - [ ] Implement repository methods following existing patterns
+- [ ] **Step 9**: HTTP Presentation Layer
+  - [ ] Create `presentation/http/order_handler.go`
+  - [ ] Implement REST endpoints:
+    - [ ] `POST /orders` - Submit new order (returns 202 + order ID)
+    - [ ] `GET /orders/{id}` - Get order details (with market data context)
+    - [ ] `GET /orders/{id}/status` - Get order status
+    - [ ] `PUT /orders/{id}/cancel` - Cancel pending order
+    - [ ] `GET /orders/history` - Get user order history
+  - [ ] Add proper authentication and authorization
+  - [ ] Implement request validation and error handling
+  - [ ] Add comprehensive unit tests for handlers
+- [ ] **Step 10**: Dependency Injection Integration
+  - [ ] Update `pck/container.go` with order management dependencies:
+    - [ ] Add `GetSubmitOrderUseCase()` method
+    - [ ] Add `GetOrderWorkerManager()` method
+    - [ ] Add `GetOrderProducer()` method
+    - [ ] Add `GetOrderStatusUseCase()` method
+    - [ ] Add `GetMarketDataClient()` method for gRPC client
+  - [ ] Update `NewContainer()` function to initialize:
+    - [ ] Market data gRPC client with proper configuration
+    - [ ] RabbitMQ connection and producer
+    - [ ] Order repository with database connection
+    - [ ] Order use cases with market data client dependency
+    - [ ] Worker manager for background processing
+  - [ ] Update `TestContainer` for testing support with mock market data client
+- [ ] **Step 11**: Integration and Testing
+  - [ ] Create comprehensive unit tests:
+    - [ ] Domain model tests (order validation, status transitions)
+    - [ ] Use case tests with mocked dependencies (including market data client)
+    - [ ] Handler tests with authentication flows
+    - [ ] Worker tests with RabbitMQ message processing
+    - [ ] Market data integration tests with mock gRPC responses
+  - [ ] Add integration tests:
+    - [ ] End-to-end order submission flow with market data validation
+    - [ ] RabbitMQ producer-consumer integration
+    - [ ] Database transaction and rollback scenarios
+    - [ ] Worker error handling and DLQ functionality
+    - [ ] gRPC client-server communication for market data
+  - [ ] Performance testing:
+    - [ ] Concurrent order submission (100+ orders/second)
+    - [ ] Worker throughput and queue processing
+    - [ ] Database connection pooling under load
+    - [ ] RabbitMQ message throughput and latency
+    - [ ] Market data gRPC call performance and caching
+- [ ] **Step 12**: Error Handling and Monitoring
+  - [ ] Implement comprehensive error handling:
+    - [ ] Order validation errors with user-friendly messages
+    - [ ] Market data service unavailability fallback strategies
+    - [ ] RabbitMQ connection failures with fallback
+    - [ ] Database transaction errors with proper rollback
+    - [ ] Worker processing errors with retry logic
+    - [ ] gRPC client timeout and circuit breaker patterns
+  - [ ] Add logging and monitoring:
+    - [ ] Structured logging for order lifecycle events
+    - [ ] Metrics for order processing times and success rates
+    - [ ] RabbitMQ queue depth and processing lag monitoring
+    - [ ] Market data gRPC call latency and error rate monitoring
+    - [ ] Alert system for critical failures (DLQ accumulation, market data unavailable)
+- [ ] **Step 13**: Production Readiness
+  - [ ] Add order execution and settlement integration:
+    - [ ] External broker API integration (mock for development)
+    - [ ] Order execution confirmation handling with market data
+    - [ ] Settlement and clearing logic
+    - [ ] Transaction reconciliation with market data timestamps
+  - [ ] Implement compliance and audit features:
+    - [ ] Order audit trail with immutable logs and market data snapshots
+    - [ ] Regulatory reporting capabilities
+    - [ ] Risk management and position limits with real-time market data
+    - [ ] Order book and trade history with market context
+  - [ ] Add operational features:
+    - [ ] Admin endpoints for queue management
+    - [ ] Order reprocessing capabilities
+    - [ ] Manual order intervention tools
+    - [ ] System health and status dashboard (including market data service health)
+- **Architecture Overview**:
+  ```
+  Client Request (POST /orders)
+           ↓
+  ┌─────────────────────────┐
+  │   HTTP Handler Layer    │ ← Generate UUID, Return 202 + Order ID
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │   Submit Order UseCase  │ ← Validate with Market Data, Save to DB
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐         ┌─────────────────────────┐
+  │   Market Data Client    │ ←────── │   Market Data Service   │
+  │     (gRPC Client)       │  gRPC   │      (gRPC Server)      │
+  └─────────────────────────┘         └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │   RabbitMQ Producer     │ ← orders.processing queue
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │   Order Worker          │ ← Async processing with Market Data
+  │   (RabbitMQ Consumer)   │
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │ Process Order UseCase   │ ← Execute with Real-time Market Data
+  └─────────────────────────┘
+           ↓
+  ┌─────────────────────────┐
+  │ Database Repository     │ ← PostgreSQL persistence + Market Data
+  └─────────────────────────┘
+  ```
+- **Priority**: High - Core trading functionality with async processing and market data integration
+- **Dependencies**: RabbitMQ setup, Order database schema, Worker infrastructure, Market Data gRPC Service
+- **Performance Targets**: 
+  - < 50ms order submission response time (including market data validation)
+  - < 2 seconds order execution processing
+  - Support 1000+ orders/minute throughput
+  - 99.9% order processing reliability
+  - < 100ms market data gRPC call latency
+  - DLQ retry intervals: 5min → 15min → 1hr → 6hr → manual intervention
+- **Market Data Integration Points**:
+  - Order submission: Symbol validation, price validation, trading hours check
+  - Order processing: Real-time price fetching, execution price determination
+  - Order monitoring: Market data context for order analysis and reporting
 
 ### ⏳ Phase 7: Real-time Data & WebSocket Infrastructure
 - [ ] Implement WebSocket infrastructure for real-time asset quotations
