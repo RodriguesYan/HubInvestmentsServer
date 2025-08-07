@@ -192,6 +192,7 @@
 ### ⏳ Phase 6: Order Management System
 - [ ] Design comprehensive order management architecture
 - [ ] Implement RabbitMQ for order queue management
+- [ ] DLQ - define  a timing for the worker to rerun the unack messages
 - [ ] Create order validation service with risk management
 - [ ] Build order worker for asynchronous processing
 - [ ] Add order execution and settlement logic
@@ -320,6 +321,7 @@
 - [ ] Cryptocurrency support
 - [ ] International market expansion
 - [ ] Advanced charting and technical analysis tools
+- [ ] Send email? Or SMS? after sending and order
 
 ### Technical Debits
 - [ ] **Token Verification Duplication**: Handlers are repeating token verification logic - need to segregate into middleware to avoid code duplication (MockAuth and VerifyToken)
