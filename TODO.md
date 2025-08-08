@@ -198,10 +198,10 @@
   - [x] Implement `order_events.go` for domain events (OrderSubmitted, OrderExecuted, OrderFailed)
   - [x] Add business logic methods (Validate, CanCancel, MarkAsExecuted, etc.)
   - [x] Add business logic for selling orders
-- [ ] **Step 2**: Order Repository Interface
-  - [ ] Create `order_mngmt_system/domain/repository/order_repository.go`
-  - [ ] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus
-  - [ ] Add query methods for order history and filtering
+- [x] **Step 2**: Order Repository Interface
+  - [x] Create `order_mngmt_system/domain/repository/order_repository.go`
+  - [x] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus
+  - [x] Add query methods for order history and filtering
 - [ ] **Step 3**: Domain Services
   - [ ] Create `order_validation_service.go` for business validation rules
   - [ ] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
