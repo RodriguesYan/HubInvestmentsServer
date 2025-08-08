@@ -189,8 +189,58 @@
   - Support 10,000+ concurrent gRPC connections
   - 95%+ cache hit ratio for popular symbols
 
-### ⏳ Phase 6: Order Management System 
- - [x] **Step 1**: Core Order Domain Model <!-- requeset id from chat to take all context generated for this -> cc575b3a-52e3-4cf8-bd7a-48fd210c84dc -->
+### ⏳ Phase 6: Order Management System
+**Directory Structure:**
+```
+internal/order_mngmt_system/
+├── domain/
+│   ├── model/
+│   │   ├── order.go                    # Order aggregate root
+│   │   ├── order_status.go            # Order status value object  
+│   │   ├── order_type.go              # Order type value object
+│   │   ├── order_side.go              # Order side value object (BUY/SELL)
+│   │   └── order_events.go            # Domain events
+│   ├── repository/
+│   │   └── order_repository.go        # Order repository interface
+│   └── service/
+│       ├── order_validation_service.go # Business validation logic
+│       ├── risk_management_service.go  # Risk management logic
+│       └── order_pricing_service.go    # Pricing and execution logic
+├── application/
+│   ├── usecase/
+│   │   ├── submit_order_usecase.go     # Submit order use case
+│   │   ├── get_order_status_usecase.go # Get order status use case
+│   │   ├── cancel_order_usecase.go     # Cancel order use case
+│   │   └── process_order_usecase.go    # Process order use case (worker)
+│   └── command/
+│       ├── submit_order_command.go     # Command objects
+│       └── cancel_order_command.go
+├── infra/
+│   ├── persistence/
+│   │   ├── order_repository.go         # Database implementation
+│   │   └── dto/
+│   │       ├── order_dto.go           # Data transfer objects
+│   │       └── mapper.go              # DTO-Domain mapping
+│   ├── external/
+│   │   └── market_data_client.go      # Market data gRPC client wrapper
+│   ├── messaging/
+│   │   └── rabbitmq/
+│   │       ├── order_producer.go      # RabbitMQ producer
+│   │       ├── order_consumer.go      # RabbitMQ consumer
+│   │       ├── connection_manager.go  # RabbitMQ connection management
+│   │       └── queue_config.go        # Queue configuration
+│   └── worker/
+│       ├── order_worker.go            # Order processing worker
+│       └── worker_manager.go          # Worker lifecycle management
+└── presentation/
+    ├── http/
+    │   ├── order_handler.go           # HTTP endpoints
+    │   └── order_handler_test.go
+    └── grpc/                          # Future gRPC endpoints
+        └── order_grpc_server.go
+```
+
+- [x] **Step 1**: Core Order Domain Model <!-- requeset id from chat to take all context generated for this -> cc575b3a-52e3-4cf8-bd7a-48fd210c84dc -->
   - [x] Create `order_mngmt_system/domain/model/` directory structure
   - [x] Implement `order.go` with Order aggregate root (UUID, UserID, Symbol, Quantity, Price, Status, Timestamps)
   - [x] Create `order_status.go` value object (PENDING, PROCESSING, EXECUTED, FAILED, CANCELLED)
@@ -202,8 +252,8 @@
   - [x] Create `order_mngmt_system/domain/repository/order_repository.go`
   - [x] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus
   - [x] Add query methods for order history and filtering
-- [ ] **Step 3**: Domain Services
-  - [ ] Create `order_validation_service.go` for business validation rules
+- [x] **Step 3**: Domain Services
+  - [x] Create `order_validation_service.go` for business validation rules
   - [ ] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
   - [ ] Add order pricing and execution logic services
 - [ ] **Step 4**: Market Data Integration via gRPC Client
