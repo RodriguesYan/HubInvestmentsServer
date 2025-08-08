@@ -23,7 +23,6 @@ const (
 	OrderStatusCancelled OrderStatus = "CANCELLED"
 )
 
-// AllOrderStatuses returns all valid order statuses
 func AllOrderStatuses() []OrderStatus {
 	return []OrderStatus{
 		OrderStatusPending,
