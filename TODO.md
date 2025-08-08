@@ -189,14 +189,14 @@
   - Support 10,000+ concurrent gRPC connections
   - 95%+ cache hit ratio for popular symbols
 
-### ⏳ Phase 6: Order Management System
-- [ ] **Step 1**: Core Order Domain Model
-  - [ ] Create `order_mngmt_system/domain/model/` directory structure
-  - [ ] Implement `order.go` with Order aggregate root (UUID, UserID, Symbol, Quantity, Price, Status, Timestamps)
-  - [ ] Create `order_status.go` value object (PENDING, PROCESSING, EXECUTED, FAILED, CANCELLED)
-  - [ ] Create `order_type.go` value object (MARKET, LIMIT, STOP_LOSS, etc.)
-  - [ ] Implement `order_events.go` for domain events (OrderSubmitted, OrderExecuted, OrderFailed)
-  - [ ] Add business logic methods (Validate, CanCancel, MarkAsExecuted, etc.)
+### ⏳ Phase 6: Order Management System 
+ - [x] **Step 1**: Core Order Domain Model <!-- requeset id from chat to take all context generated for this -> cc575b3a-52e3-4cf8-bd7a-48fd210c84dc -->
+  - [x] Create `order_mngmt_system/domain/model/` directory structure
+  - [x] Implement `order.go` with Order aggregate root (UUID, UserID, Symbol, Quantity, Price, Status, Timestamps)
+  - [x] Create `order_status.go` value object (PENDING, PROCESSING, EXECUTED, FAILED, CANCELLED)
+  - [x] Create `order_type.go` value object (MARKET, LIMIT, STOP_LOSS, etc.)
+  - [x] Implement `order_events.go` for domain events (OrderSubmitted, OrderExecuted, OrderFailed)
+  - [x] Add business logic methods (Validate, CanCancel, MarkAsExecuted, etc.)
 - [ ] **Step 2**: Order Repository Interface
   - [ ] Create `order_mngmt_system/domain/repository/order_repository.go`
   - [ ] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus
