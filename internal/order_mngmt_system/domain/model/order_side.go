@@ -1,0 +1,49 @@
+package domain
+
+// OrderSide represents the side of an order (buy or sell)
+// @Description Order side enumeration
+type OrderSide int32
+
+const (
+	// OrderSideBuy represents a buy order
+	OrderSideBuy OrderSide = 1
+
+	// OrderSideSell represents a sell order
+	OrderSideSell OrderSide = 2
+)
+
+// IsValid checks if the order side is valid
+func (s OrderSide) IsValid() bool {
+	switch s {
+	case OrderSideBuy, OrderSideSell:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsBuy checks if this is a buy order
+func (s OrderSide) IsBuy() bool {
+	return s == OrderSideBuy
+}
+
+// IsSell checks if this is a sell order
+func (s OrderSide) IsSell() bool {
+	return s == OrderSideSell
+}
+
+// RequiresPositionValidation checks if the order side requires position validation
+func (s OrderSide) RequiresPositionValidation() bool {
+	return s == OrderSideSell
+}
+
+func (s OrderSide) GetDescription() string {
+	switch s {
+	case OrderSideBuy:
+		return "Buy order - purchasing assets"
+	case OrderSideSell:
+		return "Sell order - selling assets from portfolio"
+	default:
+		return "Unknown order side"
+	}
+}

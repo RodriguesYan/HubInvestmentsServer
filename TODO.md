@@ -197,7 +197,7 @@
   - [x] Create `order_type.go` value object (MARKET, LIMIT, STOP_LOSS, etc.)
   - [x] Implement `order_events.go` for domain events (OrderSubmitted, OrderExecuted, OrderFailed)
   - [x] Add business logic methods (Validate, CanCancel, MarkAsExecuted, etc.)
-  - [ ] Add business logic for selling orders
+  - [x] Add business logic for selling orders
 - [ ] **Step 2**: Order Repository Interface
   - [ ] Create `order_mngmt_system/domain/repository/order_repository.go`
   - [ ] Define interface methods: Save, FindByID, FindByUserID, UpdateStatus

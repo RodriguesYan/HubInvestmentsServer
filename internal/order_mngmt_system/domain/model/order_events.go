@@ -70,16 +70,18 @@ func (e OrderEvent) UserID() string {
 type OrderSubmittedEvent struct {
 	OrderEvent
 	Symbol    string
+	OrderSide OrderSide
 	OrderType OrderType
 	Quantity  float64
 	Price     *float64
 }
 
 // NewOrderSubmittedEvent creates a new OrderSubmittedEvent
-func NewOrderSubmittedEvent(orderID, userID, symbol string, orderType OrderType, quantity float64, price *float64) *OrderSubmittedEvent {
+func NewOrderSubmittedEvent(orderID, userID, symbol string, orderSide OrderSide, orderType OrderType, quantity float64, price *float64) *OrderSubmittedEvent {
 	return &OrderSubmittedEvent{
 		OrderEvent: NewOrderEvent("OrderSubmitted", orderID, userID),
 		Symbol:     symbol,
+		OrderSide:  orderSide,
 		OrderType:  orderType,
 		Quantity:   quantity,
 		Price:      price,
@@ -227,5 +229,25 @@ func NewOrderValidationFailedEvent(orderID, userID string, validationErrors []st
 		OrderEvent:       NewOrderEvent("OrderValidationFailed", orderID, userID),
 		ValidationErrors: validationErrors,
 		ValidatedAt:      validatedAt,
+	}
+}
+
+// PositionValidationFailedEvent represents an event when position validation fails for sell orders
+type PositionValidationFailedEvent struct {
+	OrderEvent
+	Symbol            string
+	RequestedQuantity float64
+	AvailableQuantity float64
+	ValidationError   string
+}
+
+// NewPositionValidationFailedEvent creates a new PositionValidationFailedEvent
+func NewPositionValidationFailedEvent(orderID, userID, symbol string, requestedQuantity, availableQuantity float64, validationError string) *PositionValidationFailedEvent {
+	return &PositionValidationFailedEvent{
+		OrderEvent:        NewOrderEvent("PositionValidationFailed", orderID, userID),
+		Symbol:            symbol,
+		RequestedQuantity: requestedQuantity,
+		AvailableQuantity: availableQuantity,
+		ValidationError:   validationError,
 	}
 }

@@ -110,22 +110,41 @@ func (t OrderType) GetExecutionPriority() int {
 }
 
 // CanExecuteAtPrice checks if the order can be executed at the given market price
-func (t OrderType) CanExecuteAtPrice(orderPrice, marketPrice *float64) bool {
+func (t OrderType) CanExecuteAtPrice(orderPrice, marketPrice *float64, orderSide OrderSide) bool {
 	switch t {
 	case OrderTypeMarket:
 		return true // Market orders always execute
 	case OrderTypeLimit:
-		if orderPrice == nil {
+		if orderPrice == nil || marketPrice == nil {
 			return false
 		}
-		// For simplicity, assuming buy orders (can be extended for sell orders)
-		return marketPrice != nil && *orderPrice >= *marketPrice
+
+		if orderSide.IsBuy() {
+			// Buy limit: execute if market price is at or below limit price
+			return *marketPrice <= *orderPrice
+		}
+
+		if orderSide.IsSell() {
+			// Sell limit: execute if market price is at or above limit price
+			return *marketPrice >= *orderPrice
+		}
+
+		return false
 	case OrderTypeStopLoss:
-		if orderPrice == nil {
+		if orderPrice == nil || marketPrice == nil {
 			return false
 		}
-		// Trigger when market price reaches or goes below stop price
-		return marketPrice != nil && *marketPrice <= *orderPrice
+
+		if orderSide.IsBuy() {
+			// Buy stop: trigger when market price reaches or goes above stop price
+			return *marketPrice >= *orderPrice
+		}
+
+		if orderSide.IsSell() {
+			// Sell stop: trigger when market price reaches or goes below stop price
+			return *marketPrice <= *orderPrice
+		}
+		return false
 	case OrderTypeStopLimit:
 		// More complex logic - would need additional fields for stop price vs limit price
 		return false // Not implemented in this simplified version
