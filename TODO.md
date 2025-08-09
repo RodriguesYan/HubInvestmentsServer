@@ -254,7 +254,7 @@ internal/order_mngmt_system/
   - [x] Add query methods for order history and filtering
 - [x] **Step 3**: Domain Services
   - [x] Create `order_validation_service.go` for business validation rules
-  - [ ] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
+  - [x] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
   - [ ] Add order pricing and execution logic services
 - [ ] **Step 4**: Market Data Integration via gRPC Client
   - [ ] **Step 4.1**: Market Data Client Infrastructure

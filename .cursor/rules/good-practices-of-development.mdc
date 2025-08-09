@@ -1,0 +1,321 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Good Practices of Development
+
+## Table of Contents
+1. [Avoiding Nested If Statements](#avoiding-nested-if-statements)
+2. [Early Returns Pattern](#early-returns-pattern)
+3. [Method Extraction](#method-extraction)
+4. [Clean Code Principles](#clean-code-principles)
+
+## Avoiding Nested If Statements
+
+### ❌ Problem: Nested Ifs Reduce Code Readability
+
+Nested if statements create complex, hard-to-read code that is difficult to maintain and test.
+
+**Bad Example:**
+```go
+func ValidateOrder(order *Order) error {
+    if order != nil {
+        if order.Quantity > 0 {
+            if order.Price != nil {
+                if *order.Price > 0 {
+                    if order.Symbol != "" {
+                        // actual validation logic buried deep
+                        return nil
+                    } else {
+                        return errors.New("symbol required")
+                    }
+                } else {
+                    return errors.New("price must be positive")
+                }
+            } else {
+                return errors.New("price required")
+            }
+        } else {
+            return errors.New("quantity must be positive")
+        }
+    } else {
+        return errors.New("order cannot be nil")
+    }
+}
+```
+
+### ✅ Solution: Use Early Returns and Guard Clauses
+
+Transform nested conditions into early return statements for better readability.
+
+**Good Example:**
+```go
+func ValidateOrder(order *Order) error {
+    if order == nil {
+        return errors.New("order cannot be nil")
+    }
+    
+    if order.Quantity <= 0 {
+        return errors.New("quantity must be positive")
+    }
+    
+    if order.Price == nil {
+        return errors.New("price required")
+    }
+    
+    if *order.Price <= 0 {
+        return errors.New("price must be positive")
+    }
+    
+    if order.Symbol == "" {
+        return errors.New("symbol required")
+    }
+    
+    // actual validation logic at the main level
+    return nil
+}
+```
+
+## Early Returns Pattern
+
+### Benefits of Early Returns
+
+1. **Reduced Cognitive Load**: Less mental effort to understand the code
+2. **Clearer Intent**: Each validation is explicit and isolated
+3. **Easier Testing**: Each condition can be tested independently
+4. **Better Maintainability**: Adding/removing validations is straightforward
+
+### Guidelines for Early Returns
+
+#### 1. Validate Input Parameters First
+```go
+func ProcessOrder(order *Order, client Client) error {
+    // Validate inputs first with early returns
+    if order == nil {
+        return ErrOrderNil
+    }
+    
+    if client == nil {
+        return ErrClientNil
+    }
+    
+    // Main business logic continues...
+}
+```
+
+#### 2. Handle Error Conditions Early
+```go
+func GetUserBalance(userID string) (float64, error) {
+    if userID == "" {
+        return 0, ErrInvalidUserID
+    }
+    
+    user, err := userRepo.FindByID(userID)
+    if err != nil {
+        return 0, fmt.Errorf("failed to find user: %w", err)
+    }
+    
+    if !user.IsActive {
+        return 0, ErrUserInactive
+    }
+    
+    // Happy path logic continues...
+    return user.Balance, nil
+}
+```
+
+#### 3. Use Guard Clauses for State Validation
+```go
+func ExecuteOrder(order *Order) error {
+    if order.Status != StatusPending {
+        return ErrInvalidOrderStatus
+    }
+    
+    if order.IsExpired() {
+        return ErrOrderExpired
+    }
+    
+    // Execution logic...
+}
+```
+
+## Method Extraction
+
+### ❌ Problem: Long Methods with Multiple Responsibilities
+
+```go
+func ValidateOrderWithContext(order *Order, client MarketDataClient) error {
+    // Symbol validation (10 lines)
+    isValid, err := client.ValidateSymbol(order.Symbol)
+    if err != nil {
+        return fmt.Errorf("symbol validation failed: %w", err)
+    }
+    if !isValid {
+        return ErrInvalidSymbol
+    }
+    
+    // Price validation (15 lines)
+    currentPrice, err := client.GetCurrentPrice(order.Symbol)
+    if err != nil {
+        return fmt.Errorf("failed to get price: %w", err)
+    }
+    tolerance := 0.1
+    if abs(order.Price - currentPrice) / currentPrice > tolerance {
+        return ErrPriceOutOfRange
+    }
+    
+    // Trading hours validation (12 lines)
+    isOpen, err := client.IsMarketOpen(order.Symbol)
+    if err != nil {
+        return fmt.Errorf("failed to check market hours: %w", err)
+    }
+    if !isOpen {
+        return ErrMarketClosed
+    }
+    
+    return nil
+}
+```
+
+### ✅ Solution: Extract Methods for Each Responsibility
+
+```go
+func ValidateOrderWithContext(order *Order, client MarketDataClient) error {
+    if err := s.validateSymbol(order.Symbol, client); err != nil {
+        return err
+    }
+    
+    if err := s.validatePrice(order, client); err != nil {
+        return err
+    }
+    
+    if err := s.validateTradingHours(order.Symbol, client); err != nil {
+        return err
+    }
+    
+    return nil
+}
+
+func (s *Service) validateSymbol(symbol string, client MarketDataClient) error {
+    isValid, err := client.ValidateSymbol(symbol)
+    if err != nil {
+        return fmt.Errorf("symbol validation failed: %w", err)
+    }
+    
+    if !isValid {
+        return ErrInvalidSymbol
+    }
+    
+    return nil
+}
+
+func (s *Service) validatePrice(order *Order, client MarketDataClient) error {
+    currentPrice, err := client.GetCurrentPrice(order.Symbol)
+    if err != nil {
+        return fmt.Errorf("failed to get price: %w", err)
+    }
+    
+    tolerance := 0.1
+    if abs(order.Price - currentPrice) / currentPrice > tolerance {
+        return ErrPriceOutOfRange
+    }
+    
+    return nil
+}
+
+func (s *Service) validateTradingHours(symbol string, client MarketDataClient) error {
+    isOpen, err := client.IsMarketOpen(symbol)
+    if err != nil {
+        return fmt.Errorf("failed to check market hours: %w", err)
+    }
+    
+    if !isOpen {
+        return ErrMarketClosed
+    }
+    
+    return nil
+}
+```
+
+## Clean Code Principles
+
+### 1. Single Responsibility Principle
+- Each method should have one reason to change
+- Extract methods when a function handles multiple concerns
+
+### 2. Meaningful Names
+- Use descriptive method names that explain what they do
+- `validateSymbolExistence()` is better than `checkSymbol()`
+
+### 3. Small Methods
+- Keep methods small and focused (ideally < 20 lines)
+- If a method is getting long, extract sub-methods
+
+### 4. Consistent Error Handling
+```go
+// Consistent pattern for error handling
+func (s *Service) validateStep(input Input) error {
+    result, err := s.performValidation(input)
+    if err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+    
+    if !result.IsValid {
+        return ErrValidationFailed
+    }
+    
+    return nil
+}
+```
+
+### 5. Use Builder Pattern for Complex Validation Results
+```go
+type ValidationResult struct {
+    IsValid  bool
+    Errors   []string
+    Warnings []string
+}
+
+func (r *ValidationResult) AddError(msg string) {
+    r.IsValid = false
+    r.Errors = append(r.Errors, msg)
+}
+
+func (r *ValidationResult) AddWarning(msg string) {
+    r.Warnings = append(r.Warnings, msg)
+}
+```
+
+## Refactoring Checklist
+
+When you encounter nested ifs, ask yourself:
+
+1. **Can I use early returns?** - Convert nested conditions to guard clauses
+2. **Can I extract methods?** - Break down complex logic into smaller, focused methods
+3. **Can I invert conditions?** - Sometimes inverting the condition logic makes it clearer
+4. **Can I use a switch statement?** - For multiple conditional branches
+5. **Can I use polymorphism?** - For type-based conditional logic
+
+## Implementation Example: Order Validation Service
+
+The `order_validation_service.go` demonstrates these principles:
+
+- **Early Returns**: Used in `validateSymbolExistence()` and `validateAssetDetails()`
+- **Method Extraction**: Complex validation logic split into focused methods
+- **Single Responsibility**: Each validation method handles one specific concern
+- **Guard Clauses**: Input validation happens first with immediate returns
+
+This approach results in:
+- **Better Readability**: Each method is easy to understand
+- **Easier Testing**: Each validation can be tested in isolation
+- **Better Maintainability**: Adding new validations doesn't affect existing code
+- **Reduced Bugs**: Simpler control flow reduces logical errors
+
+## Key Takeaways
+
+1. **Avoid nesting beyond 2 levels** - Extract methods or use early returns
+2. **Fail fast** - Validate inputs and error conditions first
+3. **One thing per method** - Each method should have a single, clear purpose
+4. **Name things clearly** - Method names should explain what they do
+5. **Consistent patterns** - Use the same approach throughout your codebase 
