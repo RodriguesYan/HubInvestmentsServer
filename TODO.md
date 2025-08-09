@@ -256,13 +256,13 @@ internal/order_mngmt_system/
   - [x] Create `order_validation_service.go` for business validation rules
   - [x] Implement `risk_management_service.go` for risk checks (balance, limits, etc.)
   - [x] Add order pricing and execution logic services
-- [ ] **Step 4**: Market Data Integration via gRPC Client
-  - [ ] **Step 4.1**: Market Data Client Infrastructure
-    - [ ] Create `infra/external/market_data_client.go` 
-    - [ ] Implement wrapper around existing market data gRPC client
-    - [ ] Create interface `IMarketDataClient` in domain layer for dependency inversion
-    - [ ] Add methods: `GetAssetDetails(symbol)`, `ValidateSymbol(symbol)`, `GetCurrentPrice(symbol)`
-    - [ ] Include error handling for gRPC communication failures
+- [x] **Step 4**: Market Data Integration via gRPC Client
+  - [x] **Step 4.1**: Market Data Client Infrastructure
+    - [x] Create `infra/external/market_data_client.go` 
+    - [x] Implement wrapper around existing market data gRPC client
+    - [x] Create interface `IMarketDataClient` in domain layer for dependency inversion
+    - [x] Add methods: `GetAssetDetails(symbol)`, `ValidateSymbol(symbol)`, `GetCurrentPrice(symbol)`
+    - [x] Include error handling for gRPC communication failures
   - [ ] **Step 4.2**: Market Data Integration in Use Cases
     - [ ] Update `submit_order_usecase.go` to validate symbol exists via market data service
     - [ ] Add price validation against current market price (for limit orders)

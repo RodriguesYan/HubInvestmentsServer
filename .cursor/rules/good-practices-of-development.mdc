@@ -86,6 +86,48 @@ func ValidateOrder(order *Order) error {
 3. **Easier Testing**: Each condition can be tested independently
 4. **Better Maintainability**: Adding/removing validations is straightforward
 
+### ❌ Problem: Unnecessary else-if with Early Returns
+
+When using early returns, `else if` and `else` clauses become redundant and add unnecessary complexity.
+
+**Bad Example:**
+```go
+func GetOrderStatus(orderID string) string {
+    if orderID == "" {
+        return "invalid"
+    } else if order.Status == "pending" {
+        return "waiting"
+    } else if order.Status == "executed" {
+        return "completed"
+    } else {
+        return "unknown"
+    }
+}
+```
+
+### ✅ Solution: Eliminate else-if with Early Returns
+
+When each condition has a return statement, subsequent conditions don't need `else if`.
+
+**Good Example:**
+```go
+func GetOrderStatus(orderID string) string {
+    if orderID == "" {
+        return "invalid"
+    }
+    
+    if order.Status == "pending" {
+        return "waiting"
+    }
+    
+    if order.Status == "executed" {
+        return "completed"
+    }
+    
+    return "unknown"
+}
+```
+
 ### Guidelines for Early Returns
 
 #### 1. Validate Input Parameters First
@@ -318,4 +360,5 @@ This approach results in:
 2. **Fail fast** - Validate inputs and error conditions first
 3. **One thing per method** - Each method should have a single, clear purpose
 4. **Name things clearly** - Method names should explain what they do
-5. **Consistent patterns** - Use the same approach throughout your codebase 
+5. **Consistent patterns** - Use the same approach throughout your codebase
+6. **Eliminate else-if with early returns** - When each condition returns, don't use else-if 
