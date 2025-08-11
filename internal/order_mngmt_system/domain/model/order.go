@@ -186,6 +186,9 @@ func (o *Order) MarkAsFailed() error {
 	if o.status == OrderStatusExecuted {
 		return errors.New("cannot fail an already executed order")
 	}
+	if o.status == OrderStatusCancelled {
+		return errors.New("cannot fail a cancelled order")
+	}
 	o.status = OrderStatusFailed
 	o.updatedAt = time.Now()
 	return nil
@@ -284,12 +287,12 @@ func (o *Order) ValidatePositionForSellOrder(availableQuantity float64) error {
 		return nil // No validation needed for buy orders
 	}
 
-	if availableQuantity < o.quantity {
-		return errors.New("insufficient position: cannot sell more than available quantity")
-	}
-
 	if availableQuantity <= 0 {
 		return errors.New("no position available for this symbol")
+	}
+
+	if availableQuantity < o.quantity {
+		return errors.New("insufficient position: cannot sell more than available quantity")
 	}
 
 	return nil
