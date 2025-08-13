@@ -783,3 +783,301 @@ func Test_orderPricingService_setFillProbabilityAndTime_LimitOrder(t *testing.T)
 	s.setFillProbabilityAndTime(order, marketPrice, estimate)
 	assert.True(t, estimate.FillProbability > 0)
 }
+
+func TestOrderPricingService_CalculateOptimalPrice_ExecutionEstimateError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	marketPrice := &MarketPrice{Symbol: "PETR4", BidPrice: 100, AskPrice: 101, LastPrice: 100.5, Spread: 1, SpreadPercent: 1}
+
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil).Once()
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil).Twice()
+	mockClient.On("GetMarketDepth", "PETR4").Return(nil, fmt.Errorf("depth error")).Twice()
+
+	result, err := service.CalculateOptimalPrice(order, mockClient)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.Warnings, "Could not assess market conditions: failed to get market depth: depth error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_CalculateOptimalPrice_MarketConditionsError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	marketPrice := &MarketPrice{Symbol: "PETR4", BidPrice: 100, AskPrice: 101, LastPrice: 100.5, Spread: 1, SpreadPercent: 1}
+
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil).Once()
+	mockClient.On("IsMarketOpen", "PETR4").Return(false, fmt.Errorf("market closed error")).Twice()
+
+	result, err := service.CalculateOptimalPrice(order, mockClient)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.Warnings, "Could not assess market conditions: failed to check market status: market closed error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_CreateExecutionPlan_FeeError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	marketPrice := &MarketPrice{Symbol: "PETR4", BidPrice: 100, AskPrice: 101, LastPrice: 100.5, Spread: 1, SpreadPercent: 1}
+	marketDepth := &MarketDepth{LiquidityScore: 0.7}
+	priceImpact := &PriceImpact{EstimatedImpact: 0.1}
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(marketDepth, nil)
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil)
+	mockClient.On("GetTradingFees", order.OrderType(), order.CalculateOrderValue()).Return(nil, fmt.Errorf("fee error"))
+	mockClient.On("GetPriceImpactEstimate", order.Symbol(), order.OrderSide(), order.Quantity()).Return(priceImpact, nil)
+
+	plan, err := service.CreateExecutionPlan(order, mockClient)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+	assert.Contains(t, plan.RiskWarnings, "Could not calculate fees: failed to get trading fees: fee error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_CreateExecutionPlan_PriceImpactError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	marketPrice := &MarketPrice{Symbol: "PETR4", BidPrice: 100, AskPrice: 101, LastPrice: 100.5, Spread: 1, SpreadPercent: 1}
+	marketDepth := &MarketDepth{LiquidityScore: 0.7}
+	tradingFees := &TradingFees{TotalFees: 5.0}
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(marketDepth, nil)
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil)
+	mockClient.On("GetTradingFees", order.OrderType(), order.CalculateOrderValue()).Return(tradingFees, nil)
+	mockClient.On("GetPriceImpactEstimate", order.Symbol(), order.OrderSide(), order.Quantity()).Return(nil, fmt.Errorf("impact error"))
+
+	plan, err := service.CreateExecutionPlan(order, mockClient)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+	assert.Contains(t, plan.RiskWarnings, "Could not assess price impact: failed to get price impact estimate: impact error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_ValidateOrderPrice_GetPriceError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	price := 101.0
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeLimit, 10, &price)
+
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(nil, fmt.Errorf("network error"))
+
+	err := service.ValidateOrderPrice(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get market price for validation: network error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_EstimateFillPrice_GetPriceError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(nil, fmt.Errorf("network error"))
+
+	_, err := service.EstimateFillPrice(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get market price: network error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_CalculateTradingCosts_Error(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	price := 100.0
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeLimit, 10, &price)
+
+	mockClient.On("GetTradingFees", order.OrderType(), order.CalculateOrderValue()).Return(nil, fmt.Errorf("fee error"))
+
+	_, err := service.CalculateTradingCosts(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get trading fees: fee error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_AssessPriceImpact_Error(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	mockClient.On("GetPriceImpactEstimate", order.Symbol(), order.OrderSide(), order.Quantity()).Return(nil, fmt.Errorf("impact error"))
+
+	_, err := service.AssessPriceImpact(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get price impact estimate: impact error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_RecommendExecutionStrategy_Default(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(false, fmt.Errorf("market closed error"))
+
+	strategy, err := service.RecommendExecutionStrategy(order, mockClient)
+	assert.NoError(t, err)
+	assert.Equal(t, ExecutionStrategyMarket, strategy)
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_ValidateMarketConditions_GetDepthError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(nil, fmt.Errorf("depth error"))
+
+	_, err := service.ValidateMarketConditions(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get market depth: depth error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_ValidateMarketConditions_GetPriceError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(&MarketDepth{}, nil)
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(nil, fmt.Errorf("price error"))
+
+	_, err := service.ValidateMarketConditions(order, mockClient)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get market price: price error")
+	mockClient.AssertExpectations(t)
+}
+
+func TestOrderPricingService_CalculateOptimalPrice_calculateOptimalPriceForOrderError(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order := domain.NewOrderFromRepository("id", "user1", "PETR4", domain.OrderSideBuy, "99", 10, nil, domain.OrderStatusPending, time.Now(), time.Now(), nil, nil, nil, nil)
+
+	marketPrice := &MarketPrice{Symbol: "PETR4", BidPrice: 100, AskPrice: 101, LastPrice: 100.5, Spread: 1, SpreadPercent: 1}
+
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil)
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(&MarketDepth{}, nil)
+
+	_, err := service.CalculateOptimalPrice(order, mockClient)
+
+	assert.NoError(t, err)
+}
+
+func TestOrderPricingService_AssessPriceImpact_HighRisk(t *testing.T) {
+	service := &orderPricingService{impactWarningPercent: 0.5}
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	priceImpact := &PriceImpact{EstimatedImpact: 0.6}
+	mockClient.On("GetPriceImpactEstimate", order.Symbol(), order.OrderSide(), order.Quantity()).Return(priceImpact, nil)
+
+	impact, err := service.AssessPriceImpact(order, mockClient)
+	assert.NoError(t, err)
+	assert.Equal(t, LiquidityRiskHigh, impact.LiquidityRisk)
+}
+
+func TestOrderPricingService_AssessPriceImpact_MediumRisk(t *testing.T) {
+	service := &orderPricingService{impactWarningPercent: 0.5}
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeMarket, 10, nil)
+
+	priceImpact := &PriceImpact{EstimatedImpact: 0.3}
+	mockClient.On("GetPriceImpactEstimate", order.Symbol(), order.OrderSide(), order.Quantity()).Return(priceImpact, nil)
+
+	impact, err := service.AssessPriceImpact(order, mockClient)
+	assert.NoError(t, err)
+	assert.Equal(t, LiquidityRiskMedium, impact.LiquidityRisk)
+}
+
+func TestOrderPricingService_CalculateSlippageTolerance_MediumOrder(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	price := 500.0
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeLimit, 100, &price)
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(&MarketDepth{LiquidityScore: 0.5}, nil)
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(&MarketPrice{SpreadPercent: 0.5}, nil)
+
+	slippage, err := service.CalculateSlippageTolerance(order, mockClient)
+	assert.NoError(t, err)
+	assert.True(t, slippage > 0.1)
+}
+
+func TestOrderPricingService_setPriceRangeBasedOnOrderSide_Sell(t *testing.T) {
+	s := &orderPricingService{}
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideSell, domain.OrderTypeMarket, 10, nil)
+	marketPrice := &MarketPrice{BidPrice: 100, AskPrice: 102, Spread: 2}
+	priceRange := &PriceRange{}
+	s.setPriceRangeBasedOnOrderSide(order, marketPrice, priceRange)
+	assert.Equal(t, 96.0, priceRange.MinPrice)
+	assert.Equal(t, 102.0, priceRange.MaxPrice)
+}
+
+func TestOrderPricingService_setFillProbabilityAndTime_Default(t *testing.T) {
+	s := &orderPricingService{}
+	order := domain.NewOrderFromRepository("id", "user1", "PETR4", domain.OrderSideBuy, "99", 10, nil, domain.OrderStatusPending, time.Now(), time.Now(), nil, nil, nil, nil)
+	estimate := &ExecutionEstimate{}
+	s.setFillProbabilityAndTime(order, nil, estimate)
+	assert.Equal(t, 0.7, estimate.FillProbability)
+}
+
+func TestOrderPricingService_validatePriceWithinRange_TooLow(t *testing.T) {
+	s := &orderPricingService{}
+	price := 89.0
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeLimit, 10, &price)
+	marketPrice := &MarketPrice{LastPrice: 100.0}
+	err := s.validatePriceWithinRange(order, *order.Price(), marketPrice)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "is too low")
+}
+
+func TestOrderPricingService_estimateMarketOrderFillPrice_Sell(t *testing.T) {
+	service := NewOrderPricingServiceWithDefaults()
+	mockClient := new(MockPricingDataClient)
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideSell, domain.OrderTypeMarket, 10, nil)
+	marketPrice := &MarketPrice{BidPrice: 100, AskPrice: 101, LastPrice: 100.5}
+
+	mockClient.On("IsMarketOpen", "PETR4").Return(true, nil)
+	mockClient.On("GetMarketDepth", "PETR4").Return(&MarketDepth{LiquidityScore: 0.7}, nil)
+	mockClient.On("GetCurrentMarketPrice", "PETR4").Return(marketPrice, nil)
+
+	price, err := service.EstimateFillPrice(order, mockClient)
+	assert.NoError(t, err)
+	assert.True(t, price < 100)
+}
+
+func TestOrderPricingService_adjustFeesBasedOnMethod_MediumOrder(t *testing.T) {
+	s := &orderPricingService{feeCalculationMethod: FeeCalculationTiered}
+	fees := &TradingFees{CommissionFee: 10.0}
+	price := 600.0
+	order, _ := domain.NewOrder("user1", "PETR4", domain.OrderSideBuy, domain.OrderTypeLimit, 100, &price)
+	s.adjustFeesBasedOnMethod(fees, order)
+	assert.Equal(t, 9.0, fees.CommissionFee)
+}
+
+func TestOrderPricingService_addPriceLevelRecommendations_Sell(t *testing.T) {
+	s := &orderPricingService{}
+	result := &PricingResult{Warnings: []string{}}
+	marketPrice := &MarketPrice{BidPrice: 99, AskPrice: 101}
+	price := 98.0
+	order, _ := domain.NewOrder("u1", "s1", domain.OrderSideSell, domain.OrderTypeLimit, 1, &price)
+	s.addPriceLevelRecommendations(order, marketPrice, result)
+	assert.Contains(t, result.Warnings[0], "Sell limit price below market bid")
+}
