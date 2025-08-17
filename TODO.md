@@ -263,11 +263,13 @@ internal/order_mngmt_system/
     - [x] Create interface `IMarketDataClient` in domain layer for dependency inversion
     - [x] Add methods: `GetAssetDetails(symbol)`, `ValidateSymbol(symbol)`, `GetCurrentPrice(symbol)`
     - [x] Include error handling for gRPC communication failures
-  - [ ] **Step 4.2**: Market Data Integration in Use Cases
-    - [ ] Update `submit_order_usecase.go` to validate symbol exists via market data service
-    - [ ] Add price validation against current market price (for limit orders)
-    - [ ] Check trading hours and asset availability
-    - [ ] Update `process_order_usecase.go` to fetch current market price during execution
+  - [x] **Step 4.2**: Market Data Integration in Use Cases
+    - [x] Update `submit_order_usecase.go` to validate symbol exists via market data service
+    - [x] Add price validation against current market price (for limit orders)
+    - [x] Check trading hours and asset availability
+    - [x] Update `process_order_usecase.go` to fetch current market price during execution
+    - [x] Create command objects for submit and cancel order operations
+    - [x] Create `get_order_status_usecase.go` and `cancel_order_usecase.go`
   - [ ] **Step 4.3**: Order Domain Service Enhancement
     - [ ] Update `order_validation_service.go` to use market data client
     - [ ] Add symbol existence validation

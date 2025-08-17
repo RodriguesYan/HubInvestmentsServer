@@ -9,7 +9,8 @@ alwaysApply: true
 1. [Avoiding Nested If Statements](#avoiding-nested-if-statements)
 2. [Early Returns Pattern](#early-returns-pattern)
 3. [Method Extraction](#method-extraction)
-4. [Clean Code Principles](#clean-code-principles)
+4. [Meaningful Comments](#meaningful-comments)
+5. [Clean Code Principles](#clean-code-principles)
 
 ## Avoiding Nested If Statements
 
@@ -280,6 +281,242 @@ func (s *Service) validateTradingHours(symbol string, client MarketDataClient) e
 }
 ```
 
+## Meaningful Comments
+
+### ❌ Problem: Useless Comments That Add No Value
+
+Comments should explain **why** something is done, not **what** is being done. Avoid obvious comments that just restate the code.
+
+**Bad Examples:**
+```go
+// Set user ID to the provided userID
+order.userID = userID
+
+// Check if order is nil
+if order == nil {
+    return errors.New("order cannot be nil")
+}
+
+// Loop through all orders
+for _, order := range orders {
+    // Process each order
+    processOrder(order)
+}
+
+// Create new order repository
+orderRepo := NewOrderRepository()
+
+// Update order status to processing
+order.Status = OrderStatusProcessing
+```
+
+### ✅ Solution: Write Comments That Add Value
+
+Only add comments when they provide meaningful context, explain complex business logic, or clarify non-obvious decisions.
+
+**Good Examples:**
+```go
+// Apply 10% price tolerance to prevent execution during extreme market volatility
+tolerance := 0.10
+if abs(orderPrice-marketPrice)/marketPrice > tolerance {
+    return ErrPriceOutOfRange
+}
+
+// Grace period allows cancellation of processing orders within 30 seconds
+// This accounts for network delays and gives users a chance to cancel
+gracePeriod := 30 * time.Second
+if time.Since(order.CreatedAt()) < gracePeriod {
+    return nil
+}
+
+// Use exponential backoff for retry intervals: 5min → 15min → 1hr → 6hr
+// This prevents overwhelming the system during outages while ensuring eventual processing
+retryIntervals := []time.Duration{5*time.Minute, 15*time.Minute, 1*time.Hour, 6*time.Hour}
+
+// Market orders execute immediately at current price, but we still validate
+// against stale prices to prevent execution with outdated market data
+if order.Type == MarketOrder && time.Since(marketData.Timestamp) > 5*time.Second {
+    return ErrStaleMarketData
+}
+```
+
+### When to Write Comments
+
+#### ✅ **DO** Comment These Scenarios:
+
+1. **Complex Business Logic**
+```go
+// Calculate position-weighted average price including fees and slippage
+// Formula: VWAP = Σ(Price × Volume) / Σ(Volume) + EstimatedFees
+avgPrice := calculateVWAP(trades, estimatedFees)
+```
+
+2. **Non-Obvious Algorithms or Formulas**
+```go
+// Black-Scholes option pricing model implementation
+// Uses risk-free rate, volatility, and time to expiration
+optionPrice := blackScholesCall(spot, strike, riskFreeRate, volatility, timeToExpiry)
+```
+
+3. **Regulatory or Compliance Requirements**
+```go
+// SEC Rule 15c3-3 requires segregation of customer funds
+// Orders above $250K must be pre-approved by compliance
+if orderValue > 250000 {
+    return s.requestComplianceApproval(order)
+}
+```
+
+4. **Workarounds or Temporary Solutions**
+```go
+// TODO: Remove this workaround once market data provider fixes their API
+// Currently their timestamps are in EST instead of UTC
+marketTime = marketTime.Add(5 * time.Hour)
+```
+
+5. **Performance Optimizations**
+```go
+// Cache frequently accessed symbols to reduce database queries
+// Cache TTL is 5 minutes to balance performance with data freshness
+if cachedData, exists := s.symbolCache.Get(symbol); exists {
+    return cachedData
+}
+```
+
+6. **Cross-System Integration Details**
+```go
+// External broker API expects prices in cents, not dollars
+// Convert $123.45 to 12345 cents before sending
+priceInCents := int(price * 100)
+```
+
+#### ❌ **DON'T** Comment These Scenarios:
+
+1. **Obvious Code Operations**
+```go
+// BAD: Comment just restates the code
+user.Name = "John"  // Set user name to John
+```
+
+2. **Standard Language Constructs**
+```go
+// BAD: Everyone knows what a for loop does
+for i := 0; i < len(orders); i++ {  // Loop through orders
+```
+
+3. **Self-Explanatory Method Names**
+```go
+// BAD: Method name already explains what it does
+result := order.Validate()  // Validate the order
+```
+
+4. **Simple Assignments or Declarations**
+```go
+// BAD: Obvious variable assignment
+orderID := uuid.New().String()  // Generate new order ID
+```
+
+### Comment Quality Guidelines
+
+#### 1. **Explain the Why, Not the What**
+```go
+// BAD: Explains what the code does
+if order.Quantity > maxQuantity {
+    return ErrQuantityTooLarge
+}
+
+// GOOD: Explains why this limit exists
+// Prevent market manipulation by limiting single order size to 1% of daily volume
+if order.Quantity > maxQuantity {
+    return ErrQuantityTooLarge
+}
+```
+
+#### 2. **Keep Comments Up-to-Date**
+```go
+// BAD: Outdated comment that no longer matches the code
+// Retry 3 times with 1 second delay
+for i := 0; i < 5; i++ {  // Code was changed but comment wasn't updated
+    time.Sleep(2 * time.Second)
+}
+
+// GOOD: Comment matches the actual implementation
+// Retry 5 times with 2 second delay to handle temporary network issues
+for i := 0; i < 5; i++ {
+    time.Sleep(2 * time.Second)
+}
+```
+
+#### 3. **Use Comments to Explain Complex Interactions**
+```go
+// Order processing involves multiple systems working in sequence:
+// 1. Validate order against market data (real-time price check)
+// 2. Check user positions and available balance
+// 3. Submit to external broker via API
+// 4. Update internal state based on broker response
+// 5. Send confirmation to user via notification service
+func (s *OrderService) ProcessOrder(order *Order) error {
+```
+
+#### 4. **Document Edge Cases and Assumptions**
+```go
+// Handle the edge case where market closes during order processing
+// If this happens, we queue the order for next market open
+if !s.isMarketOpen() {
+    return s.queueForNextSession(order)
+}
+
+// Assumption: All prices are in USD and include 2 decimal places
+// External systems may send prices in different formats
+normalizedPrice := s.normalizePrice(rawPrice)
+```
+
+### Code Documentation vs Comments
+
+#### Use Godoc for Public APIs
+```go
+// SubmitOrder validates and submits a trading order for processing.
+// It performs real-time market data validation, risk checks, and
+// returns an order ID for tracking. The order is processed asynchronously.
+//
+// Parameters:
+//   - ctx: Request context for timeout and cancellation
+//   - cmd: Order submission command with all required fields
+//
+// Returns:
+//   - OrderID for tracking the order status
+//   - Error if validation fails or system is unavailable
+//
+// Example:
+//   result, err := usecase.SubmitOrder(ctx, &SubmitOrderCommand{
+//       UserID: "user123",
+//       Symbol: "AAPL",
+//       Quantity: 100,
+//   })
+func (uc *SubmitOrderUseCase) SubmitOrder(ctx context.Context, cmd *SubmitOrderCommand) (*SubmitOrderResult, error) {
+```
+
+#### Use Inline Comments for Implementation Details
+```go
+func (uc *SubmitOrderUseCase) validatePrice(order *Order, marketPrice float64) error {
+    // Market orders don't need price validation
+    if order.Type == MarketOrder {
+        return nil
+    }
+    
+    // For limit orders, ensure price is within 10% of current market price
+    // This prevents accidental orders due to stale UI data or fat-finger errors
+    tolerance := 0.10
+    deviation := abs(order.Price - marketPrice) / marketPrice
+    
+    if deviation > tolerance {
+        return fmt.Errorf("order price deviates %.1f%% from market price", deviation*100)
+    }
+    
+    return nil
+}
+```
+
 ## Clean Code Principles
 
 ### 1. Single Responsibility Principle
@@ -361,4 +598,6 @@ This approach results in:
 3. **One thing per method** - Each method should have a single, clear purpose
 4. **Name things clearly** - Method names should explain what they do
 5. **Consistent patterns** - Use the same approach throughout your codebase
-6. **Eliminate else-if with early returns** - When each condition returns, don't use else-if 
+6. **Eliminate else-if with early returns** - When each condition returns, don't use else-if
+7. **Comment meaningfully** - Explain why, not what; focus on business logic and complex scenarios
+8. **Avoid obvious comments** - Don't comment standard operations, assignments, or self-explanatory code 
