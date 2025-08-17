@@ -1,5 +1,7 @@
 package domain
 
+import "fmt"
+
 // OrderSide represents the side of an order (buy or sell)
 // @Description Order side enumeration
 type OrderSide int32
@@ -35,6 +37,18 @@ func (s OrderSide) IsSell() bool {
 // RequiresPositionValidation checks if the order side requires position validation
 func (s OrderSide) RequiresPositionValidation() bool {
 	return s == OrderSideSell
+}
+
+// ParseOrderSide parses a string into an OrderSide
+func ParseOrderSide(s string) (OrderSide, error) {
+	switch s {
+	case "BUY":
+		return OrderSideBuy, nil
+	case "SELL":
+		return OrderSideSell, nil
+	default:
+		return 0, fmt.Errorf("invalid order side: %s", s)
+	}
 }
 
 func (s OrderSide) GetDescription() string {

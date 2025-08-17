@@ -25,6 +25,7 @@ type IMarketDataClient interface {
 	IsMarketOpen(ctx context.Context, symbol string) (bool, error)
 
 	// GetTradingHours retrieves trading hours information for a symbol
+	// In future, we need to create a service only for handling trading hours
 	GetTradingHours(ctx context.Context, symbol string) (*TradingHours, error)
 
 	// Close closes the underlying connections
