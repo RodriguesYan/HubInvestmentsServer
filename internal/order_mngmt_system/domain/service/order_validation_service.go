@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,10 +10,11 @@ import (
 
 // IMarketDataClient defines the interface for market data operations (dependency inversion)
 type IMarketDataClient interface {
-	ValidateSymbol(symbol string) (bool, error)
-	GetCurrentPrice(symbol string) (float64, error)
-	IsMarketOpen(symbol string) (bool, error)
-	GetAssetDetails(symbol string) (*AssetDetails, error)
+	ValidateSymbol(ctx context.Context, symbol string) (bool, error)
+	GetCurrentPrice(ctx context.Context, symbol string) (float64, error)
+	IsMarketOpen(ctx context.Context, symbol string) (bool, error)
+	GetAssetDetails(ctx context.Context, symbol string) (*AssetDetails, error)
+	GetTradingHours(ctx context.Context, symbol string) (*TradingHours, error)
 }
 
 // IPositionClient defines the interface for position operations (dependency inversion)
@@ -25,17 +27,28 @@ type IPositionClient interface {
 type AssetDetails struct {
 	Symbol       string
 	Name         string
-	Category     int
-	CurrentPrice float64
+	Category     int32
+	LastQuote    float64
 	IsActive     bool
-	TradingHours *TradingHours
+	IsTradeable  bool
+	MinOrderSize float64
+	MaxOrderSize float64
+	PriceStep    float64
+	LastUpdated  time.Time
 }
 
 // TradingHours represents trading session information
 type TradingHours struct {
-	MarketOpen  time.Time
-	MarketClose time.Time
-	IsOpen      bool
+	Symbol          string
+	MarketOpen      time.Time
+	MarketClose     time.Time
+	IsOpen          bool
+	NextOpenTime    time.Time
+	NextCloseTime   time.Time
+	Timezone        string
+	ExtendedHours   bool
+	PreMarketOpen   time.Time
+	PostMarketClose time.Time
 }
 
 // ValidationContext provides context for order validation
@@ -58,28 +71,28 @@ type ValidationResult struct {
 // OrderValidationService handles business validation rules for orders
 type OrderValidationService interface {
 	// ValidateOrder performs comprehensive order validation
-	ValidateOrder(order *domain.Order) (*ValidationResult, error)
+	ValidateOrder(ctx context.Context, order *domain.Order) (*ValidationResult, error)
 
 	// ValidateOrderWithContext performs validation with external data
-	ValidateOrderWithContext(order *domain.Order, marketDataClient IMarketDataClient, positionClient IPositionClient) (*ValidationResult, error)
+	ValidateOrderWithContext(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient, positionClient IPositionClient) (*ValidationResult, error)
 
 	// ValidateSymbol validates if a symbol is tradeable
-	ValidateSymbol(symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error)
+	ValidateSymbol(ctx context.Context, symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error)
 
 	// ValidateQuantity validates order quantity
-	ValidateQuantity(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
+	ValidateQuantity(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
 
 	// ValidatePrice validates order price against market conditions
-	ValidatePrice(order *domain.Order, marketDataClient IMarketDataClient) (*ValidationResult, error)
+	ValidatePrice(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient) (*ValidationResult, error)
 
 	// ValidateTradingHours validates if trading is allowed at current time
-	ValidateTradingHours(symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error)
+	ValidateTradingHours(ctx context.Context, symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error)
 
 	// ValidateOrderSide validates order side specific rules
-	ValidateOrderSide(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
+	ValidateOrderSide(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
 
 	// ValidateRiskLimits validates order against risk management rules
-	ValidateRiskLimits(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
+	ValidateRiskLimits(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error)
 }
 
 type orderValidationService struct {
@@ -119,7 +132,7 @@ func NewOrderValidationServiceWithDefaults() OrderValidationService {
 }
 
 // ValidateOrder performs comprehensive order validation
-func (s *orderValidationService) ValidateOrder(order *domain.Order) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateOrder(ctx context.Context, order *domain.Order) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -149,40 +162,40 @@ func (s *orderValidationService) ValidateOrder(order *domain.Order) (*Validation
 }
 
 // ValidateOrderWithContext performs validation with external data
-func (s *orderValidationService) ValidateOrderWithContext(order *domain.Order, marketDataClient IMarketDataClient, positionClient IPositionClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateOrderWithContext(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient, positionClient IPositionClient) (*ValidationResult, error) {
 	// Start with basic validation
-	result, err := s.ValidateOrder(order)
+	result, err := s.ValidateOrder(ctx, order)
 	if err != nil {
 		return result, err
 	}
 
 	// Validate symbol and get market data
-	if err := s.validateSymbolStep(order, marketDataClient, result); err != nil {
+	if err := s.validateSymbolStep(ctx, order, marketDataClient, result); err != nil {
 		return result, err
 	}
 
 	// Validate trading hours
-	s.validateTradingHoursStep(order, marketDataClient, result)
+	s.validateTradingHoursStep(ctx, order, marketDataClient, result)
 
 	// Validate price if applicable
 	if order.Price() != nil {
-		s.validatePriceStep(order, marketDataClient, result)
+		s.validatePriceStep(ctx, order, marketDataClient, result)
 	}
 
 	// Validate order side specific rules (especially for sell orders)
-	if err := s.validateOrderSideStep(order, positionClient, result); err != nil {
+	if err := s.validateOrderSideStep(ctx, order, positionClient, result); err != nil {
 		return result, err
 	}
 
 	// Validate risk limits
-	s.validateRiskLimitsStep(order, positionClient, result)
+	s.validateRiskLimitsStep(ctx, order, positionClient, result)
 
 	return result, nil
 }
 
 // validateSymbolStep handles symbol validation with error handling
-func (s *orderValidationService) validateSymbolStep(order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) error {
-	symbolResult, err := s.ValidateSymbol(order.Symbol(), marketDataClient)
+func (s *orderValidationService) validateSymbolStep(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) error {
+	symbolResult, err := s.ValidateSymbol(ctx, order.Symbol(), marketDataClient)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Symbol validation failed: %s", err.Error()))
 		result.IsValid = false
@@ -194,8 +207,8 @@ func (s *orderValidationService) validateSymbolStep(order *domain.Order, marketD
 }
 
 // validateTradingHoursStep handles trading hours validation with warning handling
-func (s *orderValidationService) validateTradingHoursStep(order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) {
-	tradingResult, err := s.ValidateTradingHours(order.Symbol(), marketDataClient)
+func (s *orderValidationService) validateTradingHoursStep(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) {
+	tradingResult, err := s.ValidateTradingHours(ctx, order.Symbol(), marketDataClient)
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Trading hours validation warning: %s", err.Error()))
 		return
@@ -205,8 +218,8 @@ func (s *orderValidationService) validateTradingHoursStep(order *domain.Order, m
 }
 
 // validatePriceStep handles price validation with warning handling
-func (s *orderValidationService) validatePriceStep(order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) {
-	priceResult, err := s.ValidatePrice(order, marketDataClient)
+func (s *orderValidationService) validatePriceStep(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient, result *ValidationResult) {
+	priceResult, err := s.ValidatePrice(ctx, order, marketDataClient)
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Price validation warning: %s", err.Error()))
 		return
@@ -216,8 +229,8 @@ func (s *orderValidationService) validatePriceStep(order *domain.Order, marketDa
 }
 
 // validateOrderSideStep handles order side validation with error handling
-func (s *orderValidationService) validateOrderSideStep(order *domain.Order, positionClient IPositionClient, result *ValidationResult) error {
-	sideResult, err := s.ValidateOrderSide(order, positionClient)
+func (s *orderValidationService) validateOrderSideStep(ctx context.Context, order *domain.Order, positionClient IPositionClient, result *ValidationResult) error {
+	sideResult, err := s.ValidateOrderSide(ctx, order, positionClient)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Order side validation failed: %s", err.Error()))
 		result.IsValid = false
@@ -229,8 +242,8 @@ func (s *orderValidationService) validateOrderSideStep(order *domain.Order, posi
 }
 
 // validateRiskLimitsStep handles risk limits validation with warning handling
-func (s *orderValidationService) validateRiskLimitsStep(order *domain.Order, positionClient IPositionClient, result *ValidationResult) {
-	riskResult, err := s.ValidateRiskLimits(order, positionClient)
+func (s *orderValidationService) validateRiskLimitsStep(ctx context.Context, order *domain.Order, positionClient IPositionClient, result *ValidationResult) {
+	riskResult, err := s.ValidateRiskLimits(ctx, order, positionClient)
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Risk validation warning: %s", err.Error()))
 		return
@@ -240,7 +253,7 @@ func (s *orderValidationService) validateRiskLimitsStep(order *domain.Order, pos
 }
 
 // ValidateSymbol validates if a symbol is tradeable
-func (s *orderValidationService) ValidateSymbol(symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateSymbol(ctx context.Context, symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -251,7 +264,7 @@ func (s *orderValidationService) ValidateSymbol(symbol string, marketDataClient 
 	}
 
 	// Check if symbol exists and is valid
-	if err := s.validateSymbolExistence(symbol, marketDataClient, result); err != nil {
+	if err := s.validateSymbolExistence(ctx, symbol, marketDataClient, result); err != nil {
 		return result, err
 	}
 
@@ -261,14 +274,14 @@ func (s *orderValidationService) ValidateSymbol(symbol string, marketDataClient 
 	}
 
 	// Get asset details for additional validation
-	s.validateAssetDetails(symbol, marketDataClient, result)
+	s.validateAssetDetails(ctx, symbol, marketDataClient, result)
 
 	return result, nil
 }
 
 // validateSymbolExistence checks if symbol exists and is valid
-func (s *orderValidationService) validateSymbolExistence(symbol string, marketDataClient IMarketDataClient, result *ValidationResult) error {
-	isValid, err := marketDataClient.ValidateSymbol(symbol)
+func (s *orderValidationService) validateSymbolExistence(ctx context.Context, symbol string, marketDataClient IMarketDataClient, result *ValidationResult) error {
+	isValid, err := marketDataClient.ValidateSymbol(ctx, symbol)
 	if err != nil {
 		return fmt.Errorf("failed to validate symbol: %w", err)
 	}
@@ -282,8 +295,8 @@ func (s *orderValidationService) validateSymbolExistence(symbol string, marketDa
 }
 
 // validateAssetDetails gets asset details and validates them
-func (s *orderValidationService) validateAssetDetails(symbol string, marketDataClient IMarketDataClient, result *ValidationResult) {
-	assetDetails, err := marketDataClient.GetAssetDetails(symbol)
+func (s *orderValidationService) validateAssetDetails(ctx context.Context, symbol string, marketDataClient IMarketDataClient, result *ValidationResult) {
+	assetDetails, err := marketDataClient.GetAssetDetails(ctx, symbol)
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Could not retrieve asset details: %s", err.Error()))
 		return
@@ -295,10 +308,28 @@ func (s *orderValidationService) validateAssetDetails(symbol string, marketDataC
 		result.IsValid = false
 		result.Errors = append(result.Errors, fmt.Sprintf("Symbol '%s' is not active for trading", symbol))
 	}
+
+	if !assetDetails.IsTradeable {
+		result.IsValid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("Symbol '%s' is not tradeable", symbol))
+	}
+
+	// Add informational warnings about asset details
+	if assetDetails.MinOrderSize > 0 {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Minimum order size for %s is %.2f", symbol, assetDetails.MinOrderSize))
+	}
+
+	if assetDetails.MaxOrderSize > 0 {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Maximum order size for %s is %.2f", symbol, assetDetails.MaxOrderSize))
+	}
+
+	if assetDetails.PriceStep > 0 {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Price increment for %s is %.4f", symbol, assetDetails.PriceStep))
+	}
 }
 
 // ValidateQuantity validates order quantity
-func (s *orderValidationService) ValidateQuantity(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateQuantity(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -317,14 +348,14 @@ func (s *orderValidationService) ValidateQuantity(order *domain.Order, positionC
 
 	// For sell orders, validate against available position
 	if order.IsSellOrder() {
-		return s.validateSellOrderQuantity(order, positionClient, result)
+		return s.validateSellOrderQuantity(ctx, order, positionClient, result)
 	}
 
 	return result, nil
 }
 
 // validateSellOrderQuantity validates quantity for sell orders against available position
-func (s *orderValidationService) validateSellOrderQuantity(order *domain.Order, positionClient IPositionClient, result *ValidationResult) (*ValidationResult, error) {
+func (s *orderValidationService) validateSellOrderQuantity(ctx context.Context, order *domain.Order, positionClient IPositionClient, result *ValidationResult) (*ValidationResult, error) {
 	availableQty, err := positionClient.GetAvailableQuantity(order.UserID(), order.Symbol())
 	if err != nil {
 		return result, fmt.Errorf("failed to get available quantity: %w", err)
@@ -346,7 +377,7 @@ func (s *orderValidationService) validateSellOrderQuantity(order *domain.Order, 
 }
 
 // ValidatePrice validates order price against market conditions
-func (s *orderValidationService) ValidatePrice(order *domain.Order, marketDataClient IMarketDataClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidatePrice(ctx context.Context, order *domain.Order, marketDataClient IMarketDataClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -362,7 +393,7 @@ func (s *orderValidationService) ValidatePrice(order *domain.Order, marketDataCl
 	}
 
 	// Get current market price
-	currentPrice, err := marketDataClient.GetCurrentPrice(order.Symbol())
+	currentPrice, err := marketDataClient.GetCurrentPrice(ctx, order.Symbol())
 	if err != nil {
 		return result, fmt.Errorf("failed to get current price: %w", err)
 	}
@@ -372,20 +403,42 @@ func (s *orderValidationService) ValidatePrice(order *domain.Order, marketDataCl
 		result.Warnings = append(result.Warnings, err.Error())
 	}
 
-	// Check if price is within tolerance
+	// Enhanced price range validation with market price ± tolerance
 	tolerance := s.priceTolerancePercent / 100.0
 	priceDiff := abs((*order.Price() - currentPrice) / currentPrice)
 
+	upperLimit := currentPrice * (1 + tolerance)
+	lowerLimit := currentPrice * (1 - tolerance)
+	orderPrice := *order.Price()
+
 	if priceDiff > tolerance {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Order price %.2f differs from market price %.2f by %.1f%% (tolerance: %.1f%%)",
-			*order.Price(), currentPrice, priceDiff*100, s.priceTolerancePercent))
+			orderPrice, currentPrice, priceDiff*100, s.priceTolerancePercent))
+
+		if orderPrice > upperLimit {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Order price %.2f exceeds upper limit %.2f", orderPrice, upperLimit))
+		}
+
+		if orderPrice < lowerLimit {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Order price %.2f below lower limit %.2f", orderPrice, lowerLimit))
+		}
+	}
+
+	// Additional validation for extremely high price deviations
+	extremeTolerancePercent := 50.0 // 50% extreme tolerance threshold
+	extremeTolerance := extremeTolerancePercent / 100.0
+
+	if priceDiff > extremeTolerance {
+		result.IsValid = false
+		result.Errors = append(result.Errors, fmt.Sprintf("Order price %.2f deviates extremely from market price %.2f by %.1f%% (max allowed: %.1f%%)",
+			orderPrice, currentPrice, priceDiff*100, extremeTolerancePercent))
 	}
 
 	return result, nil
 }
 
 // ValidateTradingHours validates if trading is allowed at current time
-func (s *orderValidationService) ValidateTradingHours(symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateTradingHours(ctx context.Context, symbol string, marketDataClient IMarketDataClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -395,7 +448,7 @@ func (s *orderValidationService) ValidateTradingHours(symbol string, marketDataC
 		},
 	}
 
-	isOpen, err := marketDataClient.IsMarketOpen(symbol)
+	isOpen, err := marketDataClient.IsMarketOpen(ctx, symbol)
 	if err != nil {
 		return result, fmt.Errorf("failed to check market hours: %w", err)
 	}
@@ -404,11 +457,21 @@ func (s *orderValidationService) ValidateTradingHours(symbol string, marketDataC
 		result.Warnings = append(result.Warnings, fmt.Sprintf("Market is currently closed for symbol '%s'", symbol))
 	}
 
+	// Get detailed trading hours for additional context
+	tradingHours, err := marketDataClient.GetTradingHours(ctx, symbol)
+	if err != nil {
+		result.Warnings = append(result.Warnings, "Could not retrieve detailed trading hours")
+	} else {
+		if !tradingHours.IsOpen {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Market closed. Next open: %s", tradingHours.NextOpenTime.Format("2006-01-02 15:04:05 MST")))
+		}
+	}
+
 	return result, nil
 }
 
 // ValidateOrderSide validates order side specific rules
-func (s *orderValidationService) ValidateOrderSide(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateOrderSide(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),
@@ -420,18 +483,18 @@ func (s *orderValidationService) ValidateOrderSide(order *domain.Order, position
 	}
 
 	if order.IsBuyOrder() {
-		return s.validateBuyOrderSide(order, positionClient, result)
+		return s.validateBuyOrderSide(ctx, order, positionClient, result)
 	}
 
 	if order.IsSellOrder() {
-		return s.validateSellOrderSide(result)
+		return s.validateSellOrderSide(ctx, result)
 	}
 
 	return result, nil
 }
 
 // validateBuyOrderSide validates buy order specific rules
-func (s *orderValidationService) validateBuyOrderSide(order *domain.Order, positionClient IPositionClient, result *ValidationResult) (*ValidationResult, error) {
+func (s *orderValidationService) validateBuyOrderSide(ctx context.Context, order *domain.Order, positionClient IPositionClient, result *ValidationResult) (*ValidationResult, error) {
 	orderValue := order.CalculateOrderValue()
 	if orderValue <= 0 {
 		return result, nil
@@ -451,7 +514,7 @@ func (s *orderValidationService) validateBuyOrderSide(order *domain.Order, posit
 }
 
 // validateSellOrderSide validates sell order specific rules
-func (s *orderValidationService) validateSellOrderSide(result *ValidationResult) (*ValidationResult, error) {
+func (s *orderValidationService) validateSellOrderSide(ctx context.Context, result *ValidationResult) (*ValidationResult, error) {
 	// For sell orders, position validation is handled in ValidateQuantity
 	// Additional sell-specific validations can be added here
 	result.Warnings = append(result.Warnings, "Sell order - ensure you want to reduce your position")
@@ -459,7 +522,7 @@ func (s *orderValidationService) validateSellOrderSide(result *ValidationResult)
 }
 
 // ValidateRiskLimits validates order against risk management rules
-func (s *orderValidationService) ValidateRiskLimits(order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
+func (s *orderValidationService) ValidateRiskLimits(ctx context.Context, order *domain.Order, positionClient IPositionClient) (*ValidationResult, error) {
 	result := &ValidationResult{
 		IsValid:  true,
 		Errors:   make([]string, 0),

@@ -270,11 +270,11 @@ internal/order_mngmt_system/
     - [x] Update `process_order_usecase.go` to fetch current market price during execution
     - [x] Create command objects for submit and cancel order operations
     - [x] Create `get_order_status_usecase.go` and `cancel_order_usecase.go`
-  - [ ] **Step 4.3**: Order Domain Service Enhancement
-    - [ ] Update `order_validation_service.go` to use market data client
-    - [ ] Add symbol existence validation
-    - [ ] Implement price range validation (market price ± tolerance)
-    - [ ] Add trading session validation (market open/closed)
+  - [x] **Step 4.3**: Order Domain Service Enhancement
+    - [x] Update `order_validation_service.go` to use market data client
+    - [x] Add symbol existence validation
+    - [x] Implement price range validation (market price ± tolerance)
+    - [x] Add trading session validation (market open/closed)
   - [ ] **Step 4.4**: Dependency Injection Integration
     - [ ] Add market data gRPC client to dependency injection container
     - [ ] Configure gRPC client connection in `NewContainer()` function
