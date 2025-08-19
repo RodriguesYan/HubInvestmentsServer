@@ -24,6 +24,7 @@ import (
 	watchPersistence "HubInvestments/internal/watchlist/infra/persistence"
 	"HubInvestments/shared/infra/cache"
 	"HubInvestments/shared/infra/database"
+	"HubInvestments/shared/infra/messaging"
 
 	"github.com/redis/go-redis/v9"
 
@@ -148,6 +149,9 @@ type Container interface {
 	InvalidateMarketDataCache(symbols []string) error
 	WarmMarketDataCache(symbols []string) error
 
+	// Messaging infrastructure
+	GetMessageHandler() messaging.MessageHandler
+
 	// Lifecycle management
 	Close() error
 }
@@ -161,6 +165,9 @@ type containerImpl struct {
 	MarketDataCacheManager     mktCache.CacheManager
 	WatchlistUsecase           watchlistUsecase.IGetWatchlistUsecase
 	LoginUsecase               doLoginUsecase.IDoLoginUsecase
+
+	// Messaging infrastructure
+	MessageHandler messaging.MessageHandler
 
 	// Order Management System - Market Data Integration
 	OrderMarketDataClient orderMktClient.IMarketDataClient
@@ -212,6 +219,10 @@ func (c *containerImpl) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsec
 	return c.WatchlistUsecase
 }
 
+func (c *containerImpl) GetMessageHandler() messaging.MessageHandler {
+	return c.MessageHandler
+}
+
 func (c *containerImpl) GetOrderMarketDataClient() orderMktClient.IMarketDataClient {
 	return c.OrderMarketDataClient
 }
@@ -235,6 +246,13 @@ func (c *containerImpl) GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCa
 // Close gracefully shuts down all resources managed by the container
 func (c *containerImpl) Close() error {
 	var errors []error
+
+	// Close message handler connection
+	if c.MessageHandler != nil {
+		if err := c.MessageHandler.Close(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to close message handler: %w", err))
+		}
+	}
 
 	// Close order market data client gRPC connection
 	if c.OrderMarketDataClient != nil {
@@ -296,6 +314,18 @@ func NewContainer() (Container, error) {
 	cacheManager := mktCache.GetCacheManager(marketDataRepo)
 	//====== Market data end============
 
+	//====== Messaging Infrastructure begin============
+	// Create RabbitMQ message handler with environment-based configuration
+	messageHandlerConfig := messaging.NewMessageHandlerConfigFromEnv()
+	messageHandler, err := messaging.NewRabbitMQMessageHandler(messageHandlerConfig)
+	if err != nil {
+		// Log the error but don't fail container creation - messaging is optional for development
+		fmt.Printf("Warning: Failed to create RabbitMQ message handler: %v\n", err)
+		fmt.Println("Continuing without messaging infrastructure. Some features may not work.")
+		messageHandler = nil
+	}
+	//====== Messaging Infrastructure end============
+
 	//====== Order Management Market Data Client begin============
 	// Create market data client for order management system with environment-based configuration
 	marketDataServerAddr := os.Getenv("MARKET_DATA_GRPC_SERVER")
@@ -337,6 +367,7 @@ func NewContainer() (Container, error) {
 		WatchlistUsecase:           watchlistUsecase,
 		LoginUsecase:               loginUsecase,
 		AuthService:                authService,
+		MessageHandler:             messageHandler,
 		OrderMarketDataClient:      orderMarketDataClient,
 		OrderRepository:            orderRepo,
 		SubmitOrderUseCase:         submitOrderUseCase,

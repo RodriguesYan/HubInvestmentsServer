@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"HubInvestments/shared/infra/messaging"
 )
 
 func TestContainer_OrderMarketDataClientIntegration(t *testing.T) {
@@ -82,9 +84,63 @@ func TestContainer_AllServicesAvailable(t *testing.T) {
 	// Test that the new services are available
 	assert.NotNil(t, container.GetOrderMarketDataClient(), "OrderMarketDataClient should be available")
 
+	// Test that messaging infrastructure is available (may be nil if RabbitMQ not running)
+	messageHandler := container.GetMessageHandler()
+	t.Logf("MessageHandler availability: %v", messageHandler != nil)
+
 	// Test that order management use cases are available
 	assert.NotNil(t, container.GetSubmitOrderUseCase(), "SubmitOrderUseCase should be available")
 	assert.NotNil(t, container.GetGetOrderStatusUseCase(), "GetOrderStatusUseCase should be available")
 	assert.NotNil(t, container.GetCancelOrderUseCase(), "CancelOrderUseCase should be available")
 	assert.NotNil(t, container.GetProcessOrderUseCase(), "ProcessOrderUseCase should be available")
+}
+
+func TestContainer_MessagingInfrastructure(t *testing.T) {
+	// Test messaging infrastructure integration
+	container, err := NewContainer()
+	require.NoError(t, err, "Failed to create container")
+	require.NotNil(t, container, "Container should not be nil")
+
+	defer func() {
+		if closeErr := container.Close(); closeErr != nil {
+			t.Logf("Warning: Failed to close container: %v", closeErr)
+		}
+	}()
+
+	// Get the message handler
+	messageHandler := container.GetMessageHandler()
+
+	if messageHandler == nil {
+		t.Log("MessageHandler is nil - RabbitMQ not available, which is expected in development")
+		return
+	}
+
+	// Test basic functionality if RabbitMQ is available
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Try health check
+	err = messageHandler.HealthCheck(ctx)
+	if err != nil {
+		t.Logf("MessageHandler health check failed (expected if RabbitMQ not running): %v", err)
+	} else {
+		t.Log("MessageHandler health check passed - RabbitMQ is available")
+
+		// Test queue operations if health check passed
+		queueName := "test-container-queue"
+		queueOptions := messaging.QueueOptions{
+			Durable:    true,
+			AutoDelete: true,
+		}
+
+		err = messageHandler.DeclareQueue(queueName, queueOptions)
+		if err != nil {
+			t.Logf("Queue declaration failed: %v", err)
+		} else {
+			t.Log("Queue declaration successful")
+
+			// Clean up
+			messageHandler.DeleteQueue(queueName)
+		}
+	}
 }

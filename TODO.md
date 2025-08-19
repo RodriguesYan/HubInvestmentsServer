@@ -294,12 +294,12 @@ internal/order_mngmt_system/
     - [ ] Execute order with real-time price information
     - [ ] Update order with execution price and timestamp
 - [ ] **Step 6**: RabbitMQ Infrastructure Implementation
-  - [ ] **Step 6.1**: RabbitMQ Connection Management
-    - [ ] Add RabbitMQ dependency: `go get github.com/streadway/amqp`
-    - [ ] Create `shared/infra/messaging/` directory structure
-    - [ ] Implement `rabbitmq_connection.go` with connection pooling and reconnection logic
-    - [ ] Add RabbitMQ configuration with environment-friendly defaults
-    - [ ] Create health check functionality for RabbitMQ connection
+  - [x] **Step 6.1**: RabbitMQ Connection Management
+    - [x] Add RabbitMQ dependency: `go get github.com/rabbitmq/amqp091-go` (updated to non-deprecated package)
+    - [x] Create `shared/infra/messaging/` directory structure
+    - [x] Implement messaging interface and RabbitMQ adapter with connection pooling and reconnection logic
+    - [x] Add RabbitMQ configuration with environment-friendly defaults
+    - [x] Create health check functionality for RabbitMQ connection
   - [ ] **Step 6.2**: Queue Configuration and Setup
     - [ ] Define queue structure:
       ```
@@ -493,6 +493,16 @@ internal/order_mngmt_system/
 - **Priority**: Medium - Real-time features
 
 ### ⏳ Phase 8: Authentication & Login Improvements
+- [ ] **Step 1**: User Registration and Account Creation
+  - [ ] Create user registration domain model and validation
+  - [ ] Implement `create_user_usecase.go` with proper business logic
+  - [ ] Add email validation and uniqueness checks
+  - [ ] Implement secure password hashing (bcrypt/argon2)
+  - [ ] Create user registration HTTP endpoint
+  - [ ] Add comprehensive validation for user input
+  - [ ] Implement email verification workflow (optional)
+  - [ ] Add user creation audit logging
+- [ ] **Step 2**: Login Module Improvements
 - [ ] Apply DDD pattern to login module
 - [ ] Refactor login methods into smaller, more maintainable functions
 - [ ] Implement comprehensive unit tests for login functionality
@@ -504,9 +514,25 @@ internal/order_mngmt_system/
 
 ### ⏳ Phase 9: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
+  - [ ] **Users table** with proper authentication fields:
+    ```sql
+    users (
+      id UUID PRIMARY KEY,
+      email VARCHAR UNIQUE NOT NULL,
+      password_hash VARCHAR NOT NULL,
+      first_name VARCHAR,
+      last_name VARCHAR,
+      is_active BOOLEAN DEFAULT true,
+      email_verified BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      last_login_at TIMESTAMP,
+      failed_login_attempts INTEGER DEFAULT 0,
+      locked_until TIMESTAMP
+    )
+    ```
   - [ ] Instruments table with asset details
   - [ ] Enhanced balances table structure
-  - [ ] Users table with proper authentication fields
   - [ ] Watchlists and watchlist_items tables
 - [ ] Implement Docker containerization for database services
 - [ ] Create Makefile for database operations (drop, recreate, populate)
@@ -521,6 +547,15 @@ internal/order_mngmt_system/
 - **Priority**: High - Foundation for all other features
 
 ### ⏳ Phase 10: Security & Production Readiness
+- [ ] **Step 1**: Database Security and SQL Injection Prevention
+  - [ ] Audit all database queries for SQL injection vulnerabilities
+  - [ ] Implement parameterized queries/prepared statements across all repositories
+  - [ ] Add input sanitization and validation for all database operations
+  - [ ] Create security testing for SQL injection attempts
+  - [ ] Implement database query logging and monitoring
+  - [ ] Add database access control and least privilege principles
+  - [ ] Create secure database connection configurations
+- [ ] **Step 2**: Network and Application Security
 - [ ] Implement SSL/TLS encryption for all communications
 - [ ] Set up Nginx load balancer with caching and security features
 - [ ] Add WAF (Web Application Firewall) protection
@@ -606,3 +641,8 @@ internal/order_mngmt_system/
 
 ### Technical Debits
 - [ ] **Token Verification Duplication**: Handlers are repeating token verification logic - need to segregate into middleware to avoid code duplication (MockAuth and VerifyToken)
+- [ ] **SQL Injection Vulnerability Assessment**: Need to audit all existing database queries and repositories for potential SQL injection vulnerabilities
+- [ ] **User Management Gap**: Currently missing user registration/creation functionality - only login exists
+- [ ] **Input Validation Inconsistency**: Need standardized input validation across all endpoints and use cases
+- [ ] **Security Headers Missing**: HTTP responses lack security headers (CSRF, XSS protection, etc.)
+- [ ] **Password Security**: Need to implement proper password complexity requirements and secure hashing
