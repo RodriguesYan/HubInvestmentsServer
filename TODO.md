@@ -275,11 +275,11 @@ internal/order_mngmt_system/
     - [x] Add symbol existence validation
     - [x] Implement price range validation (market price ± tolerance)
     - [x] Add trading session validation (market open/closed)
-  - [ ] **Step 4.4**: Dependency Injection Integration
-    - [ ] Add market data gRPC client to dependency injection container
-    - [ ] Configure gRPC client connection in `NewContainer()` function
-    - [ ] Inject market data client into order use cases and domain services
-    - [ ] Add proper client lifecycle management (connection, reconnection, shutdown)
+  - [x] **Step 4.4**: Dependency Injection Integration
+    - [x] Add market data gRPC client to dependency injection container
+    - [x] Configure gRPC client connection in `NewContainer()` function
+    - [x] Inject market data client into order use cases and domain services
+    - [x] Add proper client lifecycle management (connection, reconnection, shutdown)
 - [ ] **Step 5**: Application Use Cases
   - [ ] Create `application/usecase/submit_order_usecase.go`
     - [ ] Generate UUID for new orders
