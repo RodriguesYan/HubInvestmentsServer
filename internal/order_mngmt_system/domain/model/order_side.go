@@ -1,6 +1,9 @@
 package domain
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // OrderSide represents the side of an order (buy or sell)
 // @Description Order side enumeration
@@ -49,6 +52,39 @@ func ParseOrderSide(s string) (OrderSide, error) {
 	default:
 		return 0, fmt.Errorf("invalid order side: %s", s)
 	}
+}
+
+// String returns the string representation of the order side
+func (s OrderSide) String() string {
+	switch s {
+	case OrderSideBuy:
+		return "BUY"
+	case OrderSideSell:
+		return "SELL"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// MarshalJSON implements json.Marshaler interface
+func (s OrderSide) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface
+func (s *OrderSide) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+
+	parsed, err := ParseOrderSide(str)
+	if err != nil {
+		return err
+	}
+
+	*s = parsed
+	return nil
 }
 
 func (s OrderSide) GetDescription() string {

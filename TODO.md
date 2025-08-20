@@ -316,12 +316,12 @@ internal/order_mngmt_system/
     - [x] Implement queue declaration and binding logic
     - [x] Configure message persistence and TTL settings
     - [x] Set up Dead Letter Queue (DLQ) with retry timing (5min, 15min, 1hr, 6hr)
-  - [ ] **Step 6.3**: Order Producer Implementation
-    - [ ] Create `infra/messaging/rabbitmq/order_producer.go`
-    - [ ] Implement `PublishOrderForProcessing(order)` method
-    - [ ] Add message serialization and routing logic
-    - [ ] Include error handling and fallback mechanisms
-    - [ ] Add message confirmation and delivery guarantees
+  - [x] **Step 6.3**: Order Producer Implementation
+    - [x] Create `infra/messaging/rabbitmq/order_producer.go`
+    - [x] Implement `PublishOrderForProcessing(order)` method
+    - [x] Add message serialization and routing logic
+    - [x] Include error handling and fallback mechanisms
+    - [x] Add message confirmation and delivery guarantees
   - [ ] **Step 6.4**: Order Consumer Implementation
     - [ ] Create `infra/messaging/rabbitmq/order_consumer.go`
     - [ ] Implement message consumption with acknowledgment
