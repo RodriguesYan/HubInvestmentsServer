@@ -5,9 +5,12 @@ import (
 	balUsecase "HubInvestments/internal/balance/application/usecase"
 	doLoginUsecase "HubInvestments/internal/login/application/usecase"
 	mktUsecase "HubInvestments/internal/market_data/application/usecase"
+	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
+	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
+	"HubInvestments/shared/infra/messaging"
 )
 
 // TestContainer is a simple mock container for testing
@@ -110,8 +113,33 @@ func (c *TestContainer) WarmMarketDataCache(symbols []string) error {
 	return nil
 }
 
-// Add new methods here as you add them to the Container interface
-// Example:
-// func (c *TestContainer) GetNewService() *NewService {
-//     return c.newService
-// }
+// GetMessageHandler returns nil for testing (no messaging needed in tests)
+func (c *TestContainer) GetMessageHandler() messaging.MessageHandler {
+	return nil
+}
+
+// Order Management System methods - no-op implementations for testing
+func (c *TestContainer) GetOrderMarketDataClient() orderMktClient.IMarketDataClient {
+	return nil
+}
+
+func (c *TestContainer) GetSubmitOrderUseCase() orderUsecase.ISubmitOrderUseCase {
+	return nil
+}
+
+func (c *TestContainer) GetGetOrderStatusUseCase() orderUsecase.IGetOrderStatusUseCase {
+	return nil
+}
+
+func (c *TestContainer) GetCancelOrderUseCase() orderUsecase.ICancelOrderUseCase {
+	return nil
+}
+
+func (c *TestContainer) GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCase {
+	return nil
+}
+
+// Close implements the Container interface - no-op for testing
+func (c *TestContainer) Close() error {
+	return nil
+}
