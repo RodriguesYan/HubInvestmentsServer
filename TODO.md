@@ -300,8 +300,8 @@ internal/order_mngmt_system/
     - [x] Implement messaging interface and RabbitMQ adapter with connection pooling and reconnection logic
     - [x] Add RabbitMQ configuration with environment-friendly defaults
     - [x] Create health check functionality for RabbitMQ connection
-  - [ ] **Step 6.2**: Queue Configuration and Setup
-    - [ ] Define queue structure:
+  - [x] **Step 6.2**: Queue Configuration and Setup
+    - [x] Define queue structure:
       ```
       Primary Queues:
       - orders.submit (order submission)
@@ -313,9 +313,9 @@ internal/order_mngmt_system/
       - orders.retry (retry with TTL)
       - orders.status (status updates)
       ```
-    - [ ] Implement queue declaration and binding logic
-    - [ ] Configure message persistence and TTL settings
-    - [ ] Set up Dead Letter Queue (DLQ) with retry timing (5min, 15min, 1hr, 6hr)
+    - [x] Implement queue declaration and binding logic
+    - [x] Configure message persistence and TTL settings
+    - [x] Set up Dead Letter Queue (DLQ) with retry timing (5min, 15min, 1hr, 6hr)
   - [ ] **Step 6.3**: Order Producer Implementation
     - [ ] Create `infra/messaging/rabbitmq/order_producer.go`
     - [ ] Implement `PublishOrderForProcessing(order)` method
