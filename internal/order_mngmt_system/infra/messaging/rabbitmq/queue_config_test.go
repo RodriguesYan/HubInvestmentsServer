@@ -11,56 +11,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockMessageHandler is a mock implementation of MessageHandler for testing
-type MockMessageHandler struct {
-	mock.Mock
-}
-
-func (m *MockMessageHandler) Publish(ctx context.Context, queueName string, message []byte) error {
-	args := m.Called(ctx, queueName, message)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) PublishWithOptions(ctx context.Context, options messaging.PublishOptions) error {
-	args := m.Called(ctx, options)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) Consume(ctx context.Context, queueName string, handler messaging.MessageConsumer) error {
-	args := m.Called(ctx, queueName, handler)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) DeclareQueue(queueName string, options messaging.QueueOptions) error {
-	args := m.Called(queueName, options)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) DeleteQueue(queueName string) error {
-	args := m.Called(queueName)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) PurgeQueue(queueName string) error {
-	args := m.Called(queueName)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) QueueInfo(queueName string) (*messaging.QueueInfo, error) {
-	args := m.Called(queueName)
-	return args.Get(0).(*messaging.QueueInfo), args.Error(1)
-}
-
-func (m *MockMessageHandler) HealthCheck(ctx context.Context) error {
-	args := m.Called(ctx)
-	return args.Error(0)
-}
-
-func (m *MockMessageHandler) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 func TestDefaultQueueNames(t *testing.T) {
 	queueNames := DefaultQueueNames()
 
@@ -89,7 +39,7 @@ func TestDefaultRetryConfig(t *testing.T) {
 }
 
 func TestNewOrderQueueManager(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 
 	assert.NotNil(t, queueManager)
@@ -99,7 +49,7 @@ func TestNewOrderQueueManager(t *testing.T) {
 }
 
 func TestNewOrderQueueManagerWithConfig(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	customQueueNames := QueueNames{
 		OrdersSubmit:     "custom.submit",
 		OrdersProcessing: "custom.processing",
@@ -124,7 +74,7 @@ func TestNewOrderQueueManagerWithConfig(t *testing.T) {
 }
 
 func TestSetupAllQueues_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -140,7 +90,7 @@ func TestSetupAllQueues_Success(t *testing.T) {
 }
 
 func TestSetupPrimaryQueues_VerifyConfiguration(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -171,7 +121,7 @@ func TestSetupPrimaryQueues_VerifyConfiguration(t *testing.T) {
 }
 
 func TestPublishToSubmitQueue(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -194,7 +144,7 @@ func TestPublishToSubmitQueue(t *testing.T) {
 }
 
 func TestPublishToProcessingQueue(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -217,7 +167,7 @@ func TestPublishToProcessingQueue(t *testing.T) {
 }
 
 func TestPublishToRetryQueue_WithRetryAttempt(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -243,7 +193,7 @@ func TestPublishToRetryQueue_WithRetryAttempt(t *testing.T) {
 }
 
 func TestPublishToRetryQueue_ExceedsConfiguredRetries(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -265,7 +215,7 @@ func TestPublishToRetryQueue_ExceedsConfiguredRetries(t *testing.T) {
 }
 
 func TestPublishStatusUpdate(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -288,7 +238,7 @@ func TestPublishStatusUpdate(t *testing.T) {
 }
 
 func TestGetQueueInfo(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -316,7 +266,7 @@ func TestGetQueueInfo(t *testing.T) {
 }
 
 func TestPurgeAllQueues(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -332,8 +282,8 @@ func TestPurgeAllQueues(t *testing.T) {
 	mockHandler.AssertExpectations(t)
 }
 
-func TestHealthCheck_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+func TestQueueManager_HealthCheck_Success(t *testing.T) {
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -348,7 +298,7 @@ func TestHealthCheck_Success(t *testing.T) {
 }
 
 func TestHealthCheck_MessageHandlerFails(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -363,7 +313,7 @@ func TestHealthCheck_MessageHandlerFails(t *testing.T) {
 }
 
 func TestHealthCheck_QueueNotAccessible(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	ctx := context.Background()
 
@@ -379,7 +329,7 @@ func TestHealthCheck_QueueNotAccessible(t *testing.T) {
 }
 
 func TestGetQueueNames(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 
 	queueNames := queueManager.GetQueueNames()
@@ -388,7 +338,7 @@ func TestGetQueueNames(t *testing.T) {
 }
 
 func TestGetRetryConfig(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 
 	retryConfig := queueManager.GetRetryConfig()

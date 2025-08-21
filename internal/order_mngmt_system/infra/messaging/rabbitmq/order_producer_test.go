@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewOrderProducer(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	assert.NotNil(t, producer)
@@ -22,7 +22,7 @@ func TestNewOrderProducer(t *testing.T) {
 }
 
 func TestNewOrderProducerWithQueueManager(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	queueManager := NewOrderQueueManager(mockHandler)
 	producer := NewOrderProducerWithQueueManager(queueManager)
 
@@ -32,7 +32,7 @@ func TestNewOrderProducerWithQueueManager(t *testing.T) {
 }
 
 func TestPublishOrderForProcessing_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -76,7 +76,7 @@ func TestPublishOrderForProcessing_Success(t *testing.T) {
 }
 
 func TestPublishOrderForProcessing_NilOrder(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -87,7 +87,7 @@ func TestPublishOrderForProcessing_NilOrder(t *testing.T) {
 }
 
 func TestPublishOrderForSubmission_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -122,7 +122,7 @@ func TestPublishOrderForSubmission_Success(t *testing.T) {
 }
 
 func TestPublishOrderForRetry_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -156,7 +156,7 @@ func TestPublishOrderForRetry_Success(t *testing.T) {
 }
 
 func TestPublishOrderForRetry_InvalidRetryAttempt(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -170,7 +170,7 @@ func TestPublishOrderForRetry_InvalidRetryAttempt(t *testing.T) {
 }
 
 func TestPublishOrderStatusUpdate_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -214,7 +214,7 @@ func TestPublishOrderStatusUpdate_Success(t *testing.T) {
 }
 
 func TestPublishBatchOrders_Success(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -248,7 +248,7 @@ func TestPublishBatchOrders_Success(t *testing.T) {
 }
 
 func TestPublishBatchOrders_EmptyList(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -259,7 +259,7 @@ func TestPublishBatchOrders_EmptyList(t *testing.T) {
 }
 
 func TestPublishBatchOrders_NilOrderInList(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -275,7 +275,7 @@ func TestPublishBatchOrders_NilOrderInList(t *testing.T) {
 }
 
 func TestCalculateMessagePriority(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	tests := []struct {
@@ -340,7 +340,7 @@ func TestCalculateMessagePriority(t *testing.T) {
 }
 
 func TestCreateOrderMessage(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	price := 150.0
@@ -369,7 +369,7 @@ func TestCreateOrderMessage(t *testing.T) {
 }
 
 func TestHealthCheck(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -384,7 +384,7 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	err := producer.Close()
@@ -393,7 +393,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestGetQueueManager(t *testing.T) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	queueManager := producer.GetQueueManager()
@@ -446,7 +446,7 @@ func TestOrderProducer_Integration(t *testing.T) {
 
 // Benchmark tests for performance validation
 func BenchmarkPublishOrderForProcessing(b *testing.B) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 	ctx := context.Background()
 
@@ -462,7 +462,7 @@ func BenchmarkPublishOrderForProcessing(b *testing.B) {
 }
 
 func BenchmarkCreateOrderMessage(b *testing.B) {
-	mockHandler := &MockMessageHandler{}
+	mockHandler := &SharedMockMessageHandler{}
 	producer := NewOrderProducer(mockHandler)
 
 	order, _ := domain.NewOrder("user123", "AAPL", domain.OrderSideBuy, domain.OrderTypeMarket, 100.0, nil)

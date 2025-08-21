@@ -322,11 +322,11 @@ internal/order_mngmt_system/
     - [x] Add message serialization and routing logic
     - [x] Include error handling and fallback mechanisms
     - [x] Add message confirmation and delivery guarantees
-  - [ ] **Step 6.4**: Order Consumer Implementation
-    - [ ] Create `infra/messaging/rabbitmq/order_consumer.go`
-    - [ ] Implement message consumption with acknowledgment
-    - [ ] Add message deserialization and validation
-    - [ ] Include graceful shutdown and reconnection handling
+  - [x] **Step 6.4**: Order Consumer Implementation
+    - [x] Create `infra/messaging/rabbitmq/order_consumer.go`
+    - [x] Implement message consumption with acknowledgment
+    - [x] Add message deserialization and validation
+    - [x] Include graceful shutdown and reconnection handling
 - [ ] **Step 7**: Order Worker for Asynchronous Processing
   - [ ] Create `infra/worker/order_worker.go`
   - [ ] Implement worker lifecycle management (Start, Stop, Health Check)

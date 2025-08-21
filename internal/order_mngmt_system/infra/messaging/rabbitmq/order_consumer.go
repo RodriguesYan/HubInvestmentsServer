@@ -11,13 +11,11 @@ import (
 	"HubInvestments/shared/infra/messaging"
 )
 
-// OrderMessageHandler defines the interface for handling consumed order messages
 type OrderMessageHandler interface {
 	HandleOrderMessage(ctx context.Context, message *OrderMessage) error
 	HandleStatusUpdate(ctx context.Context, statusUpdate *OrderStatusUpdate) error
 }
 
-// OrderConsumer handles consuming order messages from RabbitMQ queues
 type OrderConsumer struct {
 	queueManager   *OrderQueueManager
 	messageHandler messaging.MessageHandler
@@ -30,7 +28,6 @@ type OrderConsumer struct {
 	runningMutex   sync.RWMutex
 }
 
-// ConsumerConfig holds configuration for the order consumer
 type ConsumerConfig struct {
 	ConcurrentWorkers int           // Number of concurrent message processors per queue
 	PrefetchCount     int           // Number of messages to prefetch
@@ -39,7 +36,6 @@ type ConsumerConfig struct {
 	MaxRetries        int           // Maximum number of retry attempts
 }
 
-// DefaultConsumerConfig returns sensible defaults for consumer configuration
 func DefaultConsumerConfig() *ConsumerConfig {
 	return &ConsumerConfig{
 		ConcurrentWorkers: 5,
@@ -50,7 +46,6 @@ func DefaultConsumerConfig() *ConsumerConfig {
 	}
 }
 
-// NewOrderConsumer creates a new order consumer
 func NewOrderConsumer(messageHandler messaging.MessageHandler, orderHandler OrderMessageHandler) *OrderConsumer {
 	return &OrderConsumer{
 		queueManager:   NewOrderQueueManager(messageHandler),
@@ -61,7 +56,6 @@ func NewOrderConsumer(messageHandler messaging.MessageHandler, orderHandler Orde
 	}
 }
 
-// NewOrderConsumerWithQueueManager creates a consumer with existing queue manager
 func NewOrderConsumerWithQueueManager(queueManager *OrderQueueManager, orderHandler OrderMessageHandler) *OrderConsumer {
 	return &OrderConsumer{
 		queueManager:   queueManager,
@@ -72,7 +66,7 @@ func NewOrderConsumerWithQueueManager(queueManager *OrderQueueManager, orderHand
 	}
 }
 
-// StartConsumers starts consuming messages from all order-related queues
+// Starts consuming messages from all order-related queues
 func (oc *OrderConsumer) StartConsumers(ctx context.Context, config *ConsumerConfig) error {
 	oc.runningMutex.Lock()
 	defer oc.runningMutex.Unlock()
@@ -85,7 +79,6 @@ func (oc *OrderConsumer) StartConsumers(ctx context.Context, config *ConsumerCon
 		config = DefaultConsumerConfig()
 	}
 
-	// Ensure all queues are set up before starting consumers
 	if err := oc.queueManager.SetupAllQueues(ctx); err != nil {
 		return fmt.Errorf("failed to setup queues: %w", err)
 	}
@@ -116,9 +109,7 @@ func (oc *OrderConsumer) StartConsumers(ctx context.Context, config *ConsumerCon
 	return nil
 }
 
-// startQueueConsumer starts a consumer for a specific queue
 func (oc *OrderConsumer) startQueueConsumer(ctx context.Context, queueName string, config *ConsumerConfig, handler func(context.Context, *messaging.Message) error) error {
-	// Create a consumer that wraps our handler
 	consumer := &orderMessageConsumer{
 		handler: handler,
 		config:  config,
@@ -136,7 +127,7 @@ func (oc *OrderConsumer) startQueueConsumer(ctx context.Context, queueName strin
 	return nil
 }
 
-// orderMessageConsumer implements the MessageConsumer interface
+// Implements the MessageConsumer interface
 type orderMessageConsumer struct {
 	handler func(context.Context, *messaging.Message) error
 	config  *ConsumerConfig
@@ -146,7 +137,6 @@ func (omc *orderMessageConsumer) HandleMessage(ctx context.Context, message *mes
 	return omc.handler(ctx, message)
 }
 
-// handleOrderProcessingMessage processes messages from the processing queue
 func (oc *OrderConsumer) handleOrderProcessingMessage(ctx context.Context, message *messaging.Message) error {
 	orderMessage, err := oc.deserializeOrderMessage(message.Body)
 	if err != nil {
@@ -157,7 +147,6 @@ func (oc *OrderConsumer) handleOrderProcessingMessage(ctx context.Context, messa
 		return fmt.Errorf("order message validation failed: %w", err)
 	}
 
-	// Process the order message through the handler
 	if err := oc.orderHandler.HandleOrderMessage(ctx, orderMessage); err != nil {
 		// Check if this is a retryable error
 		if oc.shouldRetryMessage(orderMessage, err) {
@@ -176,7 +165,6 @@ func (oc *OrderConsumer) handleOrderProcessingMessage(ctx context.Context, messa
 	return nil
 }
 
-// handleOrderSubmissionMessage processes messages from the submission queue
 func (oc *OrderConsumer) handleOrderSubmissionMessage(ctx context.Context, message *messaging.Message) error {
 	orderMessage, err := oc.deserializeOrderMessage(message.Body)
 	if err != nil {
@@ -222,7 +210,6 @@ func (oc *OrderConsumer) handleOrderRetryMessage(ctx context.Context, message *m
 	return nil
 }
 
-// handleStatusUpdateMessage processes status update messages
 func (oc *OrderConsumer) handleStatusUpdateMessage(ctx context.Context, message *messaging.Message) error {
 	statusUpdate, err := oc.deserializeStatusUpdate(message.Body)
 	if err != nil {
@@ -240,7 +227,6 @@ func (oc *OrderConsumer) handleStatusUpdateMessage(ctx context.Context, message 
 	return nil
 }
 
-// deserializeOrderMessage converts JSON bytes to OrderMessage
 func (oc *OrderConsumer) deserializeOrderMessage(data []byte) (*OrderMessage, error) {
 	var orderMessage OrderMessage
 	if err := json.Unmarshal(data, &orderMessage); err != nil {
@@ -249,7 +235,6 @@ func (oc *OrderConsumer) deserializeOrderMessage(data []byte) (*OrderMessage, er
 	return &orderMessage, nil
 }
 
-// deserializeStatusUpdate converts JSON bytes to OrderStatusUpdate
 func (oc *OrderConsumer) deserializeStatusUpdate(data []byte) (*OrderStatusUpdate, error) {
 	var statusUpdate OrderStatusUpdate
 	if err := json.Unmarshal(data, &statusUpdate); err != nil {
@@ -280,22 +265,18 @@ func (oc *OrderConsumer) validateOrderMessage(message *OrderMessage) error {
 		return fmt.Errorf("quantity must be positive")
 	}
 
-	// Validate order side
 	if _, err := domain.ParseOrderSide(message.OrderSide); err != nil {
 		return fmt.Errorf("invalid order side: %w", err)
 	}
 
-	// Validate order type
 	if _, err := domain.ParseOrderType(message.OrderType); err != nil {
 		return fmt.Errorf("invalid order type: %w", err)
 	}
 
-	// Validate order status
 	if _, err := domain.ParseOrderStatus(message.Status); err != nil {
 		return fmt.Errorf("invalid order status: %w", err)
 	}
 
-	// Validate message metadata
 	if message.MessageMetadata.MessageID == "" {
 		return fmt.Errorf("message ID is required")
 	}
@@ -307,7 +288,6 @@ func (oc *OrderConsumer) validateOrderMessage(message *OrderMessage) error {
 	return nil
 }
 
-// validateStatusUpdate performs validation on the deserialized status update
 func (oc *OrderConsumer) validateStatusUpdate(update *OrderStatusUpdate) error {
 	if update == nil {
 		return fmt.Errorf("status update cannot be nil")
@@ -325,21 +305,21 @@ func (oc *OrderConsumer) validateStatusUpdate(update *OrderStatusUpdate) error {
 		return fmt.Errorf("current status is required")
 	}
 
-	// Validate status values
 	if _, err := domain.ParseOrderStatus(update.CurrentStatus); err != nil {
 		return fmt.Errorf("invalid current status: %w", err)
 	}
 
-	if update.PreviousStatus != "" {
-		if _, err := domain.ParseOrderStatus(update.PreviousStatus); err != nil {
-			return fmt.Errorf("invalid previous status: %w", err)
-		}
+	if update.PreviousStatus == "" {
+		return nil
+	}
+
+	if _, err := domain.ParseOrderStatus(update.PreviousStatus); err != nil {
+		return fmt.Errorf("invalid previous status: %w", err)
 	}
 
 	return nil
 }
 
-// shouldRetryMessage determines if a message should be retried based on the error
 func (oc *OrderConsumer) shouldRetryMessage(message *OrderMessage, err error) bool {
 	// Don't retry validation errors or business logic errors
 	if isValidationError(err) || isBusinessLogicError(err) {
@@ -350,13 +330,11 @@ func (oc *OrderConsumer) shouldRetryMessage(message *OrderMessage, err error) bo
 	return isRetryableError(err)
 }
 
-// hasExceededMaxRetries checks if the message has exceeded maximum retry attempts
 func (oc *OrderConsumer) hasExceededMaxRetries(message *OrderMessage) bool {
 	maxRetries := 3 // Could be configurable
 	return message.MessageMetadata.RetryAttempt >= maxRetries
 }
 
-// sendToDLQ sends a message to the Dead Letter Queue
 func (oc *OrderConsumer) sendToDLQ(ctx context.Context, message *messaging.Message, processingError error) error {
 	dlqMessage := map[string]interface{}{
 		"original_message":    string(message.Body),
@@ -383,7 +361,6 @@ func (oc *OrderConsumer) sendToDLQ(ctx context.Context, message *messaging.Messa
 	})
 }
 
-// StopConsumers gracefully stops all consumers
 func (oc *OrderConsumer) StopConsumers(ctx context.Context) error {
 	oc.runningMutex.Lock()
 	defer oc.runningMutex.Unlock()
@@ -404,25 +381,21 @@ func (oc *OrderConsumer) StopConsumers(ctx context.Context) error {
 	return nil
 }
 
-// IsRunning returns whether the consumer is currently running
 func (oc *OrderConsumer) IsRunning() bool {
 	oc.runningMutex.RLock()
 	defer oc.runningMutex.RUnlock()
 	return oc.isRunning
 }
 
-// HealthCheck verifies the consumer and underlying infrastructure is healthy
 func (oc *OrderConsumer) HealthCheck(ctx context.Context) error {
 	if !oc.IsRunning() {
 		return fmt.Errorf("consumer is not running")
 	}
 
-	// Check queue manager health
 	if err := oc.queueManager.HealthCheck(ctx); err != nil {
 		return fmt.Errorf("queue manager health check failed: %w", err)
 	}
 
-	// Check individual consumers
 	oc.consumersMutex.RLock()
 	consumerCount := len(oc.activeQueues)
 	oc.consumersMutex.RUnlock()
@@ -434,12 +407,10 @@ func (oc *OrderConsumer) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// GetQueueManager returns the underlying queue manager
 func (oc *OrderConsumer) GetQueueManager() *OrderQueueManager {
 	return oc.queueManager
 }
 
-// GetActiveConsumers returns information about active consumers
 func (oc *OrderConsumer) GetActiveConsumers() map[string]bool {
 	oc.consumersMutex.RLock()
 	defer oc.consumersMutex.RUnlock()
@@ -450,8 +421,6 @@ func (oc *OrderConsumer) GetActiveConsumers() map[string]bool {
 	}
 	return active
 }
-
-// Helper functions for error classification
 
 func isValidationError(err error) bool {
 	// Check if error is related to validation
