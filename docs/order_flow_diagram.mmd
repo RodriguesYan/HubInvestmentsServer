@@ -1,0 +1,33 @@
+graph LR
+    %% Client Request
+    Client[Asset Homebroker Page<br/>Web Client]:::client
+    
+    %% Order Submission
+    Client -->|POST /api/orders/sendOrder| OrderAPI[Order Manager API<br/>HTTP Handler]:::api
+    
+    %% Validation
+    OrderAPI --> Validation{Validate Order<br/>Is Valid?}:::decision
+    Validation -->|Invalid| ErrorResponse[Return Error<br/>400 Bad Request]:::error
+    Validation -->|Valid| ProcessOrder[Process Order<br/>Generate UUID<br/>Save to DB]:::process
+    
+    %% Success Response
+    ProcessOrder --> SuccessResponse[Return 200 OK<br/>Order ID]:::success
+    SuccessResponse --> Client
+    
+    %% Async Processing
+    ProcessOrder --> RabbitMQ[Send to RabbitMQ<br/>orders.processing]:::queue
+    RabbitMQ --> OrderConsumer[Order Consumer<br/>Background Worker]:::worker
+    OrderConsumer --> SomeClearing[Send to<br/>Some Clearing]:::external
+    SomeClearing --> Database[(Update Orders Table<br/>PostgreSQL)]:::database
+    
+    %% CSS Classes
+    classDef client fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#000
+    classDef api fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#000
+    classDef decision fill:#FFF9C4,stroke:#F9A825,stroke-width:2px,color:#000
+    classDef error fill:#FFEBEE,stroke:#D32F2F,stroke-width:2px,color:#000
+    classDef success fill:#E8F5E8,stroke:#388E3C,stroke-width:2px,color:#000
+    classDef process fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000
+    classDef queue fill:#E0F2F1,stroke:#00796B,stroke-width:2px,color:#000
+    classDef worker fill:#FFF8E1,stroke:#FBC02D,stroke-width:2px,color:#000
+    classDef external fill:#FCE4EC,stroke:#C2185B,stroke-width:2px,color:#000
+    classDef database fill:#E1F5FE,stroke:#0277BD,stroke-width:2px,color:#000

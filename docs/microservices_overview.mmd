@@ -1,0 +1,77 @@
+graph TB
+    %% Client Layer
+    WebApp[Web Application<br/>React/Angular]:::client
+    MobileApp[Mobile App<br/>iOS/Android]:::client
+    
+    %% API Gateway
+    Gateway[API Gateway<br/>Kong/Nginx<br/>Port 443]:::gateway
+    
+    %% Core Services Row 1
+    AuthSvc[🔐 Auth Service<br/>Port 8001]:::service
+    LoginSvc[👤 Login Service<br/>Port 8002]:::service
+    BalanceSvc[💰 Balance Service<br/>Port 8003]:::service
+    
+    %% Core Services Row 2
+    PositionSvc[📊 Position Service<br/>Port 8004]:::service
+    PortfolioSvc[📈 Portfolio Service<br/>Port 8005]:::service
+    MarketSvc[📉 Market Data Service<br/>Port 8006]:::service
+    
+    %% Core Services Row 3
+    WatchlistSvc[⭐ Watchlist Service<br/>Port 8007]:::service
+    OrderSvc[🛒 Order Service<br/>Port 8008]:::service
+    
+    %% Infrastructure
+    MessageQueue[RabbitMQ<br/>Message Broker]:::infra
+    Cache[Redis<br/>Cache Cluster]:::infra
+    Database[(PostgreSQL<br/>Database Cluster)]:::database
+    
+    %% External
+    Broker[External Broker<br/>Order Execution]:::external
+    MarketData[Market Data Provider<br/>Real-time Feeds]:::external
+    
+    %% Client Connections
+    WebApp --> Gateway
+    MobileApp --> Gateway
+    
+    %% Gateway to Services
+    Gateway --> AuthSvc
+    Gateway --> LoginSvc
+    Gateway --> BalanceSvc
+    Gateway --> PositionSvc
+    Gateway --> PortfolioSvc
+    Gateway --> MarketSvc
+    Gateway --> WatchlistSvc
+    Gateway --> OrderSvc
+    
+    %% Service Dependencies
+    PortfolioSvc -.-> PositionSvc
+    PortfolioSvc -.-> BalanceSvc
+    OrderSvc -.-> MarketSvc
+    WatchlistSvc -.-> MarketSvc
+    
+    %% Infrastructure Connections
+    OrderSvc --> MessageQueue
+    MarketSvc --> Cache
+    AuthSvc --> Cache
+    
+    %% Database Connections
+    AuthSvc --> Database
+    LoginSvc --> Database
+    BalanceSvc --> Database
+    PositionSvc --> Database
+    PortfolioSvc --> Database
+    MarketSvc --> Database
+    WatchlistSvc --> Database
+    OrderSvc --> Database
+    
+    %% External Connections
+    OrderSvc --> Broker
+    MarketSvc --> MarketData
+    
+    %% CSS Classes
+    classDef client fill:#E3F2FD,stroke:#1976D2,stroke-width:2px,color:#000
+    classDef gateway fill:#FFF3E0,stroke:#FF9800,stroke-width:3px,color:#000
+    classDef service fill:#4A90E2,stroke:#2E5C8A,stroke-width:2px,color:#fff
+    classDef infra fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    classDef database fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    classDef external fill:#FF5722,stroke:#D84315,stroke-width:2px,color:#fff
