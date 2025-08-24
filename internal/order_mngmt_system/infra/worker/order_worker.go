@@ -33,7 +33,6 @@ type OrderWorker struct {
 	retryCount     int64
 }
 
-// WorkerConfig contains configuration for the order worker
 type WorkerConfig struct {
 	WorkerID            string
 	MaxConcurrentOrders int
@@ -47,7 +46,6 @@ type WorkerConfig struct {
 	LogLevel            string
 }
 
-// WorkerMetrics tracks worker performance metrics
 type WorkerMetrics struct {
 	OrdersProcessed       int64
 	OrdersSuccessful      int64
@@ -60,7 +58,6 @@ type WorkerMetrics struct {
 	mu                    sync.RWMutex
 }
 
-// HealthStatus represents the current health of the worker
 type HealthStatus int
 
 const (
@@ -71,7 +68,6 @@ const (
 	HealthStatusStopped
 )
 
-// String returns string representation of health status
 func (h HealthStatus) String() string {
 	switch h {
 	case HealthStatusHealthy:
@@ -87,7 +83,6 @@ func (h HealthStatus) String() string {
 	}
 }
 
-// NewOrderWorker creates a new order worker instance
 func NewOrderWorker(
 	workerID string,
 	processOrderUC usecase.IProcessOrderUseCase,
@@ -115,7 +110,7 @@ func NewOrderWorker(
 	}
 
 	// Create consumer if not provided
-	if consumer == nil && messageHandler != nil {
+	if consumer == nil && messageHandler == nil {
 		// Create a message handler that will be passed to the consumer
 		orderMessageHandler := &OrderMessageHandler{
 			worker:    worker,
@@ -127,7 +122,6 @@ func NewOrderWorker(
 	return worker
 }
 
-// DefaultWorkerConfig returns default configuration for order worker
 func DefaultWorkerConfig(workerID string) *WorkerConfig {
 	return &WorkerConfig{
 		WorkerID:            workerID,
