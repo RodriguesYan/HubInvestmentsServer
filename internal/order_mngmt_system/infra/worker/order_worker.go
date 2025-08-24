@@ -327,12 +327,16 @@ type OrderMessageHandler struct {
 }
 
 func (h *OrderMessageHandler) HandleOrderMessage(ctx context.Context, message *rabbitmq.OrderMessage) error {
-	// Acquire semaphore slot to limit concurrent processing
+	// Semaphore pattern: limit concurrent order processing to prevent resource exhaustion
+	// The semaphore channel acts as a counting semaphore with MaxConcurrentOrders capacity
+	// - Sending to channel acquires a "slot" (blocks if all slots are taken)
+	// - Receiving from channel releases a "slot" (allows another goroutine to proceed)
+	// This ensures we never process more than MaxConcurrentOrders simultaneously
 	select {
 	case h.semaphore <- struct{}{}:
-		defer func() { <-h.semaphore }()
+		defer func() { <-h.semaphore }() // Release semaphore slot when processing completes
 	case <-ctx.Done():
-		return ctx.Err()
+		return ctx.Err() // Context cancelled, abort processing
 	}
 
 	return h.worker.processOrderMessage(ctx, message)
@@ -578,18 +582,42 @@ func (w *OrderWorker) updateLastActivity() {
 	w.metrics.LastActivityTime = time.Now()
 }
 
+// contains checks if a substring exists anywhere within a string
+// Used for error classification to determine if errors are retryable
+// This implementation checks multiple positions to find the substring:
+// 1. Exact match (s == substr)
+// 2. Prefix match (starts with substr)
+// 3. Suffix match (ends with substr)
+// 4. Substring match (contains substr anywhere in the middle)
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr ||
-			s[:len(substr)] == substr ||
-			s[len(s)-len(substr):] == substr ||
-			(len(s) > len(substr) &&
-				func() bool {
-					for i := 1; i <= len(s)-len(substr); i++ {
-						if s[i:i+len(substr)] == substr {
-							return true
-						}
-					}
-					return false
-				}()))
+	// Early return if substring is longer than string
+	if len(s) < len(substr) {
+		return false
+	}
+
+	// Check exact match
+	if s == substr {
+		return true
+	}
+
+	// Check prefix match
+	if len(s) >= len(substr) && s[:len(substr)] == substr {
+		return true
+	}
+
+	// Check suffix match
+	if len(s) >= len(substr) && s[len(s)-len(substr):] == substr {
+		return true
+	}
+
+	// Check substring match in the middle
+	if len(s) > len(substr) {
+		for i := 1; i <= len(s)-len(substr); i++ {
+			if s[i:i+len(substr)] == substr {
+				return true
+			}
+		}
+	}
+
+	return false
 }
