@@ -1,0 +1,70 @@
+graph TD
+    subgraph "Complete Order Processing Flow"
+        subgraph "Client Layer"
+            CLIENT["📱 Client<br/>Web/Mobile App<br/>Submits order"]
+        end
+        
+        subgraph "API Layer"
+            HTTP["🌐 HTTP Handler<br/>REST API endpoint<br/>Authentication & validation"]
+        end
+        
+        subgraph "Business Layer"
+            SUC["📝 SubmitOrderUseCase<br/>Order validation<br/>Save to DB<br/>Publish to queue"]
+            POU["⚡ ProcessOrderUseCase<br/>Order execution<br/>Price validation<br/>Status updates"]
+        end
+        
+        subgraph "Messaging Layer"
+            PROD["📤 OrderProducer<br/>Publishes to RabbitMQ<br/>Message serialization"]
+            MQ["📬 RabbitMQ Queues<br/>Order queue<br/>Retry queue<br/>Dead letter queue"]
+            CONS["📨 OrderConsumer<br/>Consumes messages<br/>Message routing"]
+        end
+        
+        subgraph "Worker Layer"
+            WM["🔧 WorkerManager<br/>Worker pool management<br/>Auto-scaling"]
+            W1["⚙️ OrderWorker<br/>Async processing<br/>Retry logic<br/>Metrics"]
+        end
+        
+        subgraph "External Services"
+            MDS["📊 Market Data Service<br/>Real-time prices<br/>Symbol validation"]
+            DB["💾 Database<br/>Order persistence<br/>Status tracking"]
+        end
+    end
+    
+    %% Main flow - Order Submission
+    CLIENT -->|"POST /orders"| HTTP
+    HTTP -->|"validate & submit"| SUC
+    SUC -->|"save order (PENDING)"| DB
+    SUC -->|"publish order"| PROD
+    PROD -->|"send message"| MQ
+    
+    %% Async Processing Flow
+    MQ -->|"consume message"| CONS
+    CONS -->|"deliver to worker"| W1
+    W1 -->|"execute business logic"| POU
+    POU -->|"get market data"| MDS
+    POU -->|"update status (EXECUTED)"| DB
+    
+    %% Worker Management
+    WM -->|"manages"| W1
+    W1 -->|"creates internal"| CONS
+    
+    %% Retry Flow
+    W1 -->|"retry failed orders"| PROD
+    
+    %% Response Flow
+    HTTP -->|"202 Accepted + OrderID"| CLIENT
+    
+    %% Styling
+    classDef clientClass fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
+    classDef apiClass fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    classDef businessClass fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    classDef messageClass fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    classDef workerClass fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef externalClass fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    
+    class CLIENT clientClass
+    class HTTP apiClass
+    class SUC,POU businessClass
+    class PROD,MQ,CONS messageClass
+    class WM,W1 workerClass
+    class MDS,DB externalClass

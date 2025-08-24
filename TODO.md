@@ -327,17 +327,17 @@ internal/order_mngmt_system/
     - [x] Implement message consumption with acknowledgment
     - [x] Add message deserialization and validation
     - [x] Include graceful shutdown and reconnection handling
-- [ ] **Step 7**: Order Worker for Asynchronous Processing
-  - [ ] Create `infra/worker/order_worker.go`
-  - [ ] Implement worker lifecycle management (Start, Stop, Health Check)
-  - [ ] Add order processing logic:
-    - [ ] Consume messages from RabbitMQ
-    - [ ] Execute order processing use case (with market data integration)
-    - [ ] Update order status in database
-    - [ ] Publish status updates
-    - [ ] Handle processing errors and retries
-  - [ ] Create `worker_manager.go` for worker scaling and monitoring
-  - [ ] Add worker metrics and performance monitoring
+- [x] **Step 7**: Order Worker for Asynchronous Processing
+  - [x] Create `infra/worker/order_worker.go`
+  - [x] Implement worker lifecycle management (Start, Stop, Health Check)
+  - [x] Add order processing logic:
+    - [x] Consume messages from RabbitMQ
+    - [x] Execute order processing use case (with market data integration)
+    - [x] Update order status in database
+    - [x] Publish status updates
+    - [x] Handle processing errors and retries
+  - [x] Create `worker_manager.go` for worker scaling and monitoring
+  - [x] Add worker metrics and performance monitoring
 - [ ] **Step 8**: Database Implementation
   - [ ] Create `infra/persistence/order_repository.go`
   - [ ] Implement database schema for orders table:
@@ -598,7 +598,7 @@ internal/order_mngmt_system/
 - **Priority**: Low - Advanced architecture (optional but recommended)
 
 ### ⏳ Phase 13: Performance & Monitoring
-- [ ] Implement application and infrastructure monitoring
+- [ ] Implement application and infrastructure monitoring (Prometheus para coletar metricas , grafana para exibir dash, jaeger tracing distribuido, openTelemetry coleta unificada de dados)
 - [ ] Add performance metrics and alerting
 - [ ] Create database performance optimization
 - [ ] Implement caching strategies and optimization
