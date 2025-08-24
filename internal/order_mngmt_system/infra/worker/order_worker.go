@@ -58,6 +58,18 @@ type WorkerMetrics struct {
 	mu                    sync.RWMutex
 }
 
+// WorkerMetricsSnapshot represents a point-in-time snapshot of worker metrics without mutex
+type WorkerMetricsSnapshot struct {
+	OrdersProcessed       int64
+	OrdersSuccessful      int64
+	OrdersFailed          int64
+	OrdersRetried         int64
+	AverageProcessingTime time.Duration
+	LastProcessingTime    time.Duration
+	StartTime             time.Time
+	LastActivityTime      time.Time
+}
+
 type HealthStatus int
 
 const (
@@ -137,7 +149,6 @@ func DefaultWorkerConfig(workerID string) *WorkerConfig {
 	}
 }
 
-// NewWorkerMetrics creates new worker metrics instance
 func NewWorkerMetrics() *WorkerMetrics {
 	return &WorkerMetrics{
 		StartTime:        time.Now(),
@@ -212,27 +223,24 @@ func (w *OrderWorker) Stop() error {
 	}
 }
 
-// IsRunning returns whether the worker is currently running
 func (w *OrderWorker) IsRunning() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.isRunning
 }
 
-// GetHealthStatus returns the current health status of the worker
 func (w *OrderWorker) GetHealthStatus() HealthStatus {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 	return w.healthStatus
 }
 
-// GetMetrics returns a copy of current worker metrics
-func (w *OrderWorker) GetMetrics() WorkerMetrics {
+// Returns a copy without mutex to avoid copying lock value
+func (w *OrderWorker) GetMetrics() WorkerMetricsSnapshot {
 	w.metrics.mu.RLock()
 	defer w.metrics.mu.RUnlock()
 
-	// Create a copy without the mutex to avoid copying lock value
-	return WorkerMetrics{
+	return WorkerMetricsSnapshot{
 		OrdersProcessed:       w.metrics.OrdersProcessed,
 		OrdersSuccessful:      w.metrics.OrdersSuccessful,
 		OrdersFailed:          w.metrics.OrdersFailed,
@@ -244,7 +252,6 @@ func (w *OrderWorker) GetMetrics() WorkerMetrics {
 	}
 }
 
-// GetWorkerInfo returns comprehensive worker information
 func (w *OrderWorker) GetWorkerInfo() WorkerInfo {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -261,7 +268,7 @@ func (w *OrderWorker) GetWorkerInfo() WorkerInfo {
 		RetryCount:     w.retryCount,
 		Uptime:         time.Since(metrics.StartTime),
 		Config:         *w.config,
-		Metrics:        metrics,
+		Metrics:        metrics, // Already a copy without mutex
 	}
 }
 
@@ -276,7 +283,7 @@ type WorkerInfo struct {
 	RetryCount     int64
 	Uptime         time.Duration
 	Config         WorkerConfig
-	Metrics        WorkerMetrics
+	Metrics        WorkerMetricsSnapshot
 }
 
 // processMessages is the main message processing loop
@@ -319,9 +326,8 @@ type OrderMessageHandler struct {
 	semaphore chan struct{}
 }
 
-// HandleOrderMessage processes order messages (implements OrderMessageHandler interface)
 func (h *OrderMessageHandler) HandleOrderMessage(ctx context.Context, message *rabbitmq.OrderMessage) error {
-	// Acquire semaphore slot
+	// Acquire semaphore slot to limit concurrent processing
 	select {
 	case h.semaphore <- struct{}{}:
 		defer func() { <-h.semaphore }()
@@ -332,14 +338,12 @@ func (h *OrderMessageHandler) HandleOrderMessage(ctx context.Context, message *r
 	return h.worker.processOrderMessage(ctx, message)
 }
 
-// HandleStatusUpdate processes status update messages (implements OrderMessageHandler interface)
 func (h *OrderMessageHandler) HandleStatusUpdate(ctx context.Context, update *rabbitmq.OrderStatusUpdate) error {
 	log.Printf("Worker %s: Received status update for order %s: %s -> %s",
 		h.worker.id, update.OrderID, update.PreviousStatus, update.CurrentStatus)
 	return nil
 }
 
-// processOrderMessage processes a single order message
 func (w *OrderWorker) processOrderMessage(ctx context.Context, message *rabbitmq.OrderMessage) error {
 	startTime := time.Now()
 
@@ -350,11 +354,9 @@ func (w *OrderWorker) processOrderMessage(ctx context.Context, message *rabbitmq
 	log.Printf("Worker %s: Processing order %s (symbol: %s, quantity: %.2f)",
 		w.id, message.OrderID, message.Symbol, message.Quantity)
 
-	// Update metrics
 	w.updateLastActivity()
 	w.incrementProcessedCount()
 
-	// Create process order command
 	command := &usecase.ProcessOrderCommand{
 		OrderID: message.OrderID,
 		Context: usecase.ProcessingContext{
@@ -366,7 +368,6 @@ func (w *OrderWorker) processOrderMessage(ctx context.Context, message *rabbitmq
 		},
 	}
 
-	// Execute order processing use case
 	result, err := w.processOrderUC.Execute(processCtx, command)
 
 	processingTime := time.Since(startTime)
@@ -376,7 +377,6 @@ func (w *OrderWorker) processOrderMessage(ctx context.Context, message *rabbitmq
 		w.incrementErrorCount()
 		log.Printf("Worker %s: Failed to process order %s: %v", w.id, message.OrderID, err)
 
-		// Check if we should retry
 		if w.shouldRetryOrder(message, err) {
 			return w.scheduleRetry(message, err)
 		}
@@ -390,13 +390,11 @@ func (w *OrderWorker) processOrderMessage(ctx context.Context, message *rabbitmq
 	return nil
 }
 
-// shouldRetryOrder determines if an order should be retried
 func (w *OrderWorker) shouldRetryOrder(message *rabbitmq.OrderMessage, err error) bool {
 	if message.MessageMetadata.RetryAttempt >= w.config.MaxRetries {
 		return false
 	}
 
-	// Check if error is retryable
 	return w.isRetryableError(err)
 }
 
@@ -423,33 +421,26 @@ func (w *OrderWorker) isRetryableError(err error) bool {
 	return false
 }
 
-// scheduleRetry schedules an order for retry
 func (w *OrderWorker) scheduleRetry(message *rabbitmq.OrderMessage, err error) error {
 	retryAttempt := message.MessageMetadata.RetryAttempt
 
 	log.Printf("Worker %s: Scheduling retry for order %s (attempt %d/%d)",
 		w.id, message.OrderID, retryAttempt+1, w.config.MaxRetries)
 
-	// Update retry metadata
 	message.MessageMetadata.RetryAttempt++
 
-	// Serialize message
 	messageBytes, marshalErr := json.Marshal(message)
 	if marshalErr != nil {
 		return fmt.Errorf("failed to serialize message for retry: %w", marshalErr)
 	}
-
-	// Publish to retry queue
 	queueManager := w.consumer.GetQueueManager()
 	return queueManager.PublishToRetryQueue(w.ctx, messageBytes, message.MessageMetadata.MessageID, retryAttempt)
 }
 
-// calculateRetryDelay calculates exponential backoff delay
+// Exponential backoff with maximum delay cap at 1 hour
 func (w *OrderWorker) calculateRetryDelay(retryCount int) time.Duration {
-	// Exponential backoff: base * 2^retryCount
 	delay := w.config.RetryBackoffBase * time.Duration(1<<uint(retryCount))
 
-	// Cap at maximum delay
 	maxDelay := 1 * time.Hour
 	if delay > maxDelay {
 		delay = maxDelay
@@ -458,7 +449,6 @@ func (w *OrderWorker) calculateRetryDelay(retryCount int) time.Duration {
 	return delay
 }
 
-// heartbeatLoop sends periodic heartbeats
 func (w *OrderWorker) heartbeatLoop() {
 	defer w.wg.Done()
 
@@ -475,7 +465,6 @@ func (w *OrderWorker) heartbeatLoop() {
 	}
 }
 
-// sendHeartbeat updates the last heartbeat timestamp
 func (w *OrderWorker) sendHeartbeat() {
 	w.mu.Lock()
 	w.lastHeartbeat = time.Now()
@@ -484,7 +473,6 @@ func (w *OrderWorker) sendHeartbeat() {
 	log.Printf("Worker %s: Heartbeat sent", w.id)
 }
 
-// healthCheckLoop performs periodic health checks
 func (w *OrderWorker) healthCheckLoop() {
 	defer w.wg.Done()
 
@@ -501,16 +489,14 @@ func (w *OrderWorker) healthCheckLoop() {
 	}
 }
 
-// performHealthCheck evaluates worker health
+// Evaluates worker health based on consumer status and error rates
 func (w *OrderWorker) performHealthCheck() {
-	// Check if consumer is available and healthy
 	if w.consumer != nil {
 		if !w.consumer.IsRunning() {
 			w.updateHealthStatus(HealthStatusUnhealthy)
 			return
 		}
 
-		// Check consumer health
 		if err := w.consumer.HealthCheck(context.Background()); err != nil {
 			log.Printf("Worker %s: Consumer health check failed: %v", w.id, err)
 			w.updateHealthStatus(HealthStatusDegraded)
@@ -518,7 +504,6 @@ func (w *OrderWorker) performHealthCheck() {
 		}
 	}
 
-	// Check message handler health
 	if w.messageHandler != nil {
 		if err := w.messageHandler.HealthCheck(context.Background()); err != nil {
 			log.Printf("Worker %s: Message handler health check failed: %v", w.id, err)
@@ -527,11 +512,11 @@ func (w *OrderWorker) performHealthCheck() {
 		}
 	}
 
-	// Check error rate
+	// Mark as degraded if error rate exceeds 10% threshold
 	metrics := w.GetMetrics()
 	if metrics.OrdersProcessed > 0 {
 		errorRate := float64(w.errorCount) / float64(metrics.OrdersProcessed)
-		if errorRate > 0.1 { // 10% error rate threshold
+		if errorRate > 0.1 {
 			w.updateHealthStatus(HealthStatusDegraded)
 			return
 		}
@@ -540,7 +525,6 @@ func (w *OrderWorker) performHealthCheck() {
 	w.updateHealthStatus(HealthStatusHealthy)
 }
 
-// updateHealthStatus updates the worker health status
 func (w *OrderWorker) updateHealthStatus(status HealthStatus) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -552,7 +536,6 @@ func (w *OrderWorker) updateHealthStatus(status HealthStatus) {
 	}
 }
 
-// Metric update methods
 func (w *OrderWorker) incrementProcessedCount() {
 	w.metrics.mu.Lock()
 	defer w.metrics.mu.Unlock()
@@ -580,7 +563,7 @@ func (w *OrderWorker) updateProcessingTime(duration time.Duration) {
 
 	w.metrics.LastProcessingTime = duration
 
-	// Update average processing time
+	// Calculate rolling average processing time
 	if w.metrics.OrdersProcessed > 0 {
 		totalTime := w.metrics.AverageProcessingTime * time.Duration(w.metrics.OrdersProcessed-1)
 		w.metrics.AverageProcessingTime = (totalTime + duration) / time.Duration(w.metrics.OrdersProcessed)
@@ -595,7 +578,6 @@ func (w *OrderWorker) updateLastActivity() {
 	w.metrics.LastActivityTime = time.Now()
 }
 
-// Helper function
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr ||

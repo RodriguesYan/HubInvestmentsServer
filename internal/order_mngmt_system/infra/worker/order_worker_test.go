@@ -146,9 +146,8 @@ func createTestWorker(t *testing.T) (*OrderWorker, *MockProcessOrderUseCase, *Mo
 		LogLevel:            "INFO",
 	}
 
-	// Create worker with nil consumer and message handler for testing
-	// The worker will create its own consumer if needed
-	worker := NewOrderWorker("test-worker", mockUseCase, nil, nil, config)
+	// Create worker with nil consumer but provide mock message handler to avoid RabbitMQ connection
+	worker := NewOrderWorker("test-worker", mockUseCase, nil, mockMessageHandler, config)
 
 	return worker, mockUseCase, mockConsumer, mockMessageHandler
 }

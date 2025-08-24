@@ -11,7 +11,34 @@ import (
 )
 
 type IProcessOrderUseCase interface {
-	Execute(ctx context.Context, orderID string) error
+	Execute(ctx context.Context, command *ProcessOrderCommand) (*ProcessOrderResult, error)
+}
+
+// ProcessOrderCommand contains the data needed to process an order
+type ProcessOrderCommand struct {
+	OrderID string
+	Context ProcessingContext
+}
+
+// ProcessingContext provides additional context for order processing
+type ProcessingContext struct {
+	WorkerID     string
+	ProcessingID string
+	StartTime    time.Time
+	MaxRetries   int
+	RetryAttempt int
+}
+
+// ProcessOrderResult contains the result of order processing
+type ProcessOrderResult struct {
+	OrderID        string
+	FinalStatus    string
+	ExecutionPrice *float64
+	ExecutionTime  *time.Time
+	ProcessingTime time.Duration
+	ErrorMessage   string
+	WorkerID       string
+	ProcessingID   string
 }
 
 type ProcessOrderUseCase struct {
@@ -38,51 +65,98 @@ func NewProcessOrderUseCase(
 }
 
 // Execute processes an order asynchronously with real-time market data
-func (uc *ProcessOrderUseCase) Execute(ctx context.Context, orderID string) error {
-	order, err := uc.orderRepository.FindByID(orderID)
+func (uc *ProcessOrderUseCase) Execute(ctx context.Context, command *ProcessOrderCommand) (*ProcessOrderResult, error) {
+	startTime := time.Now()
+
+	result := &ProcessOrderResult{
+		OrderID:      command.OrderID,
+		WorkerID:     command.Context.WorkerID,
+		ProcessingID: command.Context.ProcessingID,
+	}
+
+	order, err := uc.orderRepository.FindByID(command.OrderID)
 	if err != nil {
-		return fmt.Errorf("failed to find order %s: %w", orderID, err)
+		result.ErrorMessage = fmt.Sprintf("failed to find order %s: %v", command.OrderID, err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("failed to find order %s: %w", command.OrderID, err)
 	}
 
 	if order == nil {
-		return fmt.Errorf("order %s not found", orderID)
+		result.ErrorMessage = fmt.Sprintf("order %s not found", command.OrderID)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("order %s not found", command.OrderID)
 	}
 
 	if err := uc.validateOrderForProcessing(order); err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Order validation failed: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Order validation failed: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Order validation failed: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("order validation failed: %w", err)
 	}
 
 	if err := uc.markOrderAsProcessing(ctx, order); err != nil {
-		return fmt.Errorf("failed to mark order as processing: %w", err)
+		result.ErrorMessage = fmt.Sprintf("failed to mark order as processing: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("failed to mark order as processing: %w", err)
 	}
 
 	marketData, err := uc.getRealTimeMarketData(ctx, order.Symbol())
 	if err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Failed to get market data: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Failed to get market data: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Failed to get market data: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("failed to get market data: %w", err)
 	}
 
 	if err := uc.validateMarketConditions(ctx, order, marketData); err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Market conditions validation failed: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Market conditions validation failed: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Market conditions validation failed: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("market conditions validation failed: %w", err)
 	}
 
 	executionPrice, err := uc.calculateExecutionPrice(ctx, order, marketData)
 	if err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Failed to calculate execution price: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Failed to calculate execution price: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Failed to calculate execution price: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("failed to calculate execution price: %w", err)
 	}
 
 	if err := uc.performFinalRiskChecks(ctx, order, marketData, executionPrice); err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Final risk checks failed: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Final risk checks failed: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Final risk checks failed: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("final risk checks failed: %w", err)
 	}
 
 	if err := uc.executeOrder(ctx, order, executionPrice, marketData.Timestamp); err != nil {
-		return uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Order execution failed: %v", err))
+		uc.markOrderAsFailed(ctx, order, fmt.Sprintf("Order execution failed: %v", err))
+		result.FinalStatus = string(order.Status())
+		result.ErrorMessage = fmt.Sprintf("Order execution failed: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("order execution failed: %w", err)
 	}
 
 	if err := uc.markOrderAsExecuted(ctx, order, executionPrice, marketData.Timestamp); err != nil {
-		return fmt.Errorf("failed to mark order as executed: %w", err)
+		result.ErrorMessage = fmt.Sprintf("failed to mark order as executed: %v", err)
+		result.ProcessingTime = time.Since(startTime)
+		return result, fmt.Errorf("failed to mark order as executed: %w", err)
 	}
 
-	return nil
+	// Success case
+	executionTime := marketData.Timestamp
+	result.FinalStatus = string(order.Status())
+	result.ExecutionPrice = &executionPrice
+	result.ExecutionTime = &executionTime
+	result.ProcessingTime = time.Since(startTime)
+
+	return result, nil
 }
 
 type OrderExecutionContext struct {

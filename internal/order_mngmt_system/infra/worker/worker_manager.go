@@ -82,7 +82,6 @@ type AutoScaler struct {
 	mu                  sync.RWMutex
 }
 
-// NewWorkerManager creates a new worker manager instance
 func NewWorkerManager(
 	processOrderUC usecase.IProcessOrderUseCase,
 	messageHandler messaging.MessageHandler,
@@ -110,7 +109,6 @@ func NewWorkerManager(
 	return wm
 }
 
-// DefaultWorkerManagerConfig returns default configuration for worker manager
 func DefaultWorkerManagerConfig() *WorkerManagerConfig {
 	return &WorkerManagerConfig{
 		MinWorkers:                2,
@@ -129,7 +127,6 @@ func DefaultWorkerManagerConfig() *WorkerManagerConfig {
 	}
 }
 
-// NewWorkerManagerMetrics creates new worker manager metrics instance
 func NewWorkerManagerMetrics() *WorkerManagerMetrics {
 	return &WorkerManagerMetrics{
 		StartTime:         time.Now(),
@@ -137,7 +134,6 @@ func NewWorkerManagerMetrics() *WorkerManagerMetrics {
 	}
 }
 
-// NewHealthChecker creates a new health checker
 func NewHealthChecker(manager *WorkerManager) *HealthChecker {
 	return &HealthChecker{
 		manager:             manager,
@@ -148,7 +144,6 @@ func NewHealthChecker(manager *WorkerManager) *HealthChecker {
 	}
 }
 
-// NewAutoScaler creates a new auto scaler
 func NewAutoScaler(manager *WorkerManager) *AutoScaler {
 	return &AutoScaler{
 		manager: manager,
