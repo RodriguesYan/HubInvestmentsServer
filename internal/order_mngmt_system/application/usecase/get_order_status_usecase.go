@@ -89,7 +89,7 @@ func (uc *GetOrderStatusUseCase) Execute(ctx context.Context, orderID, userID st
 		return nil, fmt.Errorf("user ID is required")
 	}
 
-	order, err := uc.orderRepository.FindByID(orderID)
+	order, err := uc.orderRepository.FindByID(ctx, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find order: %w", err)
 	}
@@ -140,7 +140,7 @@ func (uc *GetOrderStatusUseCase) GetOrderHistory(ctx context.Context, userID str
 		options.SortOrder = "desc"
 	}
 
-	orders, err := uc.orderRepository.FindByUserID(userID)
+	orders, err := uc.orderRepository.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve order history: %w", err)
 	}

@@ -81,7 +81,7 @@ func (uc *SubmitOrderUseCase) Execute(ctx context.Context, cmd *command.SubmitOr
 		return nil, fmt.Errorf("business validation failed: %w", err)
 	}
 
-	if err := uc.orderRepository.Save(order); err != nil {
+	if err := uc.orderRepository.Save(ctx, order); err != nil {
 		return nil, fmt.Errorf("failed to save order: %w", err)
 	}
 

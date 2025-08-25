@@ -43,7 +43,7 @@ func (uc *CancelOrderUseCase) Execute(ctx context.Context, cmd *command.CancelOr
 	}
 
 	// Step 2: Retrieve order from database
-	order, err := uc.orderRepository.FindByID(cmd.OrderID)
+	order, err := uc.orderRepository.FindByID(ctx, cmd.OrderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find order: %w", err)
 	}
@@ -116,7 +116,7 @@ func (uc *CancelOrderUseCase) cancelOrder(ctx context.Context, order *domain.Ord
 		return fmt.Errorf("failed to mark order as cancelled: %w", err)
 	}
 
-	if err := uc.orderRepository.UpdateStatus(order.ID(), order.Status()); err != nil {
+	if err := uc.orderRepository.UpdateStatus(ctx, order.ID(), order.Status()); err != nil {
 		return fmt.Errorf("failed to update order status in database: %w", err)
 	}
 
@@ -143,7 +143,7 @@ func (uc *CancelOrderUseCase) CancelOrdersBatch(ctx context.Context, commands []
 }
 
 func (uc *CancelOrderUseCase) CancelOrdersByUser(ctx context.Context, userID, reason string) (*BatchCancellationResult, error) {
-	orders, err := uc.orderRepository.FindByUserID(userID)
+	orders, err := uc.orderRepository.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user orders: %w", err)
 	}

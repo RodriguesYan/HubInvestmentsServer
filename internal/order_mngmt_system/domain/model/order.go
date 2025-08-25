@@ -27,6 +27,38 @@ type Order struct {
 	marketDataTimestamp     *time.Time
 }
 
+// NewOrderFromDatabase creates an Order from database data (for repository use)
+func NewOrderFromDatabase(
+	id, userID, symbol string,
+	orderSide OrderSide,
+	orderType OrderType,
+	quantity float64,
+	price *float64,
+	status OrderStatus,
+	createdAt, updatedAt time.Time,
+	executedAt *time.Time,
+	executionPrice *float64,
+	marketPriceAtSubmission *float64,
+	marketDataTimestamp *time.Time,
+) *Order {
+	return &Order{
+		id:                      id,
+		userID:                  userID,
+		symbol:                  symbol,
+		orderSide:               orderSide,
+		orderType:               orderType,
+		quantity:                quantity,
+		price:                   price,
+		status:                  status,
+		createdAt:               createdAt,
+		updatedAt:               updatedAt,
+		executedAt:              executedAt,
+		executionPrice:          executionPrice,
+		marketPriceAtSubmission: marketPriceAtSubmission,
+		marketDataTimestamp:     marketDataTimestamp,
+	}
+}
+
 // NewOrder creates a new order with generated UUID and PENDING status
 func NewOrder(userID, symbol string, orderSide OrderSide, orderType OrderType, quantity float64, price *float64) (*Order, error) {
 	if userID == "" {

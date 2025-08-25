@@ -74,7 +74,7 @@ func (uc *ProcessOrderUseCase) Execute(ctx context.Context, command *ProcessOrde
 		ProcessingID: command.Context.ProcessingID,
 	}
 
-	order, err := uc.orderRepository.FindByID(command.OrderID)
+	order, err := uc.orderRepository.FindByID(ctx, command.OrderID)
 	if err != nil {
 		result.ErrorMessage = fmt.Sprintf("failed to find order %s: %v", command.OrderID, err)
 		result.ProcessingTime = time.Since(startTime)
@@ -184,7 +184,7 @@ func (uc *ProcessOrderUseCase) markOrderAsProcessing(ctx context.Context, order 
 		return fmt.Errorf("failed to mark order as processing: %w", err)
 	}
 
-	if err := uc.orderRepository.UpdateStatus(order.ID(), order.Status()); err != nil {
+	if err := uc.orderRepository.UpdateStatus(ctx, order.ID(), order.Status()); err != nil {
 		return fmt.Errorf("failed to update order status in database: %w", err)
 	}
 
@@ -343,7 +343,7 @@ func (uc *ProcessOrderUseCase) executeOrder(ctx context.Context, order *domain.O
 
 func (uc *ProcessOrderUseCase) markOrderAsExecuted(ctx context.Context, order *domain.Order, executionPrice float64, executionTime time.Time) error {
 	// In a complete implementation, you would use a more comprehensive update method
-	if err := uc.orderRepository.UpdateStatus(order.ID(), order.Status()); err != nil {
+	if err := uc.orderRepository.UpdateStatus(ctx, order.ID(), order.Status()); err != nil {
 		return fmt.Errorf("failed to update order execution in database: %w", err)
 	}
 
@@ -355,7 +355,7 @@ func (uc *ProcessOrderUseCase) markOrderAsFailed(ctx context.Context, order *dom
 		return fmt.Errorf("failed to mark order as failed: %w", err)
 	}
 
-	if err := uc.orderRepository.UpdateStatus(order.ID(), order.Status()); err != nil {
+	if err := uc.orderRepository.UpdateStatus(ctx, order.ID(), order.Status()); err != nil {
 		return fmt.Errorf("failed to update failed order status in database: %w", err)
 	}
 
