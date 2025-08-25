@@ -17,6 +17,7 @@ import (
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	orderRepository "HubInvestments/internal/order_mngmt_system/domain/repository"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
+	orderPersistence "HubInvestments/internal/order_mngmt_system/infra/persistence"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
@@ -27,105 +28,7 @@ import (
 	"HubInvestments/shared/infra/messaging"
 
 	"github.com/redis/go-redis/v9"
-
-	domain "HubInvestments/internal/order_mngmt_system/domain/model"
 )
-
-// MockOrderRepository is a temporary mock implementation for development
-// TODO: Replace with actual database implementation
-type MockOrderRepository struct{}
-
-func (m *MockOrderRepository) Save(order *domain.Order) error {
-	// Mock implementation - in real implementation this would save to database
-	return nil
-}
-
-func (m *MockOrderRepository) FindByID(id string) (*domain.Order, error) {
-	// Mock implementation - in real implementation this would query database
-	return nil, fmt.Errorf("order not found: %s", id)
-}
-
-func (m *MockOrderRepository) FindByUserID(userID string) ([]*domain.Order, error) {
-	// Mock implementation - in real implementation this would query database
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) UpdateStatus(id string, status domain.OrderStatus) error {
-	// Mock implementation - in real implementation this would update database
-	return nil
-}
-
-func (m *MockOrderRepository) FindOrderHistory(userID string, limit int, offset int) ([]*domain.Order, error) {
-	// Mock implementation - in real implementation this would query database with pagination
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindOrdersByStatus(status domain.OrderStatus) ([]*domain.Order, error) {
-	// Mock implementation - in real implementation this would query database
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindOrdersBySymbol(symbol string) ([]*domain.Order, error) {
-	// Mock implementation - in real implementation this would query database
-	return []*domain.Order{}, nil
-}
-
-// Additional methods required by IOrderRepository interface
-func (m *MockOrderRepository) UpdateOrderWithExecution(orderID string, executionPrice float64, executedAt time.Time) error {
-	return nil
-}
-
-func (m *MockOrderRepository) FindByUserIDAndStatus(userID string, status domain.OrderStatus) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindByUserIDAndSymbol(userID string, symbol string) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindByUserIDWithPagination(userID string, limit, offset int) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindByUserIDAndDateRange(userID string, startDate, endDate time.Time) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindActiveOrdersByUserID(userID string) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindActiveOrdersByUserIDAndSymbol(userID string, symbol string) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) CountOrdersByUserID(userID string) (int, error) {
-	return 0, nil
-}
-
-func (m *MockOrderRepository) CountOrdersByUserIDAndStatus(userID string, status domain.OrderStatus) (int, error) {
-	return 0, nil
-}
-
-func (m *MockOrderRepository) FindOrdersForProcessing(limit int) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) FindExpiredOrders(expiredBefore time.Time) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
-
-func (m *MockOrderRepository) Delete(orderID string) error {
-	return nil
-}
-
-func (m *MockOrderRepository) ExistsOrderByID(orderID string) (bool, error) {
-	return false, nil
-}
-
-func (m *MockOrderRepository) FindOrdersNeedingCancellation(beforeTime time.Time) ([]*domain.Order, error) {
-	return []*domain.Order{}, nil
-}
 
 type Container interface {
 	DoLoginUsecase() doLoginUsecase.IDoLoginUsecase
@@ -345,8 +248,8 @@ func NewContainer() (Container, error) {
 	//====== Order Management Market Data Client end============
 
 	//====== Order Management System Use Cases begin============
-	// Create mock order repository (TODO: Replace with actual database implementation)
-	orderRepo := &MockOrderRepository{}
+	// Create order repository with database connection
+	orderRepo := orderPersistence.NewOrderRepository(db)
 
 	// Create order management use cases with dependencies
 	submitOrderUseCase := orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient)

@@ -338,9 +338,9 @@ internal/order_mngmt_system/
     - [x] Handle processing errors and retries
   - [x] Create `worker_manager.go` for worker scaling and monitoring
   - [x] Add worker metrics and performance monitoring
-- [ ] **Step 8**: Database Implementation
-  - [ ] Create `infra/persistence/order_repository.go`
-  - [ ] Implement database schema for orders table:
+- [x] **Step 8**: Database Implementation
+  - [x] Create `infra/persistence/order_repository.go`
+  - [x] Implement database schema for orders table:
     ```sql
     orders (
       id UUID PRIMARY KEY,
@@ -358,8 +358,8 @@ internal/order_mngmt_system/
       market_data_timestamp TIMESTAMP
     )
     ```
-  - [ ] Add proper indexes for performance (user_id, status, created_at, symbol)
-  - [ ] Implement repository methods following existing patterns
+  - [x] Add proper indexes for performance (user_id, status, created_at, symbol)
+  - [x] Implement repository methods following existing patterns
 - [ ] **Step 9**: HTTP Presentation Layer
   - [ ] Create `presentation/http/order_handler.go`
   - [ ] Implement REST endpoints:
