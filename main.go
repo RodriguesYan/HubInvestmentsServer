@@ -20,6 +20,7 @@ import (
 	grpcHandler "HubInvestments/internal/market_data/presentation/grpc"
 	adminHandler "HubInvestments/internal/market_data/presentation/http"
 	marketDataHandler "HubInvestments/internal/market_data/presentation/http"
+	orderHandler "HubInvestments/internal/order_mngmt_system/presentation/http"
 	portfolioSummaryHandler "HubInvestments/internal/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/internal/position/presentation/http"
 	watchlistHandler "HubInvestments/internal/watchlist/presentation/http"
@@ -28,6 +29,7 @@ import (
 	"HubInvestments/shared/middleware"
 	"log"
 	"net/http"
+	"strings"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -64,6 +66,20 @@ func main() {
 	http.HandleFunc("/getMarketData", marketDataHandler.GetMarketDataWithAuth(verifyToken, container))
 	http.HandleFunc("/getWatchlist", watchlistHandler.GetWatchlistWithAuth(verifyToken, container))
 
+	// Order Management Routes
+	http.HandleFunc("/orders", orderHandler.SubmitOrderWithAuth(verifyToken, container))
+	http.HandleFunc("/orders/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, "/status") {
+			orderHandler.GetOrderStatusWithAuth(verifyToken, container)(w, r)
+		} else if strings.HasSuffix(path, "/cancel") {
+			orderHandler.CancelOrderWithAuth(verifyToken, container)(w, r)
+		} else {
+			orderHandler.GetOrderDetailsWithAuth(verifyToken, container)(w, r)
+		}
+	})
+	http.HandleFunc("/orders/history", orderHandler.GetOrderHistoryWithAuth(verifyToken, container))
+
 	// Admin Routes for Cache Management
 	http.HandleFunc("/admin/market-data/cache/invalidate", adminHandler.AdminInvalidateCacheWithAuth(verifyToken, container))
 	http.HandleFunc("/admin/market-data/cache/warm", adminHandler.AdminWarmCacheWithAuth(verifyToken, container))
@@ -72,6 +88,12 @@ func main() {
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
 	log.Printf("HTTP server starting on %s", cfg.HTTPPort)
+	log.Printf("Order Management endpoints available:")
+	log.Printf("  POST   http://%s/orders - Submit new order", cfg.HTTPPort)
+	log.Printf("  GET    http://%s/orders/{id} - Get order details", cfg.HTTPPort)
+	log.Printf("  GET    http://%s/orders/{id}/status - Get order status", cfg.HTTPPort)
+	log.Printf("  PUT    http://%s/orders/{id}/cancel - Cancel order", cfg.HTTPPort)
+	log.Printf("  GET    http://%s/orders/history - Get order history", cfg.HTTPPort)
 	log.Printf("Admin cache endpoints available:")
 	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", cfg.HTTPPort)
 	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", cfg.HTTPPort)

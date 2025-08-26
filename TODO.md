@@ -360,17 +360,17 @@ internal/order_mngmt_system/
     ```
   - [x] Add proper indexes for performance (user_id, status, created_at, symbol)
   - [x] Implement repository methods following existing patterns
-- [ ] **Step 9**: HTTP Presentation Layer
-  - [ ] Create `presentation/http/order_handler.go`
-  - [ ] Implement REST endpoints:
-    - [ ] `POST /orders` - Submit new order (returns 202 + order ID)
-    - [ ] `GET /orders/{id}` - Get order details (with market data context)
-    - [ ] `GET /orders/{id}/status` - Get order status
-    - [ ] `PUT /orders/{id}/cancel` - Cancel pending order
-    - [ ] `GET /orders/history` - Get user order history
-  - [ ] Add proper authentication and authorization
-  - [ ] Implement request validation and error handling
-  - [ ] Add comprehensive unit tests for handlers
+- [x] **Step 9**: HTTP Presentation Layer
+  - [x] Create `presentation/http/order_handler.go`
+  - [x] Implement REST endpoints:
+    - [x] `POST /orders` - Submit new order (returns 202 + order ID)
+    - [x] `GET /orders/{id}` - Get order details (with market data context)
+    - [x] `GET /orders/{id}/status` - Get order status
+    - [x] `PUT /orders/{id}/cancel` - Cancel pending order
+    - [x] `GET /orders/history` - Get user order history
+  - [x] Add proper authentication and authorization
+  - [x] Implement request validation and error handling
+  - [x] Add comprehensive unit tests for handlers
 - [ ] **Step 10**: Dependency Injection Integration
   - [ ] Update `pck/container.go` with order management dependencies:
     - [ ] Add `GetSubmitOrderUseCase()` method

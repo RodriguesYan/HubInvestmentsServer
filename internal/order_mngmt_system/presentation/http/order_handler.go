@@ -15,7 +15,6 @@ import (
 	"HubInvestments/shared/middleware"
 )
 
-// SubmitOrderRequest represents the request body for submitting an order
 type SubmitOrderRequest struct {
 	Symbol    string   `json:"symbol" validate:"required"`
 	OrderType string   `json:"order_type" validate:"required,oneof=MARKET LIMIT STOP_LOSS STOP_LIMIT"`
@@ -24,7 +23,6 @@ type SubmitOrderRequest struct {
 	Price     *float64 `json:"price,omitempty"`
 }
 
-// SubmitOrderResponse represents the response after submitting an order
 type SubmitOrderResponse struct {
 	OrderID        string  `json:"order_id"`
 	Status         string  `json:"status"`
@@ -35,7 +33,6 @@ type SubmitOrderResponse struct {
 	SubmittedAt    string  `json:"submitted_at"`
 }
 
-// OrderDetailsResponse represents detailed order information
 type OrderDetailsResponse struct {
 	OrderID                 string   `json:"order_id"`
 	UserID                  string   `json:"user_id"`
@@ -55,7 +52,6 @@ type OrderDetailsResponse struct {
 	ExecutionValue          float64  `json:"execution_value,omitempty"`
 }
 
-// OrderStatusResponse represents order status information
 type OrderStatusResponse struct {
 	OrderID   string `json:"order_id"`
 	Status    string `json:"status"`
@@ -64,7 +60,6 @@ type OrderStatusResponse struct {
 	CanCancel bool   `json:"can_cancel"`
 }
 
-// OrderHistoryResponse represents a list of orders
 type OrderHistoryResponse struct {
 	Orders []OrderDetailsResponse `json:"orders"`
 	Total  int                    `json:"total"`
@@ -72,7 +67,6 @@ type OrderHistoryResponse struct {
 	Limit  int                    `json:"limit"`
 }
 
-// CancelOrderResponse represents the response after cancelling an order
 type CancelOrderResponse struct {
 	OrderID   string `json:"order_id"`
 	Status    string `json:"status"`
@@ -80,14 +74,12 @@ type CancelOrderResponse struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-// ErrorResponse represents an error response
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 	Code    int    `json:"code"`
 }
 
-// extractOrderIDFromPath extracts order ID from URL path like "/orders/{id}"
 func extractOrderIDFromPath(path string) (string, error) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) < 2 {
@@ -102,7 +94,6 @@ func extractOrderIDFromPath(path string) (string, error) {
 	return orderID, nil
 }
 
-// validateSubmitOrderRequest validates the submit order request
 func validateSubmitOrderRequest(req *SubmitOrderRequest) error {
 	if req.Symbol == "" {
 		return fmt.Errorf("symbol is required")
@@ -120,35 +111,27 @@ func validateSubmitOrderRequest(req *SubmitOrderRequest) error {
 		return fmt.Errorf("quantity must be greater than 0")
 	}
 
-	// Validate order type
 	switch req.OrderType {
 	case "MARKET", "LIMIT", "STOP_LOSS", "STOP_LIMIT":
-		// Valid
+
 	default:
 		return fmt.Errorf("invalid order_type: %s", req.OrderType)
 	}
 
-	// Validate order side
 	switch req.OrderSide {
 	case "BUY", "SELL":
-		// Valid
+
 	default:
 		return fmt.Errorf("invalid order_side: %s", req.OrderSide)
 	}
 
-	// Validate price for limit orders
 	if req.OrderType == "LIMIT" && req.Price == nil {
 		return fmt.Errorf("price is required for LIMIT orders")
-	}
-
-	if req.OrderType == "MARKET" && req.Price != nil {
-		return fmt.Errorf("price should not be specified for MARKET orders")
 	}
 
 	return nil
 }
 
-// convertToOrderDetailsResponse converts domain order to response
 func convertToOrderDetailsResponse(order *domain.Order) OrderDetailsResponse {
 	response := OrderDetailsResponse{
 		OrderID:        order.ID(),
