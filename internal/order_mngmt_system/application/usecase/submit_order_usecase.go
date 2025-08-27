@@ -8,6 +8,7 @@ import (
 	"HubInvestments/internal/order_mngmt_system/application/command"
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
 	"HubInvestments/internal/order_mngmt_system/domain/repository"
+	"HubInvestments/internal/order_mngmt_system/domain/service"
 	"HubInvestments/internal/order_mngmt_system/infra/external"
 )
 
@@ -16,9 +17,9 @@ type ISubmitOrderUseCase interface {
 }
 
 type SubmitOrderUseCase struct {
-	orderRepository  repository.IOrderRepository
-	marketDataClient external.IMarketDataClient
-	// Note: Domain services will be added when interfaces are properly defined
+	orderRepository    repository.IOrderRepository
+	marketDataClient   external.IMarketDataClient
+	idempotencyService service.IIdempotencyService
 }
 
 type SubmitOrderUseCaseConfig struct {
@@ -31,10 +32,12 @@ type SubmitOrderUseCaseConfig struct {
 func NewSubmitOrderUseCase(
 	orderRepository repository.IOrderRepository,
 	marketDataClient external.IMarketDataClient,
+	idempotencyService service.IIdempotencyService,
 ) ISubmitOrderUseCase {
 	return &SubmitOrderUseCase{
-		orderRepository:  orderRepository,
-		marketDataClient: marketDataClient,
+		orderRepository:    orderRepository,
+		marketDataClient:   marketDataClient,
+		idempotencyService: idempotencyService,
 	}
 }
 
@@ -43,6 +46,57 @@ func (uc *SubmitOrderUseCase) Execute(ctx context.Context, cmd *command.SubmitOr
 		return nil, fmt.Errorf("invalid command: %w", err)
 	}
 
+	idempotencyKey := uc.idempotencyService.GenerateKey(
+		cmd.UserID, cmd.Symbol, cmd.OrderType, cmd.OrderSide, cmd.Quantity, cmd.Price)
+
+	// Check if this order has already been processed
+	idempotencyResult, err := uc.idempotencyService.CheckIdempotency(ctx, idempotencyKey, cmd.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("idempotency check failed: %w", err)
+	}
+
+	// If already processed, return existing result
+	if idempotencyResult.IsProcessed {
+		switch idempotencyResult.Status {
+		case service.IdempotencyStatusCompleted:
+			return &command.SubmitOrderResult{
+				OrderID:                 idempotencyResult.OrderID,
+				Status:                  "PENDING",
+				Message:                 "Order already submitted (idempotent request)",
+				MarketPriceAtSubmission: nil,
+				EstimatedExecutionPrice: nil,
+			}, nil
+		case service.IdempotencyStatusFailed:
+			return nil, fmt.Errorf("previous order submission failed: %s", idempotencyResult.Error)
+		case service.IdempotencyStatusPending:
+			return nil, fmt.Errorf("order submission is already in progress")
+		}
+	}
+
+	// Store idempotency key as pending
+	if err := uc.idempotencyService.StoreIdempotencyKey(ctx, idempotencyKey, cmd.UserID, 24*time.Hour); err != nil {
+		return nil, fmt.Errorf("failed to store idempotency key: %w", err)
+	}
+
+	// Process the order with idempotency protection
+	result, err := uc.processOrderSubmission(ctx, cmd)
+	if err != nil {
+		// Mark idempotency as failed
+		_ = uc.idempotencyService.FailIdempotency(ctx, idempotencyKey, cmd.UserID, err.Error())
+		return nil, err
+	}
+
+	// Mark idempotency as completed
+	if err := uc.idempotencyService.CompleteIdempotency(ctx, idempotencyKey, cmd.UserID, result.OrderID, result.Message); err != nil {
+		// Log error but don't fail the request since order was successfully created
+		fmt.Printf("Warning: Failed to complete idempotency: %v\n", err)
+	}
+
+	return result, nil
+}
+
+// processOrderSubmission handles the actual order processing logic
+func (uc *SubmitOrderUseCase) processOrderSubmission(ctx context.Context, cmd *command.SubmitOrderCommand) (*command.SubmitOrderResult, error) {
 	if err := uc.validateSymbolWithMarketData(ctx, cmd.Symbol); err != nil {
 		return nil, fmt.Errorf("symbol validation failed: %w", err)
 	}
