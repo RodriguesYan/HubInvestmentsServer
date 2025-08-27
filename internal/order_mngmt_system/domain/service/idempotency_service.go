@@ -160,7 +160,6 @@ func (s *IdempotencyService) CompleteIdempotency(ctx context.Context, key, userI
 	return s.repository.Update(ctx, idempotencyKey)
 }
 
-// FailIdempotency marks an idempotency key as failed with error
 func (s *IdempotencyService) FailIdempotency(ctx context.Context, key, userID, errorMsg string) error {
 	idempotencyKey, err := s.repository.Get(ctx, key, userID)
 	if err != nil {
@@ -173,7 +172,6 @@ func (s *IdempotencyService) FailIdempotency(ctx context.Context, key, userID, e
 	return s.repository.Update(ctx, idempotencyKey)
 }
 
-// CleanupExpiredKeys removes expired idempotency keys
 func (s *IdempotencyService) CleanupExpiredKeys(ctx context.Context) error {
 	return s.repository.DeleteExpired(ctx)
 }
@@ -198,13 +196,11 @@ func (s *IdempotencyService) ValidateOrderForIdempotency(ctx context.Context, or
 	return s.CheckIdempotency(ctx, key, order.UserID())
 }
 
-// ProcessOrderWithIdempotency processes an order with idempotency protection
 func (s *IdempotencyService) ProcessOrderWithIdempotency(
 	ctx context.Context,
 	order *domain.Order,
 	processor func(context.Context, *domain.Order) (string, error),
 ) (*IdempotencyResult, error) {
-	// Generate idempotency key
 	key := s.GenerateKey(
 		order.UserID(),
 		order.Symbol(),
@@ -214,7 +210,6 @@ func (s *IdempotencyService) ProcessOrderWithIdempotency(
 		order.Price(),
 	)
 
-	// Check if already processed
 	result, err := s.CheckIdempotency(ctx, key, order.UserID())
 	if err != nil {
 		return nil, fmt.Errorf("failed to check idempotency: %w", err)
@@ -230,10 +225,8 @@ func (s *IdempotencyService) ProcessOrderWithIdempotency(
 		return nil, fmt.Errorf("failed to store idempotency key: %w", err)
 	}
 
-	// Process the order
 	orderID, err := processor(ctx, order)
 	if err != nil {
-		// Mark as failed
 		_ = s.FailIdempotency(ctx, key, order.UserID(), err.Error())
 		return &IdempotencyResult{
 			IsProcessed: true,
@@ -242,7 +235,6 @@ func (s *IdempotencyService) ProcessOrderWithIdempotency(
 		}, err
 	}
 
-	// Mark as completed
 	if err := s.CompleteIdempotency(ctx, key, order.UserID(), orderID, "Order submitted successfully"); err != nil {
 		return nil, fmt.Errorf("failed to complete idempotency: %w", err)
 	}
