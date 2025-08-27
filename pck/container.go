@@ -16,8 +16,12 @@ import (
 	mktPersistence "HubInvestments/internal/market_data/infra/persistence"
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	orderRepository "HubInvestments/internal/order_mngmt_system/domain/repository"
+	orderService "HubInvestments/internal/order_mngmt_system/domain/service"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
+	orderIdempotency "HubInvestments/internal/order_mngmt_system/infra/idempotency"
+	orderRabbitMQ "HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
 	orderPersistence "HubInvestments/internal/order_mngmt_system/infra/persistence"
+	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
@@ -47,6 +51,10 @@ type Container interface {
 	GetGetOrderStatusUseCase() orderUsecase.IGetOrderStatusUseCase
 	GetCancelOrderUseCase() orderUsecase.ICancelOrderUseCase
 	GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCase
+
+	// Order Management System - Infrastructure
+	GetOrderProducer() *orderRabbitMQ.OrderProducer
+	GetOrderWorkerManager() *orderWorker.WorkerManager
 
 	// Cache management methods for admin operations
 	InvalidateMarketDataCache(symbols []string) error
@@ -83,6 +91,11 @@ type containerImpl struct {
 	GetOrderStatusUseCase orderUsecase.IGetOrderStatusUseCase
 	CancelOrderUseCase    orderUsecase.ICancelOrderUseCase
 	ProcessOrderUseCase   orderUsecase.IProcessOrderUseCase
+
+	// Order Management System - Infrastructure
+	OrderProducer      *orderRabbitMQ.OrderProducer
+	OrderWorkerManager *orderWorker.WorkerManager
+	IdempotencyService orderService.IIdempotencyService
 }
 
 func (c *containerImpl) GetAuthService() auth.IAuthService {
@@ -146,9 +159,31 @@ func (c *containerImpl) GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCa
 	return c.ProcessOrderUseCase
 }
 
+func (c *containerImpl) GetOrderProducer() *orderRabbitMQ.OrderProducer {
+	return c.OrderProducer
+}
+
+func (c *containerImpl) GetOrderWorkerManager() *orderWorker.WorkerManager {
+	return c.OrderWorkerManager
+}
+
 // Close gracefully shuts down all resources managed by the container
 func (c *containerImpl) Close() error {
 	var errors []error
+
+	// Stop worker manager first to gracefully shutdown workers
+	if c.OrderWorkerManager != nil {
+		if err := c.OrderWorkerManager.Stop(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to stop order worker manager: %w", err))
+		}
+	}
+
+	// Close order producer
+	if c.OrderProducer != nil {
+		if err := c.OrderProducer.Close(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to close order producer: %w", err))
+		}
+	}
 
 	// Close message handler connection
 	if c.MessageHandler != nil {
@@ -164,8 +199,6 @@ func (c *containerImpl) Close() error {
 		}
 	}
 
-	// If there are any errors, return the first one
-	// In a production system, you might want to return all errors or use a multi-error type
 	if len(errors) > 0 {
 		return errors[0]
 	}
@@ -251,12 +284,41 @@ func NewContainer() (Container, error) {
 	// Create order repository with database connection
 	orderRepo := orderPersistence.NewOrderRepository(db)
 
+	// Create idempotency service with Redis repository
+	idempotencyRepo := orderIdempotency.NewRedisIdempotencyRepository(cacheHandler)
+	idempotencyService := orderService.NewIdempotencyService(idempotencyRepo)
+
 	// Create order management use cases with dependencies
-	submitOrderUseCase := orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient)
+	submitOrderUseCase := orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient, idempotencyService)
 	getOrderStatusUseCase := orderUsecase.NewGetOrderStatusUseCase(orderRepo, orderMarketDataClient)
 	cancelOrderUseCase := orderUsecase.NewCancelOrderUseCase(orderRepo)
 	processOrderUseCase := orderUsecase.NewProcessOrderUseCase(orderRepo, orderMarketDataClient)
 	//====== Order Management System Use Cases end============
+
+	//====== Order Management Infrastructure begin============
+	var orderProducer *orderRabbitMQ.OrderProducer
+	var orderWorkerManager *orderWorker.WorkerManager
+
+	// Only create producer and worker manager if messaging is available
+	if messageHandler != nil {
+		orderProducer = orderRabbitMQ.NewOrderProducer(messageHandler)
+
+		// Create worker manager with default configuration
+		workerManagerConfig := orderWorker.DefaultWorkerManagerConfig()
+		orderWorkerManager = orderWorker.NewWorkerManager(
+			processOrderUseCase,
+			messageHandler,
+			workerManagerConfig,
+		)
+
+		// Start worker manager in background
+		go func() {
+			if err := orderWorkerManager.Start(); err != nil {
+				fmt.Printf("Warning: Failed to start order worker manager: %v\n", err)
+			}
+		}()
+	}
+	//====== Order Management Infrastructure end============
 
 	watchRepo := watchPersistence.NewWatchlistRepository(db)
 	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, marketDataUsecase)
@@ -277,5 +339,8 @@ func NewContainer() (Container, error) {
 		GetOrderStatusUseCase:      getOrderStatusUseCase,
 		CancelOrderUseCase:         cancelOrderUseCase,
 		ProcessOrderUseCase:        processOrderUseCase,
+		OrderProducer:              orderProducer,
+		OrderWorkerManager:         orderWorkerManager,
+		IdempotencyService:         idempotencyService,
 	}, nil
 }

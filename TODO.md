@@ -371,20 +371,30 @@ internal/order_mngmt_system/
   - [x] Add proper authentication and authorization
   - [x] Implement request validation and error handling
   - [x] Add comprehensive unit tests for handlers
-- [ ] **Step 10**: Dependency Injection Integration
-  - [ ] Update `pck/container.go` with order management dependencies:
-    - [ ] Add `GetSubmitOrderUseCase()` method
-    - [ ] Add `GetOrderWorkerManager()` method
-    - [ ] Add `GetOrderProducer()` method
-    - [ ] Add `GetOrderStatusUseCase()` method
-    - [ ] Add `GetMarketDataClient()` method for gRPC client
-  - [ ] Update `NewContainer()` function to initialize:
-    - [ ] Market data gRPC client with proper configuration
-    - [ ] RabbitMQ connection and producer
-    - [ ] Order repository with database connection
-    - [ ] Order use cases with market data client dependency
-    - [ ] Worker manager for background processing
+- [x] **Step 10**: Dependency Injection Integration
+  - [x] Update `pck/container.go` with order management dependencies:
+    - [x] Add `GetSubmitOrderUseCase()` method
+    - [x] Add `GetOrderWorkerManager()` method
+    - [x] Add `GetOrderProducer()` method
+    - [x] Add `GetOrderStatusUseCase()` method
+    - [x] Add `GetMarketDataClient()` method for gRPC client
+  - [x] Update `NewContainer()` function to initialize:
+    - [x] Market data gRPC client with proper configuration
+    - [x] RabbitMQ connection and producer
+    - [x] Order repository with database connection
+    - [x] Order use cases with market data client dependency
+    - [x] Worker manager for background processing
+    - [x] Idempotency service with Redis repository
   - [ ] Update `TestContainer` for testing support with mock market data client
+- [x] **Step 10.1**: Idempotency System Implementation
+  - [x] Create `IdempotencyService` domain service for preventing duplicate order submissions
+  - [x] Implement Redis-based `IdempotencyRepository` for storing idempotency keys
+  - [x] Add idempotency key generation based on order parameters (user, symbol, type, side, quantity, price)
+  - [x] Integrate idempotency service into `SubmitOrderUseCase`
+  - [x] Add idempotency status tracking (PENDING, COMPLETED, FAILED, EXPIRED)
+  - [x] Implement automatic cleanup of expired idempotency keys
+  - [x] Add mock idempotency repository for testing
+  - [x] Configure 24-hour TTL for idempotency keys
 - [ ] **Step 11**: Integration and Testing
   - [ ] Create comprehensive unit tests:
     - [ ] Domain model tests (order validation, status transitions)
