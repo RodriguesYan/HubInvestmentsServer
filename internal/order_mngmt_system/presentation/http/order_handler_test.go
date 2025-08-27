@@ -19,6 +19,8 @@ import (
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
+	orderRabbitMQ "HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
+	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
@@ -62,6 +64,14 @@ func (m *MockContainer) GetCancelOrderUseCase() orderUsecase.ICancelOrderUseCase
 }
 
 func (m *MockContainer) GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCase {
+	return nil
+}
+
+func (m *MockContainer) GetOrderProducer() *orderRabbitMQ.OrderProducer {
+	return nil
+}
+
+func (m *MockContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
 	return nil
 }
 

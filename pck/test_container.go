@@ -7,6 +7,8 @@ import (
 	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
+	orderRabbitMQ "HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
+	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
@@ -136,6 +138,15 @@ func (c *TestContainer) GetCancelOrderUseCase() orderUsecase.ICancelOrderUseCase
 }
 
 func (c *TestContainer) GetProcessOrderUseCase() orderUsecase.IProcessOrderUseCase {
+	return nil
+}
+
+// Order Management System - Infrastructure methods - no-op implementations for testing
+func (c *TestContainer) GetOrderProducer() *orderRabbitMQ.OrderProducer {
+	return nil
+}
+
+func (c *TestContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
 	return nil
 }
 

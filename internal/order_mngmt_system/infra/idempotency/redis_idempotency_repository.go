@@ -155,7 +155,6 @@ type MockIdempotencyRepository struct {
 	keys map[string]*service.IdempotencyKey
 }
 
-// NewMockIdempotencyRepository creates a new mock repository for testing
 func NewMockIdempotencyRepository() service.IIdempotencyRepository {
 	return &MockIdempotencyRepository{
 		keys: make(map[string]*service.IdempotencyKey),
