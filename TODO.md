@@ -395,19 +395,19 @@ internal/order_mngmt_system/
   - [x] Implement automatic cleanup of expired idempotency keys
   - [x] Add mock idempotency repository for testing
   - [x] Configure 24-hour TTL for idempotency keys
-- [ ] **Step 11**: Integration and Testing
-  - [ ] Create comprehensive unit tests:
-    - [ ] Domain model tests (order validation, status transitions)
-    - [ ] Use case tests with mocked dependencies (including market data client)
-    - [ ] Handler tests with authentication flows
-    - [ ] Worker tests with RabbitMQ message processing
-    - [ ] Market data integration tests with mock gRPC responses
-  - [ ] Add integration tests:
-    - [ ] End-to-end order submission flow with market data validation
-    - [ ] RabbitMQ producer-consumer integration
-    - [ ] Database transaction and rollback scenarios
-    - [ ] Worker error handling and DLQ functionality
-    - [ ] gRPC client-server communication for market data
+- [x] **Step 11**: Integration and Testing
+  - [x] Create comprehensive unit tests:
+    - [x] Domain model tests (order validation, status transitions)
+    - [x] Use case tests with mocked dependencies (including market data client)
+    - [x] Handler tests with authentication flows
+    - [x] Worker tests with RabbitMQ message processing
+    - [x] Market data integration tests with mock gRPC responses
+  - [x] Add integration tests:
+    - [x] End-to-end order submission flow with market data validation
+    - [x] RabbitMQ producer-consumer integration
+    - [x] Database transaction and rollback scenarios
+    - [x] Worker error handling and DLQ functionality
+    - [x] gRPC client-server communication for market data
   - [ ] Performance testing:
     - [ ] Concurrent order submission (100+ orders/second)
     - [ ] Worker throughput and queue processing
