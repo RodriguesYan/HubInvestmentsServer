@@ -2,6 +2,7 @@ package service
 
 import (
 	"HubInvestments/internal/realtime_quotes/domain/model"
+	"math/rand/v2"
 )
 
 type AssetDataService struct {
@@ -85,6 +86,25 @@ func (s *AssetDataService) GetAllAssets() map[string]*model.AssetQuote {
 	result := make(map[string]*model.AssetQuote)
 	for symbol, quote := range s.assets {
 		result[symbol] = quote
+	}
+	return result
+}
+
+// Only to avoid updating all assets at once, being more realistic
+func (s *AssetDataService) GetRandomAssets(count int) map[string]*model.AssetQuote {
+	result := make(map[string]*model.AssetQuote)
+	symbols := make([]string, 0, count)
+
+	for symbol := range s.assets {
+		symbols = append(symbols, symbol)
+	}
+
+	rand.Shuffle(len(symbols), func(i, j int) {
+		symbols[i], symbols[j] = symbols[j], symbols[i]
+	})
+
+	for _, symbol := range symbols[:count] {
+		result[symbol] = s.assets[symbol]
 	}
 	return result
 }
