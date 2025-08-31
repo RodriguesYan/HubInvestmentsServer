@@ -119,7 +119,7 @@ func (m *OrderMapper) parseOrderType(typeStr string) (domain.OrderType, error) {
 	case "STOP_LIMIT":
 		return domain.OrderTypeStopLimit, nil
 	default:
-		return domain.OrderType(0), fmt.Errorf("unknown order type: %s", typeStr)
+		return "", fmt.Errorf("unknown order type: %s", typeStr)
 	}
 }
 
@@ -147,7 +147,7 @@ func (m *OrderMapper) parseOrderStatus(statusStr string) (domain.OrderStatus, er
 	case "CANCELLED":
 		return domain.OrderStatusCancelled, nil
 	default:
-		return domain.OrderStatus(0), fmt.Errorf("unknown order status: %s", statusStr)
+		return "", fmt.Errorf("unknown order status: %s", statusStr)
 	}
 }
 
