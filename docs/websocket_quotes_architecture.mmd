@@ -1,0 +1,101 @@
+graph TD
+    %% Client Side
+    WebClient["🌐 Web Client<br/>Browser/Mobile App"]
+    
+    %% HTTP Endpoints
+    HTTPEndpoint["📡 HTTP REST API<br/>GET /quotes<br/>GET /quotes/stocks<br/>GET /quotes/etfs"]
+    
+    %% WebSocket Connection
+    WSEndpoint["🔌 WebSocket Endpoint<br/>WS /ws/quotes<br/>Real-time Connection"]
+    
+    %% Presentation Layer
+    QuotesHandler["🎯 Quotes Handler<br/>HTTP REST Responses<br/>JSON Serialization"]
+    
+    WSHandler["🔄 WebSocket Handler<br/>Connection Management<br/>Message Broadcasting"]
+    
+    %% Application Layer
+    PriceOscillation["⚡ Price Oscillation Service<br/>±1% Every 2 Seconds<br/>Publisher-Subscriber Pattern"]
+    
+    %% Domain Layer
+    AssetDataService["📊 Asset Data Service<br/>10 Stocks + 10 ETFs<br/>Predefined Market Data"]
+    
+    AssetQuoteModel["📈 Asset Quote Model<br/>Symbol, Price, Change<br/>Timestamp, Volume"]
+    
+    %% Infrastructure Layer
+    WebSocketManager["🔧 WebSocket Manager<br/>Connection Pool<br/>Gorilla WebSocket"]
+    
+    %% Data Storage (In-Memory)
+    InMemoryData["💾 In-Memory Asset Data<br/>AAPL: $175.50<br/>SPY: $485.20<br/>...20 Assets"]
+    
+    %% Background Process
+    PriceTimer["⏰ Price Update Timer<br/>2-Second Ticker<br/>Automatic Oscillation"]
+    
+    %% Message Flow
+    PriceUpdate["📨 Price Update Message<br/>{<br/>  type: 'price_update',<br/>  quotes: {...}<br/>}"]
+    
+    %% Client Connections
+    WebClient -->|"HTTP GET"| HTTPEndpoint
+    WebClient -->|"WebSocket Connect"| WSEndpoint
+    
+    %% HTTP Flow
+    HTTPEndpoint --> QuotesHandler
+    QuotesHandler --> AssetDataService
+    AssetDataService --> AssetQuoteModel
+    AssetDataService --> InMemoryData
+    
+    %% WebSocket Flow
+    WSEndpoint --> WSHandler
+    WSHandler --> WebSocketManager
+    WSHandler --> PriceOscillation
+    
+    %% Real-time Updates
+    PriceTimer -->|"Every 2s"| PriceOscillation
+    PriceOscillation --> AssetDataService
+    AssetDataService --> AssetQuoteModel
+    AssetQuoteModel --> InMemoryData
+    
+    %% Broadcasting
+    PriceOscillation -->|"Notify Subscribers"| WSHandler
+    WSHandler -->|"Broadcast JSON"| PriceUpdate
+    PriceUpdate -->|"WebSocket Message"| WebClient
+    
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef http fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef websocket fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef service fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef domain fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef infra fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    classDef data fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    classDef message fill:#fff8e1,stroke:#ff6f00,stroke-width:2px
+    
+    class WebClient client
+    class HTTPEndpoint,QuotesHandler http
+    class WSEndpoint,WSHandler,WebSocketManager websocket
+    class PriceOscillation,PriceTimer service
+    class AssetDataService,AssetQuoteModel domain
+    class InMemoryData data
+    class PriceUpdate message
+    
+    %% Subgraphs for organization
+    subgraph "🏗️ Presentation Layer"
+        HTTPEndpoint
+        WSEndpoint
+        QuotesHandler
+        WSHandler
+    end
+    
+    subgraph "⚙️ Application Layer"
+        PriceOscillation
+        PriceTimer
+    end
+    
+    subgraph "🎯 Domain Layer"
+        AssetDataService
+        AssetQuoteModel
+    end
+    
+    subgraph "🔧 Infrastructure Layer"
+        WebSocketManager
+        InMemoryData
+    end

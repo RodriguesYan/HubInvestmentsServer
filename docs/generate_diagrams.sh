@@ -28,8 +28,13 @@ mmdc -i microservices_overview.mmd -o microservices_overview.png -w 1400 -H 1000
 echo "🔒 Generating Order Flow with Idempotency..."
 mmdc -i order_flow_with_idempotency.mmd -o order_flow_with_idempotency.png -w 1400 -H 900 -b white
 
+# Generate WebSocket Quotes Architecture
+echo "📡 Generating WebSocket Quotes Architecture..."
+mmdc -i websocket_quotes_architecture.mmd -o websocket_quotes_architecture.png -w 1400 -H 1000 -b white
+
 echo "✅ Diagrams generated successfully!"
 echo "📁 Files created:"
 echo "   - order_flow_diagram.png"
 echo "   - microservices_overview.png"
 echo "   - order_flow_with_idempotency.png"
+echo "   - websocket_quotes_architecture.png"
