@@ -13,6 +13,7 @@ import (
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	"HubInvestments/shared/infra/messaging"
+	"HubInvestments/shared/infra/websocket"
 )
 
 // TestContainer is a simple mock container for testing
@@ -117,6 +118,11 @@ func (c *TestContainer) WarmMarketDataCache(symbols []string) error {
 
 // GetMessageHandler returns nil for testing (no messaging needed in tests)
 func (c *TestContainer) GetMessageHandler() messaging.MessageHandler {
+	return nil
+}
+
+// GetWebSocketManager returns nil for testing (no WebSocket needed in tests)
+func (c *TestContainer) GetWebSocketManager() websocket.WebSocketManager {
 	return nil
 }
 

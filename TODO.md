@@ -414,6 +414,37 @@ internal/order_mngmt_system/
     - [ ] Database connection pooling under load
     - [ ] RabbitMQ message throughput and latency
     - [ ] Market data gRPC call performance and caching
+    ### ⏳ Phase 7: Real-time Data & WebSocket Infrastructure
+- [ ] Implement WebSocket infrastructure for real-time asset quotations
+- [ ] Design and implement market data streaming architecture
+- [ ] Add SSE (Server-Sent Events) as fallback for real-time updates
+- [ ] Create connection management and scaling for WebSocket
+- [ ] Implement error handling and reconnection logic
+- [ ] Add message queuing for offline clients
+- [ ] Support 10,000+ concurrent WebSocket connections
+- **Priority**: Medium - Real-time features
+
+### ⏳ Phase 8: Authentication & Login Improvements
+- [ ] **Step 1**: User Registration and Account Creation
+  - [ ] Create user registration domain model and validation
+  - [ ] Implement `create_user_usecase.go` with proper business logic
+  - [ ] Add email validation and uniqueness checks
+  - [ ] Implement secure password hashing (bcrypt/argon2)
+  - [ ] Create user registration HTTP endpoint
+  - [ ] Add comprehensive validation for user input
+  - [ ] Implement email verification workflow (optional)
+  - [ ] Add user creation audit logging
+- [ ] **Step 2**: Login Module Improvements
+- [ ] Apply DDD pattern to login module
+- [ ] Refactor login methods into smaller, more maintainable functions
+- [ ] Implement comprehensive unit tests for login functionality
+- [ ] Add password complexity requirements validation
+- [ ] Implement rate limiting for login attempts
+- [ ] Add session management and token refresh mechanisms
+- [ ] Implement secure password handling improvements
+- **Priority**: High - Security and maintainability improvements
+
+    ### ⏳ Phase 9: Orders last mile
 - [ ] **Step 12**: Error Handling and Monitoring
   - [ ] Implement comprehensive error handling:
     - [ ] Order validation errors with user-friendly messages
@@ -492,36 +523,6 @@ internal/order_mngmt_system/
   - Order processing: Real-time price fetching, execution price determination
   - Order monitoring: Market data context for order analysis and reporting
 
-### ⏳ Phase 7: Real-time Data & WebSocket Infrastructure
-- [ ] Implement WebSocket infrastructure for real-time asset quotations
-- [ ] Design and implement market data streaming architecture
-- [ ] Add SSE (Server-Sent Events) as fallback for real-time updates
-- [ ] Create connection management and scaling for WebSocket
-- [ ] Implement error handling and reconnection logic
-- [ ] Add message queuing for offline clients
-- [ ] Support 10,000+ concurrent WebSocket connections
-- **Priority**: Medium - Real-time features
-
-### ⏳ Phase 8: Authentication & Login Improvements
-- [ ] **Step 1**: User Registration and Account Creation
-  - [ ] Create user registration domain model and validation
-  - [ ] Implement `create_user_usecase.go` with proper business logic
-  - [ ] Add email validation and uniqueness checks
-  - [ ] Implement secure password hashing (bcrypt/argon2)
-  - [ ] Create user registration HTTP endpoint
-  - [ ] Add comprehensive validation for user input
-  - [ ] Implement email verification workflow (optional)
-  - [ ] Add user creation audit logging
-- [ ] **Step 2**: Login Module Improvements
-- [ ] Apply DDD pattern to login module
-- [ ] Refactor login methods into smaller, more maintainable functions
-- [ ] Implement comprehensive unit tests for login functionality
-- [ ] Add password complexity requirements validation
-- [ ] Implement rate limiting for login attempts
-- [ ] Add session management and token refresh mechanisms
-- [ ] Implement secure password handling improvements
-- **Priority**: High - Security and maintainability improvements
-
 ### ⏳ Phase 9: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
   - [ ] **Users table** with proper authentication fields:
@@ -590,6 +591,7 @@ internal/order_mngmt_system/
 - [ ] Monitor response times under load and verify sub-200ms target performance
 - [ ] Validate database connection pooling and resource usage under sustained load
 - [ ] Test for memory leaks and connection issues during concurrent access
+- [ ] Mutation tests
 - **Priority**: Medium - Quality assurance and developer experience
 
 ### ⏳ Phase 12: Advanced Architecture & Microservices
@@ -652,6 +654,8 @@ internal/order_mngmt_system/
 ### Technical Debits
 - [ ] **Token Verification Duplication**: Handlers are repeating token verification logic - need to segregate into middleware to avoid code duplication (MockAuth and VerifyToken)
 - [ ] **SQL Injection Vulnerability Assessment**: Need to audit all existing database queries and repositories for potential SQL injection vulnerabilities
+- [ ] **mTls pinning**
+- [ ] **oAuth 2.0?**
 - [ ] **User Management Gap**: Currently missing user registration/creation functionality - only login exists
 - [ ] **Input Validation Inconsistency**: Need standardized input validation across all endpoints and use cases
 - [ ] **Security Headers Missing**: HTTP responses lack security headers (CSRF, XSS protection, etc.)

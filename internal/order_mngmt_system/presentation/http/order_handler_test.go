@@ -25,6 +25,7 @@ import (
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	"HubInvestments/shared/infra/messaging"
+	"HubInvestments/shared/infra/websocket"
 )
 
 // MockContainer implements the Container interface for testing
@@ -72,6 +73,10 @@ func (m *MockContainer) GetOrderProducer() *orderRabbitMQ.OrderProducer {
 }
 
 func (m *MockContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
+	return nil
+}
+
+func (m *MockContainer) GetWebSocketManager() websocket.WebSocketManager {
 	return nil
 }
 

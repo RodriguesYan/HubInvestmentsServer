@@ -23,7 +23,6 @@ type ConnectionFactory struct {
 	config ConnectionConfig
 }
 
-// NewConnectionFactory creates a new connection factory with the given configuration
 func NewConnectionFactory(config ConnectionConfig) *ConnectionFactory {
 	return &ConnectionFactory{config: config}
 }

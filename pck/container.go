@@ -3,6 +3,7 @@ package di
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"HubInvestments/internal/auth"
@@ -30,6 +31,7 @@ import (
 	"HubInvestments/shared/infra/cache"
 	"HubInvestments/shared/infra/database"
 	"HubInvestments/shared/infra/messaging"
+	"HubInvestments/shared/infra/websocket"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -63,6 +65,9 @@ type Container interface {
 	// Messaging infrastructure
 	GetMessageHandler() messaging.MessageHandler
 
+	// WebSocket infrastructure
+	GetWebSocketManager() websocket.WebSocketManager
+
 	// Lifecycle management
 	Close() error
 }
@@ -79,6 +84,9 @@ type containerImpl struct {
 
 	// Messaging infrastructure
 	MessageHandler messaging.MessageHandler
+
+	// WebSocket infrastructure
+	WebSocketManager websocket.WebSocketManager
 
 	// Order Management System - Market Data Integration
 	OrderMarketDataClient orderMktClient.IMarketDataClient
@@ -139,6 +147,10 @@ func (c *containerImpl) GetMessageHandler() messaging.MessageHandler {
 	return c.MessageHandler
 }
 
+func (c *containerImpl) GetWebSocketManager() websocket.WebSocketManager {
+	return c.WebSocketManager
+}
+
 func (c *containerImpl) GetOrderMarketDataClient() orderMktClient.IMarketDataClient {
 	return c.OrderMarketDataClient
 }
@@ -189,6 +201,13 @@ func (c *containerImpl) Close() error {
 	if c.MessageHandler != nil {
 		if err := c.MessageHandler.Close(); err != nil {
 			errors = append(errors, fmt.Errorf("failed to close message handler: %w", err))
+		}
+	}
+
+	// Close WebSocket manager
+	if c.WebSocketManager != nil {
+		if err := c.WebSocketManager.Close(); err != nil {
+			errors = append(errors, fmt.Errorf("failed to close websocket manager: %w", err))
 		}
 	}
 
@@ -262,6 +281,20 @@ func NewContainer() (Container, error) {
 	}
 	//====== Messaging Infrastructure end============
 
+	//====== WebSocket Infrastructure begin============
+	// Create WebSocket manager with environment-based configuration
+	webSocketConfig := websocket.DefaultWebSocketManagerConfig()
+
+	// Override defaults with environment variables if needed
+	if maxConnStr := os.Getenv("WEBSOCKET_MAX_CONNECTIONS"); maxConnStr != "" {
+		if maxConn, err := strconv.Atoi(maxConnStr); err == nil {
+			webSocketConfig.MaxConnections = maxConn
+		}
+	}
+
+	webSocketManager := websocket.NewGorillaWebSocketManager(webSocketConfig)
+	//====== WebSocket Infrastructure end============
+
 	//====== Order Management Market Data Client begin============
 	// Create market data client for order management system with environment-based configuration
 	marketDataServerAddr := os.Getenv("MARKET_DATA_GRPC_SERVER")
@@ -333,6 +366,7 @@ func NewContainer() (Container, error) {
 		LoginUsecase:               loginUsecase,
 		AuthService:                authService,
 		MessageHandler:             messageHandler,
+		WebSocketManager:           webSocketManager,
 		OrderMarketDataClient:      orderMarketDataClient,
 		OrderRepository:            orderRepo,
 		SubmitOrderUseCase:         submitOrderUseCase,
