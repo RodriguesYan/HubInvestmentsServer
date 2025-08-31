@@ -26,6 +26,10 @@ import (
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
+	quotesService "HubInvestments/internal/realtime_quotes/application/service"
+	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
+	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
+	quotesHttp "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	watchPersistence "HubInvestments/internal/watchlist/infra/persistence"
 	"HubInvestments/shared/infra/cache"
@@ -68,6 +72,12 @@ type Container interface {
 	// WebSocket infrastructure
 	GetWebSocketManager() websocket.WebSocketManager
 
+	// Realtime Quotes System
+	GetAssetDataService() *quotesAssetService.AssetDataService
+	GetPriceOscillationService() *quotesService.PriceOscillationService
+	GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler
+	GetQuotesHandler() *quotesHttp.QuotesHandler
+
 	// Lifecycle management
 	Close() error
 }
@@ -104,6 +114,12 @@ type containerImpl struct {
 	OrderProducer      *orderRabbitMQ.OrderProducer
 	OrderWorkerManager *orderWorker.WorkerManager
 	IdempotencyService orderService.IIdempotencyService
+
+	// Realtime Quotes System
+	AssetDataService               *quotesAssetService.AssetDataService
+	PriceOscillationService        *quotesService.PriceOscillationService
+	RealtimeQuotesWebSocketHandler *quotesWebSocket.RealtimeQuotesWebSocketHandler
+	QuotesHandler                  *quotesHttp.QuotesHandler
 }
 
 func (c *containerImpl) GetAuthService() auth.IAuthService {
@@ -179,9 +195,30 @@ func (c *containerImpl) GetOrderWorkerManager() *orderWorker.WorkerManager {
 	return c.OrderWorkerManager
 }
 
+func (c *containerImpl) GetAssetDataService() *quotesAssetService.AssetDataService {
+	return c.AssetDataService
+}
+
+func (c *containerImpl) GetPriceOscillationService() *quotesService.PriceOscillationService {
+	return c.PriceOscillationService
+}
+
+func (c *containerImpl) GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler {
+	return c.RealtimeQuotesWebSocketHandler
+}
+
+func (c *containerImpl) GetQuotesHandler() *quotesHttp.QuotesHandler {
+	return c.QuotesHandler
+}
+
 // Close gracefully shuts down all resources managed by the container
 func (c *containerImpl) Close() error {
 	var errors []error
+
+	// Stop price oscillation service first
+	if c.PriceOscillationService != nil {
+		c.PriceOscillationService.Stop()
+	}
 
 	// Stop worker manager first to gracefully shutdown workers
 	if c.OrderWorkerManager != nil {
@@ -353,28 +390,52 @@ func NewContainer() (Container, error) {
 	}
 	//====== Order Management Infrastructure end============
 
+	//====== Realtime Quotes System begin============
+	// Create asset data service with predefined stocks and ETFs
+	assetDataService := quotesAssetService.NewAssetDataService()
+
+	// Create price oscillation service
+	priceOscillationService := quotesService.NewPriceOscillationService(assetDataService)
+
+	// Start price oscillation in background
+	priceOscillationService.Start()
+
+	// Create WebSocket handler for realtime quotes
+	realtimeQuotesWebSocketHandler := quotesWebSocket.NewRealtimeQuotesWebSocketHandler(
+		webSocketManager,
+		priceOscillationService,
+	)
+
+	// Create HTTP handler for quotes API
+	quotesHandler := quotesHttp.NewQuotesHandler(assetDataService)
+	//====== Realtime Quotes System end============
+
 	watchRepo := watchPersistence.NewWatchlistRepository(db)
 	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, marketDataUsecase)
 
 	return &containerImpl{
-		PositionAggregationUseCase: positionAggregationUseCase,
-		BalanceUsecase:             balanceUsecase,
-		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
-		MarketDataUsecase:          marketDataUsecase,
-		MarketDataCacheManager:     cacheManager,
-		WatchlistUsecase:           watchlistUsecase,
-		LoginUsecase:               loginUsecase,
-		AuthService:                authService,
-		MessageHandler:             messageHandler,
-		WebSocketManager:           webSocketManager,
-		OrderMarketDataClient:      orderMarketDataClient,
-		OrderRepository:            orderRepo,
-		SubmitOrderUseCase:         submitOrderUseCase,
-		GetOrderStatusUseCase:      getOrderStatusUseCase,
-		CancelOrderUseCase:         cancelOrderUseCase,
-		ProcessOrderUseCase:        processOrderUseCase,
-		OrderProducer:              orderProducer,
-		OrderWorkerManager:         orderWorkerManager,
-		IdempotencyService:         idempotencyService,
+		PositionAggregationUseCase:     positionAggregationUseCase,
+		BalanceUsecase:                 balanceUsecase,
+		PortfolioSummaryUsecase:        portfolioSummaryUseCase,
+		MarketDataUsecase:              marketDataUsecase,
+		MarketDataCacheManager:         cacheManager,
+		WatchlistUsecase:               watchlistUsecase,
+		LoginUsecase:                   loginUsecase,
+		AuthService:                    authService,
+		MessageHandler:                 messageHandler,
+		WebSocketManager:               webSocketManager,
+		OrderMarketDataClient:          orderMarketDataClient,
+		OrderRepository:                orderRepo,
+		SubmitOrderUseCase:             submitOrderUseCase,
+		GetOrderStatusUseCase:          getOrderStatusUseCase,
+		CancelOrderUseCase:             cancelOrderUseCase,
+		ProcessOrderUseCase:            processOrderUseCase,
+		OrderProducer:                  orderProducer,
+		OrderWorkerManager:             orderWorkerManager,
+		IdempotencyService:             idempotencyService,
+		AssetDataService:               assetDataService,
+		PriceOscillationService:        priceOscillationService,
+		RealtimeQuotesWebSocketHandler: realtimeQuotesWebSocketHandler,
+		QuotesHandler:                  quotesHandler,
 	}, nil
 }

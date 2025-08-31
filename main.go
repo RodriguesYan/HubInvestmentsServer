@@ -23,6 +23,7 @@ import (
 	orderHandler "HubInvestments/internal/order_mngmt_system/presentation/http"
 	portfolioSummaryHandler "HubInvestments/internal/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/internal/position/presentation/http"
+	_ "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistHandler "HubInvestments/internal/watchlist/presentation/http"
 	di "HubInvestments/pck"
 	"HubInvestments/shared/config"
@@ -84,6 +85,26 @@ func main() {
 	http.HandleFunc("/admin/market-data/cache/invalidate", adminHandler.AdminInvalidateCacheWithAuth(verifyToken, container))
 	http.HandleFunc("/admin/market-data/cache/warm", adminHandler.AdminWarmCacheWithAuth(verifyToken, container))
 
+	// Realtime Quotes Routes
+	http.HandleFunc("/quotes", func(w http.ResponseWriter, r *http.Request) {
+		quotesHandler := container.GetQuotesHandler()
+		quotesHandler.GetAllQuotes(w, r)
+	})
+	http.HandleFunc("/quotes/stocks", func(w http.ResponseWriter, r *http.Request) {
+		quotesHandler := container.GetQuotesHandler()
+		quotesHandler.GetStocks(w, r)
+	})
+	http.HandleFunc("/quotes/etfs", func(w http.ResponseWriter, r *http.Request) {
+		quotesHandler := container.GetQuotesHandler()
+		quotesHandler.GetETFs(w, r)
+	})
+
+	// WebSocket Routes for Realtime Quotes
+	http.HandleFunc("/ws/quotes", func(w http.ResponseWriter, r *http.Request) {
+		wsHandler := container.GetRealtimeQuotesWebSocketHandler()
+		wsHandler.HandleConnection(w, r)
+	})
+
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
@@ -94,6 +115,11 @@ func main() {
 	log.Printf("  GET    http://%s/orders/{id}/status - Get order status", cfg.HTTPPort)
 	log.Printf("  PUT    http://%s/orders/{id}/cancel - Cancel order", cfg.HTTPPort)
 	log.Printf("  GET    http://%s/orders/history - Get order history", cfg.HTTPPort)
+	log.Printf("Realtime Quotes endpoints available:")
+	log.Printf("  GET    http://%s/quotes - Get all asset quotes", cfg.HTTPPort)
+	log.Printf("  GET    http://%s/quotes/stocks - Get stock quotes", cfg.HTTPPort)
+	log.Printf("  GET    http://%s/quotes/etfs - Get ETF quotes", cfg.HTTPPort)
+	log.Printf("  WS     ws://%s/ws/quotes - Realtime quotes WebSocket", cfg.HTTPPort)
 	log.Printf("Admin cache endpoints available:")
 	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", cfg.HTTPPort)
 	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", cfg.HTTPPort)
