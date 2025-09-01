@@ -5,11 +5,11 @@ import (
 	"HubInvestments/internal/realtime_quotes/domain/model"
 	"HubInvestments/shared/infra/websocket"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
-
-	gorilla "github.com/gorilla/websocket"
+	"time"
 )
 
 type RealtimeQuotesWebSocketHandler struct {
@@ -42,7 +42,13 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 	conn, err := h.wsManager.CreateConnection(w, r)
 	if err != nil {
 		log.Printf("Failed to upgrade WebSocket connection: %v", err)
-		http.Error(w, "Failed to upgrade connection", http.StatusInternalServerError)
+
+		// Check if it's a connection limit error and provide better error message
+		if err.Error() == "maximum connections limit reached" {
+			http.Error(w, "Server at capacity, please try again later", http.StatusServiceUnavailable)
+		} else {
+			http.Error(w, "Failed to upgrade connection", http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -50,7 +56,9 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 	h.activeConnections[conn] = true
 	h.mu.Unlock()
 
-	log.Printf("New realtime quotes WebSocket connection. Active: %d", len(h.activeConnections))
+	healthStatus := h.wsManager.GetHealthStatus()
+	log.Printf("New realtime quotes WebSocket connection. Active: %d, Health: %s",
+		len(h.activeConnections), healthStatus.String())
 
 	go h.handleConnection(conn)
 }
@@ -66,11 +74,19 @@ func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websock
 		}
 	}()
 
+	connectionID := fmt.Sprintf("quotes_conn_%d", time.Now().UnixNano())
+
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			if gorilla.IsUnexpectedCloseError(err, gorilla.CloseGoingAway, gorilla.CloseAbnormalClosure) {
-				log.Printf("WebSocket error: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("WebSocket unexpected close error: %v", err)
+				// Schedule reconnection for unexpected errors
+				if reconnectErr := h.wsManager.ScheduleReconnection(connectionID, "unexpected_close"); reconnectErr != nil {
+					log.Printf("Failed to schedule reconnection: %v", reconnectErr)
+				}
+			} else {
+				log.Printf("WebSocket connection closed normally: %v", err)
 			}
 			break
 		}
@@ -108,7 +124,7 @@ func (h *RealtimeQuotesWebSocketHandler) broadcastQuotes(quotes map[string]*mode
 	h.mu.RUnlock()
 
 	for _, conn := range connections {
-		if err := conn.WriteMessage(gorilla.TextMessage, data); err != nil {
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 			log.Printf("Error broadcasting to WebSocket connection: %v", err)
 			// Connection will be cleaned up by handleConnection goroutine
 		}
