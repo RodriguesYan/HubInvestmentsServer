@@ -1,6 +1,8 @@
 package websocket
 
 import (
+	"time"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -24,4 +26,16 @@ func (w *GorillaWebsocket) WriteMessage(messageType int, data []byte) error {
 
 func (w *GorillaWebsocket) Close() error {
 	return w.conn.Close()
+}
+
+func (w *GorillaWebsocket) SetReadDeadline(t time.Time) error {
+	return w.conn.SetReadDeadline(t)
+}
+
+func (w *GorillaWebsocket) SetWriteDeadline(t time.Time) error {
+	return w.conn.SetWriteDeadline(t)
+}
+
+func (w *GorillaWebsocket) SetPongHandler(h func(appData string) error) {
+	w.conn.SetPongHandler(h)
 }

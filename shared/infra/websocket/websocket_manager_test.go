@@ -195,3 +195,15 @@ func (m *MockWebsocket) WriteMessage(messageType int, data []byte) error {
 func (m *MockWebsocket) Close() error {
 	return m.CloseError
 }
+
+func (m *MockWebsocket) SetReadDeadline(t time.Time) error {
+	return nil
+}
+
+func (m *MockWebsocket) SetWriteDeadline(t time.Time) error {
+	return nil
+}
+
+func (m *MockWebsocket) SetPongHandler(h func(appData string) error) {
+	// No-op for mock
+}

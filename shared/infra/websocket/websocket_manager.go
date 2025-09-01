@@ -35,6 +35,13 @@ type WebSocketManager interface {
 
 	// HealthCheck returns the health status of the WebSocket manager
 	HealthCheck() error
+
+	// Advanced connection management methods
+	GetConnectionPool() *ConnectionPool
+	GetReconnectionHandler() *ReconnectionHandler
+	GetConnectionMetrics() ConnectionMetrics
+	GetHealthStatus() HealthStatus
+	ScheduleReconnection(connectionID string, reason string) error
 }
 
 // WebSocketManagerConfig holds configuration for the WebSocket manager
@@ -83,12 +90,14 @@ func DefaultWebSocketManagerConfig() WebSocketManagerConfig {
 
 // GorillaWebSocketManager implements WebSocketManager using Gorilla WebSocket
 type GorillaWebSocketManager struct {
-	upgrader    websocket.Upgrader
-	connections map[string]*managedConnection
-	mutex       sync.RWMutex
-	config      WebSocketManagerConfig
-	ctx         context.Context
-	cancel      context.CancelFunc
+	upgrader            websocket.Upgrader
+	connections         map[string]*managedConnection
+	mutex               sync.RWMutex
+	config              WebSocketManagerConfig
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	connectionPool      *ConnectionPool
+	reconnectionHandler *ReconnectionHandler
 }
 
 // managedConnection wraps a WebSocket connection with metadata
@@ -118,6 +127,15 @@ func NewGorillaWebSocketManager(config WebSocketManagerConfig) WebSocketManager 
 		ctx:         ctx,
 		cancel:      cancel,
 	}
+
+	// Initialize advanced connection management
+	poolConfig := DefaultConnectionPoolConfig()
+	poolConfig.MaxConnections = config.MaxConnections
+	poolConfig.HealthCheckInterval = 30 * time.Second
+	manager.connectionPool = NewConnectionPool(poolConfig)
+
+	reconnectConfig := DefaultReconnectionConfig()
+	manager.reconnectionHandler = NewReconnectionHandler(reconnectConfig, manager.connectionPool)
 
 	// Start background maintenance routines
 	go manager.startPingRoutine()
@@ -336,10 +354,48 @@ func (m *GorillaWebSocketManager) HealthCheck() error {
 	return nil
 }
 
+// GetConnectionPool returns the connection pool
+func (m *GorillaWebSocketManager) GetConnectionPool() *ConnectionPool {
+	return m.connectionPool
+}
+
+// GetReconnectionHandler returns the reconnection handler
+func (m *GorillaWebSocketManager) GetReconnectionHandler() *ReconnectionHandler {
+	return m.reconnectionHandler
+}
+
+// GetConnectionMetrics returns connection metrics
+func (m *GorillaWebSocketManager) GetConnectionMetrics() ConnectionMetrics {
+	return m.connectionPool.GetMetrics()
+}
+
+// GetHealthStatus returns the current health status
+func (m *GorillaWebSocketManager) GetHealthStatus() HealthStatus {
+	return m.connectionPool.healthMonitor.GetCurrentStatus()
+}
+
+func (m *GorillaWebSocketManager) ScheduleReconnection(connectionID string, reason string) error {
+	clientInfo := ClientInfo{
+		IPAddress: "unknown", // In real implementation, extract from connection
+		UserAgent: "unknown",
+	}
+
+	m.reconnectionHandler.ScheduleReconnection(connectionID, clientInfo, reason)
+	return nil
+}
+
 // Close gracefully closes all connections and stops background routines
 func (m *GorillaWebSocketManager) Close() error {
 	// Cancel background routines
 	m.cancel()
+
+	// Close advanced components
+	if m.connectionPool != nil {
+		m.connectionPool.Close()
+	}
+	if m.reconnectionHandler != nil {
+		m.reconnectionHandler.Stop()
+	}
 
 	// Close all connections
 	m.mutex.Lock()
