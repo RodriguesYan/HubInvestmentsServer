@@ -5,11 +5,9 @@ import (
 	"HubInvestments/internal/realtime_quotes/domain/model"
 	"HubInvestments/shared/infra/websocket"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
-	"time"
 )
 
 type RealtimeQuotesWebSocketHandler struct {
@@ -74,20 +72,15 @@ func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websock
 		}
 	}()
 
-	connectionID := fmt.Sprintf("quotes_conn_%d", time.Now().UnixNano())
-
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket unexpected close error: %v", err)
-				// Schedule reconnection for unexpected errors
-				if reconnectErr := h.wsManager.ScheduleReconnection(connectionID, "unexpected_close"); reconnectErr != nil {
-					log.Printf("Failed to schedule reconnection: %v", reconnectErr)
-				}
 			} else {
 				log.Printf("WebSocket connection closed normally: %v", err)
 			}
+			// Clean up connection and exit - client will reconnect if needed
 			break
 		}
 		// For realtime quotes, we only broadcast data, no need to process incoming messages

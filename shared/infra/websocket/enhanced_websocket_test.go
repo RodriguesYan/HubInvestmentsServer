@@ -169,55 +169,6 @@ func TestHealthMonitor(t *testing.T) {
 	})
 }
 
-func TestReconnectionHandler(t *testing.T) {
-	poolConfig := DefaultConnectionPoolConfig()
-	pool := NewConnectionPool(poolConfig)
-	defer pool.Close()
-
-	reconnectConfig := DefaultReconnectionConfig()
-	reconnectConfig.MaxAttempts = 2
-	reconnectConfig.InitialDelay = 10 * time.Millisecond
-
-	handler := NewReconnectionHandler(reconnectConfig, pool)
-	defer handler.Stop()
-
-	t.Run("Schedule Reconnection", func(t *testing.T) {
-		clientInfo := ClientInfo{
-			IPAddress: "127.0.0.1",
-			UserAgent: "test-agent",
-		}
-
-		handler.ScheduleReconnection("test-conn-1", clientInfo, "test failure")
-
-		// Wait a bit for processing
-		time.Sleep(100 * time.Millisecond)
-
-		metrics := handler.GetMetrics()
-		assert.Greater(t, metrics.TotalAttempts, int64(0))
-	})
-
-	t.Run("High Priority Reconnection", func(t *testing.T) {
-		clientInfo := ClientInfo{
-			IPAddress: "127.0.0.1",
-			UserAgent: "test-agent",
-		}
-
-		handler.ScheduleHighPriorityReconnection("test-conn-2", clientInfo, "critical failure")
-
-		// Wait for processing
-		time.Sleep(100 * time.Millisecond)
-
-		metrics := handler.GetMetrics()
-		assert.Greater(t, metrics.TotalAttempts, int64(0))
-	})
-
-	t.Run("Reconnection Metrics", func(t *testing.T) {
-		metrics := handler.GetMetrics()
-		assert.NotNil(t, metrics)
-		assert.True(t, metrics.LastUpdate.After(time.Time{}))
-	})
-}
-
 func TestEnhancedWebSocketManager(t *testing.T) {
 	config := DefaultWebSocketManagerConfig()
 	config.MaxConnections = 10
@@ -229,19 +180,11 @@ func TestEnhancedWebSocketManager(t *testing.T) {
 		pool := manager.GetConnectionPool()
 		assert.NotNil(t, pool)
 
-		reconnectHandler := manager.GetReconnectionHandler()
-		assert.NotNil(t, reconnectHandler)
-
 		metrics := manager.GetConnectionMetrics()
 		assert.NotNil(t, metrics)
 
 		healthStatus := manager.GetHealthStatus()
 		assert.True(t, healthStatus >= HealthStatusHealthy && healthStatus <= HealthStatusCritical)
-	})
-
-	t.Run("Schedule Reconnection", func(t *testing.T) {
-		err := manager.ScheduleReconnection("test-conn", "connection lost")
-		assert.NoError(t, err)
 	})
 }
 
@@ -275,26 +218,4 @@ func TestIntegrationScenarios(t *testing.T) {
 		}
 	})
 
-	t.Run("Error Recovery Scenario", func(t *testing.T) {
-		config := DefaultReconnectionConfig()
-		config.MaxAttempts = 3
-		config.InitialDelay = 1 * time.Millisecond
-
-		poolConfig := DefaultConnectionPoolConfig()
-		pool := NewConnectionPool(poolConfig)
-		defer pool.Close()
-
-		handler := NewReconnectionHandler(config, pool)
-		defer handler.Stop()
-
-		// Simulate connection failure and recovery
-		clientInfo := ClientInfo{IPAddress: "127.0.0.1"}
-		handler.ScheduleReconnection("failed-conn", clientInfo, "network error")
-
-		// Wait for reconnection attempts
-		time.Sleep(50 * time.Millisecond)
-
-		metrics := handler.GetMetrics()
-		assert.Greater(t, metrics.TotalAttempts, int64(0))
-	})
 }
