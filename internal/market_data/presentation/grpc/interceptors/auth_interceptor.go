@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -56,6 +57,15 @@ func (interceptor *AuthInterceptor) UnaryInterceptor(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
+	//TODO: Check what to do with it when migrating to microsservics
+	// Allow internal service-to-service calls without authentication
+	// Check if this is an internal call by checking the peer address
+	if interceptor.isInternalCall(ctx) {
+		// For internal calls, add a system user context and continue
+		ctx = context.WithValue(ctx, "userId", "system")
+		return handler(ctx, req)
+	}
+
 	// Extract metadata from context
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -160,4 +170,15 @@ type wrappedServerStream struct {
 
 func (w *wrappedServerStream) Context() context.Context {
 	return w.ctx
+}
+
+// isInternalCall checks if the gRPC call is coming from an internal service
+func (interceptor *AuthInterceptor) isInternalCall(ctx context.Context) bool {
+	// Check if the call is coming from localhost (internal service)
+	if p, ok := peer.FromContext(ctx); ok {
+		addr := p.Addr.String()
+		// Allow calls from localhost or loopback addresses
+		return strings.Contains(addr, "127.0.0.1") || strings.Contains(addr, "::1") || strings.Contains(addr, "localhost")
+	}
+	return false
 }
