@@ -55,9 +55,6 @@ const (
 	AssetCategoryCrypto
 	AssetCategoryFund
 	AssetCategoryETF
-	AssetCategoryOption
-	AssetCategoryFuture
-	AssetCategoryForex
 )
 
 // TradingHours represents trading hours information
@@ -206,7 +203,7 @@ func (c *MarketDataClient) GetTradingHours(ctx context.Context, symbol string) (
 	switch assetDetails.Category {
 	case AssetCategoryStock, AssetCategoryETF:
 		tradingHours.MarketOpen = c.getTodayTime(9, 30)      // 9:30 AM
-		tradingHours.MarketClose = c.getTodayTime(16, 0)     // 4:00 PM
+		tradingHours.MarketClose = c.getTodayTime(22, 0)     // 4:00 PM
 		tradingHours.PreMarketOpen = c.getTodayTime(4, 0)    // 4:00 AM
 		tradingHours.PostMarketClose = c.getTodayTime(20, 0) // 8:00 PM
 		tradingHours.ExtendedHours = true
@@ -218,19 +215,10 @@ func (c *MarketDataClient) GetTradingHours(ctx context.Context, symbol string) (
 		tradingHours.IsOpen = true
 		tradingHours.ExtendedHours = false
 		return tradingHours, nil
-
-	case AssetCategoryForex:
-		// Forex markets are open 24 hours on weekdays
-		if now.Weekday() >= time.Monday && now.Weekday() <= time.Friday {
-			tradingHours.MarketOpen = c.getTodayTime(0, 0)
-			tradingHours.MarketClose = c.getTodayTime(23, 59)
-		}
-		tradingHours.ExtendedHours = false
-
 	default:
 		// Default to stock market hours
 		tradingHours.MarketOpen = c.getTodayTime(9, 30)
-		tradingHours.MarketClose = c.getTodayTime(16, 0)
+		tradingHours.MarketClose = c.getTodayTime(22, 0)
 		tradingHours.ExtendedHours = false
 	}
 

@@ -423,6 +423,16 @@ internal/order_mngmt_system/
 - [ ] Implement json patch updates for quotes to avoid sending whole data objects
 - **Priority**: Medium - Real-time features
 
+### Persistence for orders sent to user position
+[ ]
+[ ]
+[ ]
+[ ]
+[ ]
+[ ]
+
+### Make assets trading hour configurable in market_data_client.go(persist in DB, for now)
+
 ### ⏳ Phase 8: Authentication & Login Improvements
 - [ ] **Step 1**: User Registration and Account Creation
   - [ ] Create user registration domain model and validation

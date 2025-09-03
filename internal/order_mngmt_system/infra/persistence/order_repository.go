@@ -44,10 +44,7 @@ func (r *OrderRepository) Save(ctx context.Context, order *domain.Order) error {
 			market_price_at_submission, market_data_timestamp, failure_reason,
 			retry_count, processing_worker_id, external_order_id
 		) VALUES (
-			:id, :user_id, :symbol, :order_type, :order_side, :quantity, :price, :status,
-			:created_at, :updated_at, :executed_at, :execution_price,
-			:market_price_at_submission, :market_data_timestamp, :failure_reason,
-			:retry_count, :processing_worker_id, :external_order_id
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
 		)
 		ON CONFLICT (id) DO UPDATE SET
 			status = EXCLUDED.status,
