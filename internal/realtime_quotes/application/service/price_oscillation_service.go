@@ -27,7 +27,7 @@ func NewPriceOscillationService(assetDataService *service.AssetDataService) *Pri
 		subscribers:      make([]chan map[string]*model.AssetQuote, 0),
 		ctx:              ctx,
 		cancel:           cancel,
-		ticker:           time.NewTicker(2 * time.Second),
+		ticker:           time.NewTicker(4 * time.Second), //Update quote every 4 seconds
 	}
 }
 

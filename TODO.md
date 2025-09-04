@@ -421,9 +421,12 @@ internal/order_mngmt_system/
 - [x] Implement error handling and reconnection logic
 - [ ] Support 10,000+ concurrent WebSocket connections
 - [ ] Implement json patch updates for quotes to avoid sending whole data objects
+- [ ] REquest only assets that are needed (use ws message?)
+- [ ] fix WS early disconnections (connection lasting less than one minute)
+- [ ] test multiple connections
 - **Priority**: Medium - Real-time features
 
-### Persistence for orders sent to user position
+### Persistence for orders sent to user position (webhook? DB trigger? queue to position?)
 [ ]
 [ ]
 [ ]
