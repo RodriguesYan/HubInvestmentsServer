@@ -400,10 +400,11 @@ func NewContainer() (Container, error) {
 	// Start price oscillation in background
 	priceOscillationService.Start()
 
-	// Create WebSocket handler for realtime quotes
+	// Create WebSocket handler for realtime quotes with same auth service as HTTP handlers
 	realtimeQuotesWebSocketHandler := quotesWebSocket.NewRealtimeQuotesWebSocketHandler(
 		webSocketManager,
 		priceOscillationService,
+		authService,
 	)
 
 	// Create HTTP handler for quotes API

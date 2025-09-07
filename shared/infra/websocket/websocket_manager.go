@@ -259,7 +259,6 @@ func (m *GorillaWebSocketManager) setupConnectionHandlers(conn *websocket.Conn, 
 		}
 		m.mutex.Unlock()
 
-		// Extend read deadline when pong is received to keep connection alive
 		conn.SetReadDeadline(time.Now().Add(m.config.PongTimeout))
 		return nil
 	})

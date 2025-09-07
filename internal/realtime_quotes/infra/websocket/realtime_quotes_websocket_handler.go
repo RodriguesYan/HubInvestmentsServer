@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"HubInvestments/internal/auth"
 	"HubInvestments/internal/realtime_quotes/application/service"
 	"HubInvestments/internal/realtime_quotes/domain/model"
 	"HubInvestments/shared/infra/websocket"
@@ -13,6 +14,7 @@ import (
 type RealtimeQuotesWebSocketHandler struct {
 	wsManager               websocket.WebSocketManager
 	priceOscillationService *service.PriceOscillationService
+	authService             auth.IAuthService
 	activeConnections       map[websocket.Websocket]bool
 	mu                      sync.RWMutex
 }
@@ -25,10 +27,12 @@ type QuoteMessage struct {
 func NewRealtimeQuotesWebSocketHandler(
 	wsManager websocket.WebSocketManager,
 	priceOscillationService *service.PriceOscillationService,
+	authService auth.IAuthService,
 ) *RealtimeQuotesWebSocketHandler {
 	handler := &RealtimeQuotesWebSocketHandler{
 		wsManager:               wsManager,
 		priceOscillationService: priceOscillationService,
+		authService:             authService,
 		activeConnections:       make(map[websocket.Websocket]bool),
 	}
 
@@ -37,6 +41,26 @@ func NewRealtimeQuotesWebSocketHandler(
 }
 
 func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Authenticate BEFORE WebSocket upgrade (same pattern as HTTP handlers)
+	tokenString := h.extractToken(r)
+	log.Printf("WebSocket Debug: Extracted token: '%s'", h.safeTokenLog(tokenString))
+
+	if tokenString == "" {
+		log.Printf("WebSocket Debug: No token provided - rejecting connection")
+		http.Error(w, "Unauthorized - missing token", http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := h.authService.VerifyToken(tokenString, w)
+	if err != nil {
+		log.Printf("WebSocket Debug: Authentication failed with error: %v", err)
+		// authService.VerifyToken already wrote the HTTP error response
+		return
+	}
+
+	log.Printf("WebSocket Debug: Authentication successful for user: %s", userId)
+
+	// Only upgrade to WebSocket if authentication succeeded
 	conn, err := h.wsManager.CreateConnection(w, r)
 	if err != nil {
 		log.Printf("Failed to upgrade WebSocket connection: %v", err)
@@ -55,8 +79,8 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 	h.mu.Unlock()
 
 	healthStatus := h.wsManager.GetHealthStatus()
-	log.Printf("New realtime quotes WebSocket connection. Active: %d, Health: %s",
-		len(h.activeConnections), healthStatus.String())
+	log.Printf("New authenticated realtime quotes WebSocket connection for user %s. Active: %d, Health: %s",
+		userId, len(h.activeConnections), healthStatus.String())
 
 	go h.handleConnection(conn)
 }
@@ -128,4 +152,32 @@ func (h *RealtimeQuotesWebSocketHandler) GetActiveConnections() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.activeConnections)
+}
+
+// extractToken extracts JWT token from Authorization header or query parameter
+func (h *RealtimeQuotesWebSocketHandler) extractToken(r *http.Request) string {
+	// Try Authorization header first (preferred method)
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		return authHeader
+	}
+
+	// Fallback to query parameter for WebSocket clients that can't set headers
+	token := r.URL.Query().Get("token")
+	if token != "" {
+		return "Bearer " + token
+	}
+
+	return ""
+}
+
+// safeTokenLog safely logs token for debugging (shows first part only)
+func (h *RealtimeQuotesWebSocketHandler) safeTokenLog(token string) string {
+	if token == "" {
+		return "<empty>"
+	}
+	if len(token) <= 50 {
+		return token
+	}
+	return token[:50] + "..."
 }
