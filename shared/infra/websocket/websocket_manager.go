@@ -81,8 +81,8 @@ func DefaultWebSocketManagerConfig() WebSocketManagerConfig {
 		HandshakeTimeout:  10 * time.Second,
 		EnableCompression: true,
 		MaxConnections:    10000,
-		PingInterval:      30 * time.Second,
-		PongTimeout:       60 * time.Second,
+		PingInterval:      60 * time.Second,  // Reduced ping frequency for better dev/test experience
+		PongTimeout:       120 * time.Second, // More forgiving timeout for network delays
 	}
 }
 
@@ -258,10 +258,13 @@ func (m *GorillaWebSocketManager) setupConnectionHandlers(conn *websocket.Conn, 
 			managedConn.lastPing = time.Now()
 		}
 		m.mutex.Unlock()
+
+		// Extend read deadline when pong is received to keep connection alive
+		conn.SetReadDeadline(time.Now().Add(m.config.PongTimeout))
 		return nil
 	})
 
-	// Set read deadline
+	// Set initial read deadline
 	conn.SetReadDeadline(time.Now().Add(m.config.PongTimeout))
 }
 
