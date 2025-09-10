@@ -6,8 +6,10 @@ import (
 	"HubInvestments/internal/realtime_quotes/domain/model"
 	"HubInvestments/shared/infra/websocket"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 )
 
@@ -33,9 +35,11 @@ type QuotePatchMessage struct {
 
 // Connection state to track what quotes each connection has received
 type ConnectionState struct {
-	conn          websocket.Websocket
-	lastQuotes    map[string]*model.AssetQuote
-	isInitialized bool
+	conn              websocket.Websocket
+	lastQuotes        map[string]*model.AssetQuote
+	subscribedSymbols map[string]bool
+	subscriberID      string
+	isInitialized     bool
 }
 
 func NewRealtimeQuotesWebSocketHandler(
@@ -43,15 +47,12 @@ func NewRealtimeQuotesWebSocketHandler(
 	priceOscillationService *service.PriceOscillationService,
 	authService auth.IAuthService,
 ) *RealtimeQuotesWebSocketHandler {
-	handler := &RealtimeQuotesWebSocketHandler{
+	return &RealtimeQuotesWebSocketHandler{
 		wsManager:               wsManager,
 		priceOscillationService: priceOscillationService,
 		authService:             authService,
 		connectionStates:        make(map[websocket.Websocket]*ConnectionState),
 	}
-
-	handler.startPriceSubscription()
-	return handler
 }
 
 func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +75,16 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 
 	log.Printf("WebSocket Debug: Authentication successful for user: %s", userId)
 
-	// Only upgrade to WebSocket if authentication succeeded
+	subscribedSymbols, err := h.parseAndValidateSymbols(r)
+	if err != nil {
+		log.Printf("WebSocket Debug: Invalid symbols: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("WebSocket Debug: User %s subscribing to symbols: %v", userId, h.symbolsMapToSlice(subscribedSymbols))
+
+	// Only upgrade to WebSocket if authentication and symbol validation succeeded
 	conn, err := h.wsManager.CreateConnection(w, r)
 	if err != nil {
 		log.Printf("Failed to upgrade WebSocket connection: %v", err)
@@ -88,11 +98,15 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 		return
 	}
 
+	subscriberID, priceUpdatesChannel := h.priceOscillationService.SubscribeToSymbols(subscribedSymbols)
+
 	h.mu.Lock()
 	h.connectionStates[conn] = &ConnectionState{
-		conn:          conn,
-		lastQuotes:    make(map[string]*model.AssetQuote),
-		isInitialized: false,
+		conn:              conn,
+		lastQuotes:        make(map[string]*model.AssetQuote),
+		subscribedSymbols: subscribedSymbols,
+		subscriberID:      subscriberID,
+		isInitialized:     false,
 	}
 	h.mu.Unlock()
 
@@ -103,13 +117,17 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 	// Send initial quotes with add operations for new connection
 	h.sendInitialQuotes(conn)
 
-	go h.handleConnection(conn)
+	go h.handleConnection(conn, priceUpdatesChannel)
 }
 
-func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websocket) {
+func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websocket, priceUpdatesChannel <-chan map[string]*model.AssetQuote) {
 	defer func() {
 		h.mu.Lock()
-		delete(h.connectionStates, conn)
+		state, exists := h.connectionStates[conn]
+		if exists {
+			h.priceOscillationService.Unsubscribe(state.subscriberID)
+			delete(h.connectionStates, conn)
+		}
 		h.mu.Unlock()
 
 		if err := conn.Close(); err != nil {
@@ -117,44 +135,102 @@ func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websock
 		}
 	}()
 
-	for {
-		_, _, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("WebSocket unexpected close error: %v", err)
-			} else {
-				log.Printf("WebSocket connection closed normally: %v", err)
+	go func() {
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					log.Printf("WebSocket unexpected close error: %v", err)
+				} else {
+					log.Printf("WebSocket connection closed normally: %v", err)
+				}
+				return
 			}
-			// Clean up connection and exit - client will reconnect if needed
-			break
+			// For realtime quotes, we don't process incoming messages
 		}
-		// For realtime quotes, we only broadcast data, no need to process incoming messages
+	}()
+
+	for {
+		select {
+		case quotes, ok := <-priceUpdatesChannel:
+			if !ok {
+				log.Printf("Price updates channel closed for connection")
+				return
+			}
+			// Send price updates using JSON Patch
+			h.sendPriceUpdates(conn, quotes)
+		}
 	}
 }
 
-func (h *RealtimeQuotesWebSocketHandler) startPriceSubscription() {
-	priceUpdates := h.priceOscillationService.Subscribe()
+// sendPriceUpdates sends JSON Patch operations for price updates to a specific connection
+func (h *RealtimeQuotesWebSocketHandler) sendPriceUpdates(conn websocket.Websocket, quotes map[string]*model.AssetQuote) {
+	h.mu.Lock()
+	state, exists := h.connectionStates[conn]
+	if !exists || !state.isInitialized {
+		h.mu.Unlock()
+		return
+	}
 
-	go func() {
-		for quotes := range priceUpdates {
-			h.broadcastQuotes(quotes)
-		}
-	}()
+	operations := h.generateReplaceOperations(state, quotes)
+	if len(operations) == 0 {
+		h.mu.Unlock()
+		return
+	}
+
+	h.updateConnectionStateInternal(state, quotes)
+	h.mu.Unlock()
+
+	message := QuotePatchMessage{
+		Type:       "quotes_patch",
+		Operations: operations,
+	}
+
+	data, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshaling quotes patch message: %v", err)
+		return
+	}
+
+	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("Error sending patch to WebSocket connection: %v", err)
+		return
+	}
 }
 
-// sendInitialQuotes sends add operations for all available quotes when connection is established
+// sendInitialQuotes sends add operations for subscribed quotes when connection is established
 func (h *RealtimeQuotesWebSocketHandler) sendInitialQuotes(conn websocket.Websocket) {
+	h.mu.RLock()
+	state, exists := h.connectionStates[conn]
+	if !exists {
+		h.mu.RUnlock()
+		log.Printf("Connection state not found for initial quotes")
+		return
+	}
+	subscribedSymbols := state.subscribedSymbols
+	h.mu.RUnlock()
+
 	// Get all available quotes from the service
 	allQuotes := h.priceOscillationService.GetAllQuotes()
 
-	operations := make([]PatchOperation, 0, len(allQuotes))
+	// Filter quotes based on subscribed symbols
+	operations := make([]PatchOperation, 0)
+	quotesToSend := make(map[string]*model.AssetQuote)
 
 	for symbol, quote := range allQuotes {
-		operations = append(operations, PatchOperation{
-			Op:    "add",
-			Path:  "/quotes/" + symbol,
-			Value: quote,
-		})
+		if subscribedSymbols[symbol] {
+			operations = append(operations, PatchOperation{
+				Op:    "add",
+				Path:  "/quotes/" + symbol,
+				Value: quote,
+			})
+			quotesToSend[symbol] = quote
+		}
+	}
+
+	if len(operations) == 0 {
+		log.Printf("No valid subscribed symbols found for connection")
+		return
 	}
 
 	message := QuotePatchMessage{
@@ -173,10 +249,10 @@ func (h *RealtimeQuotesWebSocketHandler) sendInitialQuotes(conn websocket.Websoc
 		return
 	}
 
-	// Update connection state
+	// Update connection state with only subscribed quotes
 	h.mu.Lock()
 	if state, exists := h.connectionStates[conn]; exists {
-		for symbol, quote := range allQuotes {
+		for symbol, quote := range quotesToSend {
 			state.lastQuotes[symbol] = h.copyQuote(quote)
 		}
 		state.isInitialized = true
@@ -186,57 +262,22 @@ func (h *RealtimeQuotesWebSocketHandler) sendInitialQuotes(conn websocket.Websoc
 	log.Printf("Sent initial quotes with %d add operations to new connection", len(operations))
 }
 
-// broadcastQuotes sends replace operations for changed quotes to existing connections
-func (h *RealtimeQuotesWebSocketHandler) broadcastQuotes(quotes map[string]*model.AssetQuote) {
-	h.mu.RLock()
-	connectionStates := make([]*ConnectionState, 0, len(h.connectionStates))
-	for _, state := range h.connectionStates {
-		connectionStates = append(connectionStates, state)
-	}
-	h.mu.RUnlock()
-
-	for _, state := range connectionStates {
-		if !state.isInitialized {
-			continue
-		}
-
-		operations := h.generateReplaceOperations(state, quotes)
-		if len(operations) == 0 {
-			continue
-		}
-
-		message := QuotePatchMessage{
-			Type:       "quotes_patch",
-			Operations: operations,
-		}
-
-		data, err := json.Marshal(message)
-		if err != nil {
-			log.Printf("Error marshaling quotes patch message: %v", err)
-			continue
-		}
-
-		if err := state.conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("Error broadcasting patch to WebSocket connection: %v", err)
-			continue
-		}
-
-		// Update connection's last known state
-		h.updateConnectionState(state, quotes)
-	}
-}
-
 func (h *RealtimeQuotesWebSocketHandler) GetActiveConnections() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.connectionStates)
 }
 
-// generateReplaceOperations generates replace operations for quotes that have changed
+// generateReplaceOperations generates replace operations for quotes that have changed and are subscribed
 func (h *RealtimeQuotesWebSocketHandler) generateReplaceOperations(state *ConnectionState, newQuotes map[string]*model.AssetQuote) []PatchOperation {
 	operations := make([]PatchOperation, 0)
 
 	for symbol, newQuote := range newQuotes {
+		// Only process quotes that the connection is subscribed to
+		if !state.subscribedSymbols[symbol] {
+			continue
+		}
+
 		lastQuote, exists := state.lastQuotes[symbol]
 
 		// If quote doesn't exist in connection state, add it as a new quote
@@ -251,6 +292,7 @@ func (h *RealtimeQuotesWebSocketHandler) generateReplaceOperations(state *Connec
 
 		// Check for changes in individual fields and create replace operations
 		if !h.quotesEqual(lastQuote, newQuote) {
+
 			// Check specific fields that commonly change
 			if lastQuote.CurrentPrice != newQuote.CurrentPrice {
 				operations = append(operations, PatchOperation{
@@ -289,10 +331,20 @@ func (h *RealtimeQuotesWebSocketHandler) generateReplaceOperations(state *Connec
 	return operations
 }
 
-// updateConnectionState updates the connection's last known state with new quotes
+// updateConnectionState updates the connection's last known state with new quotes for subscribed symbols
 func (h *RealtimeQuotesWebSocketHandler) updateConnectionState(state *ConnectionState, newQuotes map[string]*model.AssetQuote) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.updateConnectionStateInternal(state, newQuotes)
+}
+
+// updateConnectionStateInternal updates connection state without acquiring lock (caller must hold lock)
+func (h *RealtimeQuotesWebSocketHandler) updateConnectionStateInternal(state *ConnectionState, newQuotes map[string]*model.AssetQuote) {
 	for symbol, quote := range newQuotes {
-		state.lastQuotes[symbol] = h.copyQuote(quote)
+		// Only update quotes for symbols this connection is subscribed to
+		if state.subscribedSymbols[symbol] {
+			state.lastQuotes[symbol] = h.copyQuote(quote)
+		}
 	}
 }
 
@@ -318,6 +370,55 @@ func (h *RealtimeQuotesWebSocketHandler) quotesEqual(quote1, quote2 *model.Asset
 		quote1.Change == quote2.Change &&
 		quote1.ChangePercent == quote2.ChangePercent &&
 		quote1.LastUpdated == quote2.LastUpdated
+}
+
+// parseAndValidateSymbols parses symbols from query parameters and validates them
+func (h *RealtimeQuotesWebSocketHandler) parseAndValidateSymbols(r *http.Request) (map[string]bool, error) {
+	symbolsParam := r.URL.Query().Get("symbols")
+	if symbolsParam == "" {
+		return nil, fmt.Errorf("missing symbols parameter - use ?symbols=AAPL,MSFT,GOOGL")
+	}
+
+	// Parse comma-separated symbols
+	symbolsList := strings.Split(symbolsParam, ",")
+	if len(symbolsList) == 0 {
+		return nil, fmt.Errorf("no symbols provided")
+	}
+
+	allQuotes := h.priceOscillationService.GetAllQuotes()
+	subscribedSymbols := make(map[string]bool)
+	invalidSymbols := make([]string, 0)
+
+	for _, symbol := range symbolsList {
+		symbol = strings.TrimSpace(strings.ToUpper(symbol))
+		if symbol == "" {
+			continue
+		}
+
+		if _, exists := allQuotes[symbol]; exists {
+			subscribedSymbols[symbol] = true
+		} else {
+			invalidSymbols = append(invalidSymbols, symbol)
+		}
+	}
+
+	if len(subscribedSymbols) == 0 {
+		return nil, fmt.Errorf("no valid symbols found in: %s", symbolsParam)
+	}
+
+	if len(invalidSymbols) > 0 {
+		log.Printf("WebSocket Debug: Invalid symbols ignored: %v", invalidSymbols)
+	}
+
+	return subscribedSymbols, nil
+}
+
+func (h *RealtimeQuotesWebSocketHandler) symbolsMapToSlice(symbolsMap map[string]bool) []string {
+	symbols := make([]string, 0, len(symbolsMap))
+	for symbol := range symbolsMap {
+		symbols = append(symbols, symbol)
+	}
+	return symbols
 }
 
 // extractToken extracts JWT token from Authorization header or query parameter
