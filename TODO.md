@@ -419,8 +419,9 @@ internal/order_mngmt_system/
 - [x] Design and implement market data streaming architecture
 - [x] Create connection management and scaling for WebSocket
 - [x] Implement error handling and reconnection logic
+- [ ] Reuse same auth system in realtime_qoutes_websocket_handler.go
 - [ ] Support 10,000+ concurrent WebSocket connections
-- [ ] Implement json patch updates for quotes to avoid sending whole data objects
+- [x] Implement json patch updates for quotes to avoid sending whole data objects
 - [ ] REquest only assets that are needed (use ws message?)
 - [ ] fix WS early disconnections (connection lasting less than one minute)
 - [ ] test multiple connections

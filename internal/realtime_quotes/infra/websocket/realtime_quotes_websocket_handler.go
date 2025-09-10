@@ -15,13 +15,27 @@ type RealtimeQuotesWebSocketHandler struct {
 	wsManager               websocket.WebSocketManager
 	priceOscillationService *service.PriceOscillationService
 	authService             auth.IAuthService
-	activeConnections       map[websocket.Websocket]bool
+	connectionStates        map[websocket.Websocket]*ConnectionState
 	mu                      sync.RWMutex
 }
 
-type QuoteMessage struct {
-	Type   string                       `json:"type"`
-	Quotes map[string]*model.AssetQuote `json:"quotes"`
+// JSON Patch operation structure according to RFC 6902
+type PatchOperation struct {
+	Op    string      `json:"op"`    // "add" or "replace"
+	Path  string      `json:"path"`  // JSON pointer path
+	Value interface{} `json:"value"` // The value to add/replace
+}
+
+type QuotePatchMessage struct {
+	Type       string           `json:"type"`
+	Operations []PatchOperation `json:"operations"`
+}
+
+// Connection state to track what quotes each connection has received
+type ConnectionState struct {
+	conn          websocket.Websocket
+	lastQuotes    map[string]*model.AssetQuote
+	isInitialized bool
 }
 
 func NewRealtimeQuotesWebSocketHandler(
@@ -33,7 +47,7 @@ func NewRealtimeQuotesWebSocketHandler(
 		wsManager:               wsManager,
 		priceOscillationService: priceOscillationService,
 		authService:             authService,
-		activeConnections:       make(map[websocket.Websocket]bool),
+		connectionStates:        make(map[websocket.Websocket]*ConnectionState),
 	}
 
 	handler.startPriceSubscription()
@@ -75,12 +89,19 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 	}
 
 	h.mu.Lock()
-	h.activeConnections[conn] = true
+	h.connectionStates[conn] = &ConnectionState{
+		conn:          conn,
+		lastQuotes:    make(map[string]*model.AssetQuote),
+		isInitialized: false,
+	}
 	h.mu.Unlock()
 
 	healthStatus := h.wsManager.GetHealthStatus()
 	log.Printf("New authenticated realtime quotes WebSocket connection for user %s. Active: %d, Health: %s",
-		userId, len(h.activeConnections), healthStatus.String())
+		userId, len(h.connectionStates), healthStatus.String())
+
+	// Send initial quotes with add operations for new connection
+	h.sendInitialQuotes(conn)
 
 	go h.handleConnection(conn)
 }
@@ -88,7 +109,7 @@ func (h *RealtimeQuotesWebSocketHandler) HandleConnection(w http.ResponseWriter,
 func (h *RealtimeQuotesWebSocketHandler) handleConnection(conn websocket.Websocket) {
 	defer func() {
 		h.mu.Lock()
-		delete(h.activeConnections, conn)
+		delete(h.connectionStates, conn)
 		h.mu.Unlock()
 
 		if err := conn.Close(); err != nil {
@@ -121,37 +142,182 @@ func (h *RealtimeQuotesWebSocketHandler) startPriceSubscription() {
 	}()
 }
 
-func (h *RealtimeQuotesWebSocketHandler) broadcastQuotes(quotes map[string]*model.AssetQuote) {
-	message := QuoteMessage{
-		Type:   "price_update",
-		Quotes: quotes,
+// sendInitialQuotes sends add operations for all available quotes when connection is established
+func (h *RealtimeQuotesWebSocketHandler) sendInitialQuotes(conn websocket.Websocket) {
+	// Get all available quotes from the service
+	allQuotes := h.priceOscillationService.GetAllQuotes()
+
+	operations := make([]PatchOperation, 0, len(allQuotes))
+
+	for symbol, quote := range allQuotes {
+		operations = append(operations, PatchOperation{
+			Op:    "add",
+			Path:  "/quotes/" + symbol,
+			Value: quote,
+		})
+	}
+
+	message := QuotePatchMessage{
+		Type:       "quotes_patch",
+		Operations: operations,
 	}
 
 	data, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("Error marshaling quote message: %v", err)
+		log.Printf("Error marshaling initial quotes patch message: %v", err)
 		return
 	}
 
+	if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		log.Printf("Error sending initial quotes to WebSocket connection: %v", err)
+		return
+	}
+
+	// Update connection state
+	h.mu.Lock()
+	if state, exists := h.connectionStates[conn]; exists {
+		for symbol, quote := range allQuotes {
+			state.lastQuotes[symbol] = h.copyQuote(quote)
+		}
+		state.isInitialized = true
+	}
+	h.mu.Unlock()
+
+	log.Printf("Sent initial quotes with %d add operations to new connection", len(operations))
+}
+
+// broadcastQuotes sends replace operations for changed quotes to existing connections
+func (h *RealtimeQuotesWebSocketHandler) broadcastQuotes(quotes map[string]*model.AssetQuote) {
 	h.mu.RLock()
-	connections := make([]websocket.Websocket, 0, len(h.activeConnections))
-	for conn := range h.activeConnections {
-		connections = append(connections, conn)
+	connectionStates := make([]*ConnectionState, 0, len(h.connectionStates))
+	for _, state := range h.connectionStates {
+		connectionStates = append(connectionStates, state)
 	}
 	h.mu.RUnlock()
 
-	for _, conn := range connections {
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("Error broadcasting to WebSocket connection: %v", err)
-			// Connection will be cleaned up by handleConnection goroutine
+	for _, state := range connectionStates {
+		if !state.isInitialized {
+			continue
 		}
+
+		operations := h.generateReplaceOperations(state, quotes)
+		if len(operations) == 0 {
+			continue
+		}
+
+		message := QuotePatchMessage{
+			Type:       "quotes_patch",
+			Operations: operations,
+		}
+
+		data, err := json.Marshal(message)
+		if err != nil {
+			log.Printf("Error marshaling quotes patch message: %v", err)
+			continue
+		}
+
+		if err := state.conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			log.Printf("Error broadcasting patch to WebSocket connection: %v", err)
+			continue
+		}
+
+		// Update connection's last known state
+		h.updateConnectionState(state, quotes)
 	}
 }
 
 func (h *RealtimeQuotesWebSocketHandler) GetActiveConnections() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return len(h.activeConnections)
+	return len(h.connectionStates)
+}
+
+// generateReplaceOperations generates replace operations for quotes that have changed
+func (h *RealtimeQuotesWebSocketHandler) generateReplaceOperations(state *ConnectionState, newQuotes map[string]*model.AssetQuote) []PatchOperation {
+	operations := make([]PatchOperation, 0)
+
+	for symbol, newQuote := range newQuotes {
+		lastQuote, exists := state.lastQuotes[symbol]
+
+		// If quote doesn't exist in connection state, add it as a new quote
+		if !exists {
+			operations = append(operations, PatchOperation{
+				Op:    "add",
+				Path:  "/quotes/" + symbol,
+				Value: newQuote,
+			})
+			continue
+		}
+
+		// Check for changes in individual fields and create replace operations
+		if !h.quotesEqual(lastQuote, newQuote) {
+			// Check specific fields that commonly change
+			if lastQuote.CurrentPrice != newQuote.CurrentPrice {
+				operations = append(operations, PatchOperation{
+					Op:    "replace",
+					Path:  "/quotes/" + symbol + "/current_price",
+					Value: newQuote.CurrentPrice,
+				})
+			}
+
+			if lastQuote.Change != newQuote.Change {
+				operations = append(operations, PatchOperation{
+					Op:    "replace",
+					Path:  "/quotes/" + symbol + "/change",
+					Value: newQuote.Change,
+				})
+			}
+
+			if lastQuote.ChangePercent != newQuote.ChangePercent {
+				operations = append(operations, PatchOperation{
+					Op:    "replace",
+					Path:  "/quotes/" + symbol + "/change_percent",
+					Value: newQuote.ChangePercent,
+				})
+			}
+
+			if lastQuote.LastUpdated != newQuote.LastUpdated {
+				operations = append(operations, PatchOperation{
+					Op:    "replace",
+					Path:  "/quotes/" + symbol + "/last_updated",
+					Value: newQuote.LastUpdated,
+				})
+			}
+		}
+	}
+
+	return operations
+}
+
+// updateConnectionState updates the connection's last known state with new quotes
+func (h *RealtimeQuotesWebSocketHandler) updateConnectionState(state *ConnectionState, newQuotes map[string]*model.AssetQuote) {
+	for symbol, quote := range newQuotes {
+		state.lastQuotes[symbol] = h.copyQuote(quote)
+	}
+}
+
+func (h *RealtimeQuotesWebSocketHandler) copyQuote(quote *model.AssetQuote) *model.AssetQuote {
+	if quote == nil {
+		return nil
+	}
+
+	copied := *quote
+	return &copied
+}
+
+// quotesEqual compares two AssetQuote objects for equality
+func (h *RealtimeQuotesWebSocketHandler) quotesEqual(quote1, quote2 *model.AssetQuote) bool {
+	if quote1 == nil && quote2 == nil {
+		return true
+	}
+	if quote1 == nil || quote2 == nil {
+		return false
+	}
+
+	return quote1.CurrentPrice == quote2.CurrentPrice &&
+		quote1.Change == quote2.Change &&
+		quote1.ChangePercent == quote2.ChangePercent &&
+		quote1.LastUpdated == quote2.LastUpdated
 }
 
 // extractToken extracts JWT token from Authorization header or query parameter

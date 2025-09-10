@@ -61,6 +61,12 @@ func (s *PriceOscillationService) Subscribe() <-chan map[string]*model.AssetQuot
 	return subscriber
 }
 
+// GetAllQuotes returns all available asset quotes for initial connection setup
+func (s *PriceOscillationService) GetAllQuotes() map[string]*model.AssetQuote {
+	// Get all available assets from the asset data service
+	return s.assetDataService.GetAllAssets()
+}
+
 func (s *PriceOscillationService) oscillatePrices() {
 	for {
 		select {
@@ -73,7 +79,8 @@ func (s *PriceOscillationService) oscillatePrices() {
 }
 
 func (s *PriceOscillationService) updatePrices() {
-	assets := s.assetDataService.GetRandomAssets(5)
+	numAssets := rand.Intn(5) + 1
+	assets := s.assetDataService.GetRandomAssets(numAssets)
 
 	for _, quote := range assets {
 		newPrice := s.calculateNewPrice(quote)
