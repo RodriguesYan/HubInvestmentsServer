@@ -419,25 +419,107 @@ internal/order_mngmt_system/
 - [x] Design and implement market data streaming architecture
 - [x] Create connection management and scaling for WebSocket
 - [x] Implement error handling and reconnection logic
-- [ ] Reuse same auth system in realtime_qoutes_websocket_handler.go
+- [x] Reuse same auth system in realtime_qoutes_websocket_handler.go
 - [ ] Support 10,000+ concurrent WebSocket connections
 - [x] Implement json patch updates for quotes to avoid sending whole data objects
-- [ ] REquest only assets that are needed (use ws message?)
-- [ ] fix WS early disconnections (connection lasting less than one minute)
-- [ ] test multiple connections
+- [x] REquest only assets that are needed (use ws message?)
+- [x] fix WS early disconnections (connection lasting less than one minute)
+- [x] test multiple connections
 - **Priority**: Medium - Real-time features
 
-### Persistence for orders sent to user position (webhook? DB trigger? queue to position?)
-[ ]
-[ ]
-[ ]
-[ ]
-[ ]
-[ ]
+### ⏳ Phase 8: Position Update System - Order Execution to Position Persistence
+
+**Current State Analysis:**
+- ✅ Orders are successfully marked as `EXECUTED` in `orders` table
+- ✅ Domain events system exists with `OrderExecutedEvent` 
+- ✅ RabbitMQ messaging infrastructure is in place
+- ❌ Position updates are missing when orders execute
+- ❌ No position creation for new instruments
+- ❌ No average price calculation for multiple purchases
+
+**Business Requirements:**
+1. **BUY Orders**: Create new position or update existing position (quantity + average price recalculation)
+2. **SELL Orders**: Reduce position quantity or close position entirely  
+3. **Data Consistency**: Ensure atomic operations between order execution and position updates
+4. **Error Handling**: Handle partial updates, rollbacks, and retry scenarios
+5. **Performance**: Support high-frequency trading without blocking order execution
+
+---
+
+## 🏗️ **APPROACH 1: Event-Driven Architecture with RabbitMQ** (RECOMMENDED)
+
+**Architecture Overview:**
+```
+Order Execution (Worker)
+         ↓ [MarkAsExecuted()]
+Domain Event: OrderExecutedEvent
+         ↓ [Event Publisher]
+RabbitMQ: positions.updates queue
+         ↓ [Position Update Worker]
+Position Service: Update/Create Position
+         ↓ [Position Repository]
+PostgreSQL: positions table
+```
+
+**Advantages:**
+- ✅ Decoupled architecture - order execution doesn't block on position updates
+- ✅ Reliable message delivery with RabbitMQ persistence and DLQ
+- ✅ Horizontal scaling - multiple position workers can process updates
+- ✅ Event sourcing capabilities for audit trails
+- ✅ Easy to extend with other event consumers (notifications, analytics)
+
+**Disadvantages:**
+- ❌ Eventual consistency - small delay between order execution and position update
+- ❌ More complex error handling across distributed components
+- ❌ Requires message queue monitoring and management
+
+### **Step 1**: Position Domain Model Enhancement
+- [ ] **Step 1.1**: Enhance Position Domain Model
+  - [ ] Create `position/domain/model/position.go` with complete Position entity
+  - [ ] Add methods: `UpdateQuantity()`, `CalculateNewAveragePrice()`, `CanSell(quantity)`
+  - [ ] Implement position validation rules and business logic
+  - [ ] Add position value objects: `PositionType`, `PositionStatus`
+- [ ] **Step 1.2**: Position Domain Events
+  - [ ] Create `position/domain/model/position_events.go`
+  - [ ] Implement events: `PositionCreatedEvent`, `PositionUpdatedEvent`, `PositionClosedEvent`
+  - [ ] Add position change tracking and audit capabilities
+
+### **Step 2**: Position Use Cases Implementation
+- [ ] **Step 2.1**: Position Management Use Cases
+  - [ ] Create `position/application/usecase/update_position_usecase.go`
+  - [ ] Implement `create_position_usecase.go` for new instruments
+  - [ ] Add `close_position_usecase.go` for complete SELL orders
+  - [ ] Create command objects: `UpdatePositionCommand`, `CreatePositionCommand`
+- [ ] **Step 2.2**: Business Logic Implementation
+  - [ ] Average price calculation for BUY orders:
+    ```
+    NewAvgPrice = (ExistingQty * ExistingAvgPrice + NewQty * ExecutionPrice) / (ExistingQty + NewQty)
+    ```
+  - [ ] Position quantity validation for SELL orders
+  - [ ] Handle fractional shares and position splitting
+
+### **Step 3**: Event Publishing Integration
+- [ ] **Step 3.1**: Order Execution Event Enhancement
+  - [ ] Update `ProcessOrderUseCase.executeOrder()` to publish `OrderExecutedEvent`
+  - [ ] Include all position-relevant data: symbol, quantity, execution_price, order_side
+  - [ ] Add instrument_id resolution from symbol lookup
+  - [ ] Ensure event publication is part of database transaction
+
+### **Step 4**: RabbitMQ Position Update Infrastructure
+- [ ] **Step 4.1**: Position Queue Configuration
+  - [ ] Extend `OrderQueueManager` or create `PositionQueueManager`
+  - [ ] Define queues: `positions.updates`, `positions.updates.dlq`, `positions.retry`
+  - [ ] Configure queue durability, TTL, and DLQ routing
+- [ ] **Step 4.2**: Position Update Worker Implementation
+  - [ ] Create `position/infra/worker/position_update_worker.go`
+  - [ ] Implement RabbitMQ consumer for `positions.updates` queue
+  - [ ] Add worker lifecycle management and error handling
+
+
 
 ### Make assets trading hour configurable in market_data_client.go(persist in DB, for now)
 
-### ⏳ Phase 8: Authentication & Login Improvements
+### ⏳ Phase 9: Authentication & Login Improvements
 - [ ] **Step 1**: User Registration and Account Creation
   - [ ] Create user registration domain model and validation
   - [ ] Implement `create_user_usecase.go` with proper business logic
@@ -457,7 +539,7 @@ internal/order_mngmt_system/
 - [ ] Implement secure password handling improvements
 - **Priority**: High - Security and maintainability improvements
 
-    ### ⏳ Phase 9: Orders last mile
+    ### ⏳ Phase 10: Orders last mile
 - [ ] **Step 12**: Error Handling and Monitoring
   - [ ] Implement comprehensive error handling:
     - [ ] Order validation errors with user-friendly messages
@@ -536,7 +618,7 @@ internal/order_mngmt_system/
   - Order processing: Real-time price fetching, execution price determination
   - Order monitoring: Market data context for order analysis and reporting
 
-### ⏳ Phase 9: Database Infrastructure & DevOps Setup
+### ⏳ Phase 11: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
   - [ ] **Users table** with proper authentication fields:
     ```sql
@@ -570,7 +652,7 @@ internal/order_mngmt_system/
     - [ ] Profile and optimize memory usage and garbage collection
 - **Priority**: High - Foundation for all other features
 
-### ⏳ Phase 10: Security & Production Readiness
+### ⏳ Phase 12: Security & Production Readiness
 - [ ] **Step 1**: Database Security and SQL Injection Prevention
   - [ ] Audit all database queries for SQL injection vulnerabilities
   - [ ] Implement parameterized queries/prepared statements across all repositories
@@ -590,7 +672,7 @@ internal/order_mngmt_system/
 - [ ] Create security headers and protection policies
 - **Priority**: High - Production security requirements
 
-### ⏳ Phase 11: API Documentation & Testing
+### ⏳ Phase 13: API Documentation & Testing
 - [ ] Implement Swagger/OpenAPI documentation
 - [ ] Create interactive API explorer
 - [ ] Add automated API documentation generation
@@ -607,7 +689,7 @@ internal/order_mngmt_system/
 - [ ] Mutation tests
 - **Priority**: Medium - Quality assurance and developer experience
 
-### ⏳ Phase 12: Advanced Architecture & Microservices
+### ⏳ Phase 14: Advanced Architecture & Microservices
 - [ ] Implement gRPC for inter-service communication
 - [ ] Design microservices decomposition strategy
 - [ ] Add service discovery and registration
@@ -622,7 +704,7 @@ internal/order_mngmt_system/
     - [ ] Add monitoring and metrics for gRPC performance
 - **Priority**: Low - Advanced architecture (optional but recommended)
 
-### ⏳ Phase 13: Performance & Monitoring
+### ⏳ Phase 15: Performance & Monitoring
 - [ ] Implement application and infrastructure monitoring (Prometheus para coletar metricas , grafana para exibir dash, jaeger tracing distribuido, openTelemetry coleta unificada de dados)
 - [ ] Add performance metrics and alerting
 - [ ] Create database performance optimization
@@ -639,7 +721,7 @@ internal/order_mngmt_system/
     - [ ] Add graceful shutdown handling for all components
 - **Priority**: Medium - Production performance requirements
 
-### ⏳ Phase 14: CI/CD & DevOps Pipeline
+### ⏳ Phase 16: CI/CD & DevOps Pipeline
 - [ ] Set up automated CI/CD pipeline
 - [ ] Implement automated testing in pipeline
 - [ ] Add code quality checks and linting
