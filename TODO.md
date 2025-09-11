@@ -424,7 +424,7 @@ internal/order_mngmt_system/
 - [x] Implement json patch updates for quotes to avoid sending whole data objects
 - [x] REquest only assets that are needed (use ws message?)
 - [x] fix WS early disconnections (connection lasting less than one minute)
-- [x] test multiple connections
+- [ ] test multiple connections
 - **Priority**: Medium - Real-time features
 
 ### ⏳ Phase 8: Position Update System - Order Execution to Position Persistence
@@ -447,6 +447,8 @@ internal/order_mngmt_system/
 ---
 
 ## 🏗️ **APPROACH 1: Event-Driven Architecture with RabbitMQ** (RECOMMENDED)
+
+**Architecture Diagram**: 📊 [Position Update Flow Diagram](docs/position_update_flow.png)
 
 **Architecture Overview:**
 ```

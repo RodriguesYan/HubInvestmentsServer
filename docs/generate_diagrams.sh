@@ -32,9 +32,14 @@ mmdc -i order_flow_with_idempotency.mmd -o order_flow_with_idempotency.png -w 14
 echo "📡 Generating WebSocket Quotes Architecture..."
 mmdc -i websocket_quotes_architecture.mmd -o websocket_quotes_architecture.png -w 1400 -H 1000 -b white
 
+# Generate Position Update Flow
+echo "🔄 Generating Position Update Flow..."
+mmdc -i position_update_flow.mmd -o position_update_flow.png -w 1600 -H 1200 -b white
+
 echo "✅ Diagrams generated successfully!"
 echo "📁 Files created:"
 echo "   - order_flow_diagram.png"
 echo "   - microservices_overview.png"
 echo "   - order_flow_with_idempotency.png"
 echo "   - websocket_quotes_architecture.png"
+echo "   - position_update_flow.png"
