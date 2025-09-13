@@ -25,6 +25,9 @@ import (
 type TestContainer struct {
 	authService                auth.IAuthService
 	positionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
+	createPositionUseCase      posUsecase.ICreatePositionUseCase
+	updatePositionUseCase      posUsecase.IUpdatePositionUseCase
+	closePositionUseCase       posUsecase.IClosePositionUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
 	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
 	getMarketDataUsecase       mktUsecase.IGetMarketDataUsecase
@@ -52,6 +55,24 @@ func (c *TestContainer) WithAuthService(service auth.IAuthService) *TestContaine
 // WithPositionAggregationUseCase sets the PositionAggregationUseCase for testing
 func (c *TestContainer) WithPositionAggregationUseCase(usecase *posUsecase.GetPositionAggregationUseCase) *TestContainer {
 	c.positionAggregationUseCase = usecase
+	return c
+}
+
+// WithCreatePositionUseCase sets the CreatePositionUseCase for testing
+func (c *TestContainer) WithCreatePositionUseCase(usecase posUsecase.ICreatePositionUseCase) *TestContainer {
+	c.createPositionUseCase = usecase
+	return c
+}
+
+// WithUpdatePositionUseCase sets the UpdatePositionUseCase for testing
+func (c *TestContainer) WithUpdatePositionUseCase(usecase posUsecase.IUpdatePositionUseCase) *TestContainer {
+	c.updatePositionUseCase = usecase
+	return c
+}
+
+// WithClosePositionUseCase sets the ClosePositionUseCase for testing
+func (c *TestContainer) WithClosePositionUseCase(usecase posUsecase.IClosePositionUseCase) *TestContainer {
+	c.closePositionUseCase = usecase
 	return c
 }
 
@@ -86,6 +107,21 @@ func (c *TestContainer) GetAuthService() auth.IAuthService {
 // GetPositionAggregationUseCase returns the configured PositionAggregationUseCase or nil
 func (c *TestContainer) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
 	return c.positionAggregationUseCase
+}
+
+// GetCreatePositionUseCase returns the configured CreatePositionUseCase or nil
+func (c *TestContainer) GetCreatePositionUseCase() posUsecase.ICreatePositionUseCase {
+	return c.createPositionUseCase
+}
+
+// GetUpdatePositionUseCase returns the configured UpdatePositionUseCase or nil
+func (c *TestContainer) GetUpdatePositionUseCase() posUsecase.IUpdatePositionUseCase {
+	return c.updatePositionUseCase
+}
+
+// GetClosePositionUseCase returns the configured ClosePositionUseCase or nil
+func (c *TestContainer) GetClosePositionUseCase() posUsecase.IClosePositionUseCase {
+	return c.closePositionUseCase
 }
 
 func (c *TestContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {

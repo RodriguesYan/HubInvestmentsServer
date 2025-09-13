@@ -5,6 +5,7 @@ import (
 	domain "HubInvestments/internal/position/domain/model"
 	di "HubInvestments/pck"
 	"HubInvestments/shared/middleware"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"math"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -37,6 +39,47 @@ func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.A
 		return nil, m.err
 	}
 	return m.aggregations, nil
+}
+
+// New interface methods - stub implementations for legacy test compatibility
+func (m *MockPositionRepository) FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindByUserIDAndSymbol(ctx context.Context, userID uuid.UUID, symbol string) (*domain.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindActivePositions(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Save(ctx context.Context, position *domain.Position) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Update(ctx context.Context, position *domain.Position) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Delete(ctx context.Context, positionID uuid.UUID) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) ExistsForUser(ctx context.Context, userID uuid.UUID, symbol string) (bool, error) {
+	return false, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) CountPositionsForUser(ctx context.Context, userID uuid.UUID) (int, error) {
+	return 0, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) GetTotalInvestmentForUser(ctx context.Context, userID uuid.UUID) (float64, error) {
+	return 0, errors.New("not implemented in legacy mock")
 }
 
 // MockPositionAggregationUseCase for testing JSON marshal errors

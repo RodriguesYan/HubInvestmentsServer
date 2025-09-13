@@ -515,6 +515,53 @@ PostgreSQL: positions table
     ```
   - [ ] Position quantity validation for SELL orders
   - [ ] Handle fractional shares and position splitting
+- [ ] **Step 2.3**: Position Database Schema and Persistence Implementation
+  - [ ] Create database migration for `positions_v2` table with Position domain model schema
+  - [ ] Design table structure:
+    ```sql
+    positions_v2 (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id),
+      symbol VARCHAR NOT NULL,
+      quantity DECIMAL(20,8) NOT NULL,
+      average_price DECIMAL(20,8) NOT NULL,
+      total_investment DECIMAL(20,8) NOT NULL,
+      current_price DECIMAL(20,8) DEFAULT 0,
+      market_value DECIMAL(20,8) DEFAULT 0,
+      unrealized_pnl DECIMAL(20,8) DEFAULT 0,
+      unrealized_pnl_pct DECIMAL(10,4) DEFAULT 0,
+      position_type VARCHAR(10) NOT NULL CHECK (position_type IN ('LONG', 'SHORT')),
+      status VARCHAR(20) NOT NULL CHECK (status IN ('ACTIVE', 'PARTIAL', 'CLOSED')),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      last_trade_at TIMESTAMP,
+      UNIQUE(user_id, symbol) -- Prevent duplicate positions per user/symbol
+    )
+    ```
+  - [ ] Add proper indexes for performance:
+    ```sql
+    CREATE INDEX idx_positions_v2_user_id ON positions_v2(user_id);
+    CREATE INDEX idx_positions_v2_symbol ON positions_v2(symbol);
+    CREATE INDEX idx_positions_v2_status ON positions_v2(status);
+    CREATE INDEX idx_positions_v2_user_symbol ON positions_v2(user_id, symbol);
+    ```
+  - [ ] Implement database repository methods in `position_repository.go`:
+    - [ ] `FindByID()`, `FindByUserID()`, `FindByUserIDAndSymbol()`
+    - [ ] `FindActivePositions()`, `Save()`, `Update()`, `Delete()`
+    - [ ] `ExistsForUser()`, `CountPositionsForUser()`, `GetTotalInvestmentForUser()`
+  - [ ] Create DTOs and mappers for Position domain model:
+    - [ ] `PositionDTO` struct for database mapping
+    - [ ] `PositionMapper` for domain model ↔ DTO conversion
+    - [ ] Handle value object serialization (PositionType, PositionStatus)
+  - [ ] Add database integration tests:
+    - [ ] Test all repository methods with real database transactions
+    - [ ] Test constraint violations (duplicate positions)
+    - [ ] Test concurrent updates and race conditions
+    - [ ] Verify proper UUID generation and foreign key constraints
+  - [ ] Migration strategy from legacy `positions` table:
+    - [ ] Data migration script to populate `positions_v2` from existing data
+    - [ ] Backward compatibility considerations for existing aggregation queries
+    - [ ] Gradual migration plan to avoid downtime
 
 ### **Step 3**: Event Publishing Integration
 - [ ] **Step 3.1**: Order Execution Event Enhancement

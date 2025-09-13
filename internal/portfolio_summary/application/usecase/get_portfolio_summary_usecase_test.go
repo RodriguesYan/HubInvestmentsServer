@@ -5,13 +5,14 @@ import (
 	balDomain "HubInvestments/internal/balance/domain/model"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	posModel "HubInvestments/internal/position/domain/model"
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-// Mock repository for positions
 type MockPositionRepository struct {
 	positions []posModel.AssetModel
 	err       error
@@ -22,6 +23,47 @@ func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]posModel
 		return nil, m.err
 	}
 	return m.positions, nil
+}
+
+// New interface methods - stub implementations for legacy test compatibility
+func (m *MockPositionRepository) FindByID(ctx context.Context, positionID uuid.UUID) (*posModel.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*posModel.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindByUserIDAndSymbol(ctx context.Context, userID uuid.UUID, symbol string) (*posModel.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) FindActivePositions(ctx context.Context, userID uuid.UUID) ([]*posModel.Position, error) {
+	return nil, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Save(ctx context.Context, position *posModel.Position) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Update(ctx context.Context, position *posModel.Position) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) Delete(ctx context.Context, positionID uuid.UUID) error {
+	return errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) ExistsForUser(ctx context.Context, userID uuid.UUID, symbol string) (bool, error) {
+	return false, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) CountPositionsForUser(ctx context.Context, userID uuid.UUID) (int, error) {
+	return 0, errors.New("not implemented in legacy mock")
+}
+
+func (m *MockPositionRepository) GetTotalInvestmentForUser(ctx context.Context, userID uuid.UUID) (float64, error) {
+	return 0, errors.New("not implemented in legacy mock")
 }
 
 // Mock repository for balance
