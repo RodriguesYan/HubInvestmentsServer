@@ -496,11 +496,18 @@ PostgreSQL: positions table
   - [x] Follow existing domain event patterns from order management system
 
 ### **Step 2**: Position Use Cases Implementation
-- [ ] **Step 2.1**: Position Management Use Cases
-  - [ ] Create `position/application/usecase/update_position_usecase.go`
-  - [ ] Implement `create_position_usecase.go` for new instruments
-  - [ ] Add `close_position_usecase.go` for complete SELL orders
-  - [ ] Create command objects: `UpdatePositionCommand`, `CreatePositionCommand`
+- [x] **Step 2.1**: Position Management Use Cases (COMPLETED)
+  - [x] Create `position/application/usecase/update_position_usecase.go`
+  - [x] Implement `create_position_usecase.go` for new instruments
+  - [x] Add `close_position_usecase.go` for complete SELL orders
+  - [x] Create command objects: `UpdatePositionCommand`, `CreatePositionCommand`, `ClosePositionCommand`
+  - [x] Implement comprehensive input validation and error handling
+  - [x] Add business logic for position lifecycle management
+  - [x] Create comprehensive unit tests with mock repository
+  - [x] Update position repository interface for new domain model
+  - [x] Add support for source order ID tracking and audit trails
+  - [x] Implement realized P&L calculations for sell transactions
+  - [x] Add position closure metrics and reporting
 - [ ] **Step 2.2**: Business Logic Implementation
   - [ ] Average price calculation for BUY orders:
     ```
@@ -717,6 +724,8 @@ PostgreSQL: positions table
 
 ### ⏳ Phase 15: Performance & Monitoring
 - [ ] Implement application and infrastructure monitoring (Prometheus para coletar metricas , grafana para exibir dash, jaeger tracing distribuido, openTelemetry coleta unificada de dados)
+    https://www.youtube.com/watch?v=Wu0Ajkxh69Y
+    https://github.com/ErickWendel/rinha-de-backend-2024-q1-nodejs
 - [ ] Add performance metrics and alerting
 - [ ] Create database performance optimization
 - [ ] Implement caching strategies and optimization

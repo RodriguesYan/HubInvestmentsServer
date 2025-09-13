@@ -10,19 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type MockPositionRepository struct {
-	model []domain.AssetModel
-	err   error
-}
-
-func (r MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
-	if r.err != nil {
-		return []domain.AssetModel{}, r.err
-	}
-
-	return r.model, nil
-}
-
 func Test_GetPositionAggregationUseCase_Success(t *testing.T) {
 	userId := "some id"
 
@@ -31,7 +18,7 @@ func Test_GetPositionAggregationUseCase_Success(t *testing.T) {
 		{Symbol: "AAPL", Quantity: 7, AveragePrice: 11, LastPrice: 11, Category: 1},
 	}
 
-	repo := MockPositionRepository{
+	repo := MockPositionRepositoryLegacy{
 		model: assets,
 	}
 
@@ -61,7 +48,7 @@ func Test_GetPositionAggregationUseCase_FailRepo(t *testing.T) {
 
 	assets := []domain.AssetModel{}
 
-	repo := MockPositionRepository{
+	repo := MockPositionRepositoryLegacy{
 		model: assets,
 		err:   errors.New("Failed to get balance"),
 	}
@@ -79,7 +66,7 @@ func Test_GetPositionAggregationUseCase_WithDependencyInjection(t *testing.T) {
 		{Symbol: "GOOGL", Quantity: 2, AveragePrice: 20, LastPrice: 22, Category: 1},
 	}
 
-	repo := MockPositionRepository{
+	repo := MockPositionRepositoryLegacy{
 		model: assets,
 	}
 
