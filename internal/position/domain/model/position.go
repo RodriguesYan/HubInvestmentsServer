@@ -24,6 +24,9 @@ type Position struct {
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt        time.Time      `json:"updatedAt"`
 	LastTradeAt      *time.Time     `json:"lastTradeAt,omitempty"`
+
+	// Domain events (not serialized to JSON)
+	events []DomainEvent `json:"-"`
 }
 
 func NewPosition(userID uuid.UUID, symbol string, quantity float64, price float64, positionType PositionType) (*Position, error) {
@@ -49,7 +52,7 @@ func NewPosition(userID uuid.UUID, symbol string, quantity float64, price float6
 
 	now := time.Now()
 
-	return &Position{
+	position := &Position{
 		ID:              uuid.New(),
 		UserID:          userID,
 		Symbol:          symbol,
@@ -61,13 +64,35 @@ func NewPosition(userID uuid.UUID, symbol string, quantity float64, price float6
 		CreatedAt:       now,
 		UpdatedAt:       now,
 		LastTradeAt:     &now,
-	}, nil
+		events:          make([]DomainEvent, 0),
+	}
+
+	// Emit position created event
+	createdEvent := NewPositionCreatedEvent(
+		position.ID.String(),
+		position.UserID.String(),
+		position.Symbol,
+		position.Quantity,
+		position.AveragePrice,
+		position.TotalInvestment,
+		position.PositionType,
+		"DIRECT_CREATION", // Could be "ORDER_EXECUTION" when called from order processing
+		nil,               // No source order ID for direct creation
+	)
+	position.addEvent(createdEvent)
+
+	return position, nil
 }
 
 // UpdateQuantity updates the position quantity and average price based on a new transaction
 // For BUY orders: adds to quantity and recalculates average price
 // For SELL orders: reduces quantity
 func (p *Position) UpdateQuantity(tradeQuantity float64, tradePrice float64, isBuyOrder bool) error {
+	return p.UpdateQuantityWithOrderID(tradeQuantity, tradePrice, isBuyOrder, nil)
+}
+
+// UpdateQuantityWithOrderID updates position quantity with optional order ID for event tracking
+func (p *Position) UpdateQuantityWithOrderID(tradeQuantity float64, tradePrice float64, isBuyOrder bool, sourceOrderID *string) error {
 	if tradeQuantity <= 0 {
 		return errors.New("trade quantity must be greater than zero")
 	}
@@ -79,6 +104,11 @@ func (p *Position) UpdateQuantity(tradeQuantity float64, tradePrice float64, isB
 	if !p.Status.CanBeUpdated() {
 		return fmt.Errorf("cannot update position with status: %s", p.Status)
 	}
+
+	// Capture previous state for event
+	prevQuantity := p.Quantity
+	prevAveragePrice := p.AveragePrice
+	prevStatus := p.Status
 
 	now := time.Now()
 
@@ -113,6 +143,52 @@ func (p *Position) UpdateQuantity(tradeQuantity float64, tradePrice float64, isB
 
 	p.UpdatedAt = now
 	p.LastTradeAt = &now
+
+	// Emit position updated event
+	transactionType := "BUY"
+	if !isBuyOrder {
+		transactionType = "SELL"
+	}
+
+	updatedEvent := NewPositionUpdatedEvent(
+		p.ID.String(),
+		p.UserID.String(),
+		p.Symbol,
+		prevQuantity, prevAveragePrice, prevStatus,
+		p.Quantity, p.AveragePrice, p.Status,
+		tradeQuantity, tradePrice, transactionType,
+		p.TotalInvestment,
+		sourceOrderID,
+	)
+	p.addEvent(updatedEvent)
+
+	// If position was closed, emit closed event
+	if p.Status == PositionStatusClosed {
+		holdingPeriod := now.Sub(p.CreatedAt)
+		realizedValue := tradeQuantity * tradePrice
+		realizedPnL := realizedValue - (prevAveragePrice * tradeQuantity)
+		var realizedPnLPct float64
+		if prevAveragePrice > 0 {
+			realizedPnLPct = (realizedPnL / (prevAveragePrice * tradeQuantity)) * 100
+		}
+
+		closedEvent := NewPositionClosedEvent(
+			p.ID.String(),
+			p.UserID.String(),
+			p.Symbol,
+			tradeQuantity,     // final quantity sold
+			tradePrice,        // final sell price
+			realizedValue,     // total realized value from this final sale
+			p.TotalInvestment, // this should be 0 now
+			realizedPnL,
+			realizedPnLPct,
+			holdingPeriod,
+			p.CreatedAt,
+			now,
+			sourceOrderID,
+		)
+		p.addEvent(closedEvent)
+	}
 
 	return nil
 }
@@ -153,9 +229,19 @@ func (p *Position) CanSell(sellQuantity float64) bool {
 
 // UpdateCurrentPrice updates the current market price and recalculates market value and PnL
 func (p *Position) UpdateCurrentPrice(currentPrice float64) error {
+	return p.UpdateCurrentPriceWithSource(currentPrice, "UNKNOWN", time.Now())
+}
+
+func (p *Position) UpdateCurrentPriceWithSource(currentPrice float64, dataSource string, marketTimestamp time.Time) error {
 	if currentPrice <= 0 {
 		return errors.New("current price must be greater than zero")
 	}
+
+	// Capture previous state for event
+	prevPrice := p.CurrentPrice
+	prevMarketValue := p.MarketValue
+	prevUnrealizedPnL := p.UnrealizedPnL
+	prevUnrealizedPnLPct := p.UnrealizedPnLPct
 
 	p.CurrentPrice = currentPrice
 	p.MarketValue = p.Quantity * currentPrice
@@ -165,6 +251,22 @@ func (p *Position) UpdateCurrentPrice(currentPrice float64) error {
 		p.UnrealizedPnLPct = (p.UnrealizedPnL / p.TotalInvestment) * 100
 	} else {
 		p.UnrealizedPnLPct = 0
+	}
+
+	// Only emit event if the price actually changed
+	if prevPrice != currentPrice {
+		priceUpdatedEvent := NewPositionPriceUpdatedEvent(
+			p.ID.String(),
+			p.UserID.String(),
+			p.Symbol,
+			prevPrice, currentPrice,
+			prevMarketValue, p.MarketValue,
+			prevUnrealizedPnL, p.UnrealizedPnL,
+			prevUnrealizedPnLPct, p.UnrealizedPnLPct,
+			dataSource,
+			marketTimestamp,
+		)
+		p.addEvent(priceUpdatedEvent)
 	}
 
 	return nil
@@ -243,4 +345,43 @@ func (p *Position) GetRealizedValue(currentPrice float64) float64 {
 func (p *Position) String() string {
 	return fmt.Sprintf("Position{ID: %s, UserID: %s, Symbol: %s, Quantity: %.6f, AvgPrice: %.2f, Status: %s}",
 		p.ID, p.UserID, p.Symbol, p.Quantity, p.AveragePrice, p.Status)
+}
+
+// Domain Event Management Methods
+
+func (p *Position) addEvent(event DomainEvent) {
+	if p.events == nil {
+		p.events = make([]DomainEvent, 0)
+	}
+	p.events = append(p.events, event)
+}
+
+func (p *Position) GetEvents() []DomainEvent {
+	if p.events == nil {
+		return make([]DomainEvent, 0)
+	}
+	// Return a copy to prevent external modification
+	eventsCopy := make([]DomainEvent, len(p.events))
+	copy(eventsCopy, p.events)
+	return eventsCopy
+}
+
+func (p *Position) ClearEvents() {
+	p.events = make([]DomainEvent, 0)
+}
+
+func (p *Position) HasEvents() bool {
+	return p.events != nil && len(p.events) > 0
+}
+
+func (p *Position) EmitValidationFailedEvent(validationErrors []string, validationContext string) {
+	validationEvent := NewPositionValidationFailedEvent(
+		p.ID.String(),
+		p.UserID.String(),
+		p.Symbol,
+		validationErrors,
+		validationContext,
+		time.Now(),
+	)
+	p.addEvent(validationEvent)
 }
