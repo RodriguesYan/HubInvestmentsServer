@@ -35,30 +35,12 @@ func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggre
 		return domain.AucAggregationModel{}, err
 	}
 
-	// 1. Get positions from repository using new domain model
 	positions, err := uc.repo.FindByUserID(context.Background(), userUUID)
 	if err != nil {
 		return domain.AucAggregationModel{}, err
 	}
 
-	// 2. Convert positions to legacy AssetModel for backward compatibility
-	assets := uc.convertPositionsToAssets(positions)
-
-	// 3. Orchestrate domain services to process the data
-	positionAggregations := uc.aggregationService.AggregateAssetsByCategory(assets)
-	totalInvested, currentTotal := uc.aggregationService.CalculateTotals(assets)
-
-	// 4. Assemble and return the response
-	aucAggregation := domain.AucAggregationModel{
-		TotalInvested:       totalInvested,
-		CurrentTotal:        currentTotal,
-		PositionAggregation: positionAggregations,
-	}
-
-	return aucAggregation, nil
-}
-
-func (uc *GetPositionAggregationUseCase) convertPositionsToAssets(positions []*domain.Position) []domain.AssetModel {
+	// Convert positions to AssetModel for existing aggregation service
 	assets := make([]domain.AssetModel, len(positions))
 	for i, position := range positions {
 		assets[i] = domain.AssetModel{
@@ -66,8 +48,16 @@ func (uc *GetPositionAggregationUseCase) convertPositionsToAssets(positions []*d
 			Quantity:     float32(position.Quantity),
 			AveragePrice: float32(position.AveragePrice),
 			LastPrice:    float32(position.CurrentPrice),
-			Category:     1, // Default category - could be enhanced based on symbol
+			Category:     1,
 		}
 	}
-	return assets
+
+	positionAggregations := uc.aggregationService.AggregateAssetsByCategory(assets)
+	totalInvested, currentTotal := uc.aggregationService.CalculateTotals(assets)
+
+	return domain.AucAggregationModel{
+		TotalInvested:       totalInvested,
+		CurrentTotal:        currentTotal,
+		PositionAggregation: positionAggregations,
+	}, nil
 }
