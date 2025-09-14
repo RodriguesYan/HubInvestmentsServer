@@ -508,14 +508,19 @@ PostgreSQL: positions table
   - [x] Add support for source order ID tracking and audit trails
   - [x] Implement realized P&L calculations for sell transactions
   - [x] Add position closure metrics and reporting
-- [ ] **Step 2.2**: Business Logic Implementation
-  - [ ] Average price calculation for BUY orders:
+- [x] **Step 2.2**: Business Logic Implementation (COMPLETED)
+  - [x] Average price calculation for BUY orders:
     ```
     NewAvgPrice = (ExistingQty * ExistingAvgPrice + NewQty * ExecutionPrice) / (ExistingQty + NewQty)
     ```
-  - [ ] Position quantity validation for SELL orders
-  - [ ] Handle fractional shares and position splitting
-- [ ] **Step 2.3**: Position Database Schema and Persistence Implementation
+  - [x] Position quantity validation for SELL orders
+  - [x] Handle fractional shares and position splitting
+  - [x] Advanced position splitting utilities (by quantity and percentage)
+  - [x] Financial precision handling with rounding and validation
+  - [x] Enhanced business validation for trade operations
+  - [x] Position merging capabilities for consolidation
+  - [x] Comprehensive unit tests with 100% coverage
+- [ ] **Step 2.3**: Position Database Schema and Persistence Implementation using postgres yanrodrigues schema
   - [ ] Create database migration for `positions_v2` table with Position domain model schema
   - [ ] Design table structure:
     ```sql
