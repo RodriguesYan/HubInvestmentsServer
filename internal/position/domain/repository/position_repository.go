@@ -9,10 +9,7 @@ import (
 
 // IPositionRepository defines the interface for position persistence operations
 type IPositionRepository interface {
-	// Legacy method for compatibility
-	GetPositionsByUserId(userId string) ([]domain.AssetModel, error)
-
-	// New Position domain model methods
+	// Position domain model methods
 	FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error)
 	FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error)
 	FindByUserIDAndSymbol(ctx context.Context, userID uuid.UUID, symbol string) (*domain.Position, error)

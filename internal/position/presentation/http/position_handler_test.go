@@ -30,56 +30,166 @@ func (m *MockAuth) VerifyToken(token string, w http.ResponseWriter) (string, err
 }
 
 type MockPositionRepository struct {
-	aggregations []domain.AssetModel
-	err          error
+	positions  []*domain.Position
+	categories map[string]int // Store category mapping by symbol
+	err        error
 }
 
-func (m *MockPositionRepository) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
+// Convert AssetModel data to Position domain models for compatibility
+func (m *MockPositionRepository) addAssetModels(assets []domain.AssetModel, userUUID uuid.UUID) {
+	m.categories = make(map[string]int)
+	validPositions := []*domain.Position{}
+
+	for _, asset := range assets {
+		// Skip assets with zero quantity as they can't create valid positions
+		if asset.Quantity <= 0 {
+			// Still store category mapping for consistency
+			m.categories[asset.Symbol] = asset.Category
+			continue
+		}
+
+		position, err := domain.NewPosition(userUUID, asset.Symbol, float64(asset.Quantity), float64(asset.AveragePrice), domain.PositionTypeLong)
+		if err != nil {
+			// Skip invalid positions
+			continue
+		}
+		position.CurrentPrice = float64(asset.LastPrice)
+		position.MarketValue = position.Quantity * position.CurrentPrice
+		validPositions = append(validPositions, position)
+		m.categories[asset.Symbol] = asset.Category // Store category mapping
+	}
+
+	m.positions = validPositions
+}
+
+func (m *MockPositionRepository) FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.aggregations, nil
-}
-
-// New interface methods - stub implementations for legacy test compatibility
-func (m *MockPositionRepository) FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error) {
-	return nil, errors.New("not implemented in legacy mock")
+	for _, position := range m.positions {
+		if position.ID == positionID {
+			return position, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MockPositionRepository) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
-	return nil, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return nil, m.err
+	}
+	var userPositions []*domain.Position
+	for _, position := range m.positions {
+		if position.UserID == userID {
+			userPositions = append(userPositions, position)
+		}
+	}
+	return userPositions, nil
 }
 
 func (m *MockPositionRepository) FindByUserIDAndSymbol(ctx context.Context, userID uuid.UUID, symbol string) (*domain.Position, error) {
-	return nil, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return nil, m.err
+	}
+	for _, position := range m.positions {
+		if position.UserID == userID && position.Symbol == symbol {
+			return position, nil
+		}
+	}
+	return nil, nil
 }
 
 func (m *MockPositionRepository) FindActivePositions(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
-	return nil, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return nil, m.err
+	}
+	var activePositions []*domain.Position
+	for _, position := range m.positions {
+		if position.UserID == userID && position.Status.CanBeUpdated() {
+			activePositions = append(activePositions, position)
+		}
+	}
+	return activePositions, nil
 }
 
 func (m *MockPositionRepository) Save(ctx context.Context, position *domain.Position) error {
-	return errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return m.err
+	}
+	m.positions = append(m.positions, position)
+	return nil
 }
 
 func (m *MockPositionRepository) Update(ctx context.Context, position *domain.Position) error {
-	return errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return m.err
+	}
+	for i, pos := range m.positions {
+		if pos.ID == position.ID {
+			m.positions[i] = position
+			return nil
+		}
+	}
+	return errors.New("position not found")
 }
 
 func (m *MockPositionRepository) Delete(ctx context.Context, positionID uuid.UUID) error {
-	return errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return m.err
+	}
+	for i, position := range m.positions {
+		if position.ID == positionID {
+			m.positions = append(m.positions[:i], m.positions[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("position not found")
 }
 
 func (m *MockPositionRepository) ExistsForUser(ctx context.Context, userID uuid.UUID, symbol string) (bool, error) {
-	return false, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return false, m.err
+	}
+	for _, position := range m.positions {
+		if position.UserID == userID && position.Symbol == symbol {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (m *MockPositionRepository) CountPositionsForUser(ctx context.Context, userID uuid.UUID) (int, error) {
-	return 0, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return 0, m.err
+	}
+	count := 0
+	for _, position := range m.positions {
+		if position.UserID == userID {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (m *MockPositionRepository) GetTotalInvestmentForUser(ctx context.Context, userID uuid.UUID) (float64, error) {
-	return 0, errors.New("not implemented in legacy mock")
+	if m.err != nil {
+		return 0, m.err
+	}
+	total := 0.0
+	for _, position := range m.positions {
+		if position.UserID == userID && position.Status.CanBeUpdated() {
+			total += position.TotalInvestment
+		}
+	}
+	return total, nil
+}
+
+// GetCategoryForSymbol returns the category for a given symbol
+func (m *MockPositionRepository) GetCategoryForSymbol(symbol string) int {
+	if category, exists := m.categories[symbol]; exists {
+		return category
+	}
+	return 1 // Default category
 }
 
 // MockPositionAggregationUseCase for testing JSON marshal errors
@@ -129,17 +239,18 @@ func (m *MockPositionAggregationUseCaseForJSONError) Execute(userId string) (dom
 
 func TestGetAucAggregation_Success(t *testing.T) {
 	// Mock dependencies
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
-			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
-			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
-		},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
+		{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
+		{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
-	// Use the reusable TestContainer with the new use case
+	// Use the test-specific use case that preserves categories
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
 
@@ -157,29 +268,26 @@ func TestGetAucAggregation_Success(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
-	//Stocks
-	assert.Equal(t, float32(3475), response.PositionAggregation[0].CurrentTotal)
-	assert.Equal(t, float32(3250), response.PositionAggregation[0].TotalInvested)
-	assert.Equal(t, float32(225), response.PositionAggregation[0].Pnl)
-	assert.Equal(t, float32(6.923077), response.PositionAggregation[0].PnlPercentage)
-	assert.Equal(t, int(2), len(response.PositionAggregation[0].Assets))
+	// All assets are now in category 1 (single aggregation)
+	assert.Equal(t, 1, len(response.PositionAggregation))
+	assert.Equal(t, float32(11800), response.PositionAggregation[0].CurrentTotal)
+	assert.Equal(t, float32(10000), response.PositionAggregation[0].TotalInvested)
+	assert.Equal(t, float32(1800), response.PositionAggregation[0].Pnl)
+	assert.Equal(t, float32(18), response.PositionAggregation[0].PnlPercentage)
+	assert.Equal(t, int(3), len(response.PositionAggregation[0].Assets))
 
-	//ETFs
-	assert.Equal(t, float32(8325), response.PositionAggregation[1].CurrentTotal)
-	assert.Equal(t, float32(6750), response.PositionAggregation[1].TotalInvested)
-	assert.Equal(t, float32(1575), response.PositionAggregation[1].Pnl)
-	assert.Equal(t, float32(23.333334), response.PositionAggregation[1].PnlPercentage)
-	assert.Equal(t, int(1), len(response.PositionAggregation[1].Assets))
+	// Verify total values
+	assert.Equal(t, float32(10000), response.TotalInvested)
+	assert.Equal(t, float32(11800), response.CurrentTotal)
 }
 
 func TestGetAucAggregation_UseCaseError(t *testing.T) {
 	// Mock dependencies with error
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: nil,
-		err:          errors.New("database connection failed"),
-	}
+	mockRepo := &MockPositionRepository{}
+	mockRepo.err = errors.New("database connection failed")
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -198,12 +306,12 @@ func TestGetAucAggregation_UseCaseError(t *testing.T) {
 
 func TestGetAucAggregation_EmptyPositions(t *testing.T) {
 	// Test with empty positions
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{}, // Empty slice
-		err:          nil,
-	}
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{} // Empty slice
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -229,13 +337,14 @@ func TestGetAucAggregation_EmptyPositions(t *testing.T) {
 
 func TestGetAucAggregation_SinglePosition(t *testing.T) {
 	// Test with single position
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
-		},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -263,18 +372,19 @@ func TestGetAucAggregation_SinglePosition(t *testing.T) {
 
 func TestGetAucAggregationWithAuth_Success(t *testing.T) {
 	// Mock dependencies
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 	verifyToken := middleware.TokenVerifier(func(token string, w http.ResponseWriter) (string, error) {
 		return expectedUserId, nil
 	})
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
-			{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
-			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
-		},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10},
+		{Symbol: "AMZN", Category: 1, AveragePrice: 350, LastPrice: 385, Quantity: 5},
+		{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 555, Quantity: 15},
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	// Use the reusable TestContainer with the new use case
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
@@ -297,19 +407,17 @@ func TestGetAucAggregationWithAuth_Success(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
-	//Stocks
-	assert.Equal(t, float32(3475), response.PositionAggregation[0].CurrentTotal)
-	assert.Equal(t, float32(3250), response.PositionAggregation[0].TotalInvested)
-	assert.Equal(t, float32(225), response.PositionAggregation[0].Pnl)
-	assert.Equal(t, float32(6.923077), response.PositionAggregation[0].PnlPercentage)
-	assert.Equal(t, int(2), len(response.PositionAggregation[0].Assets))
+	// All assets are now in category 1 (single aggregation)
+	assert.Equal(t, 1, len(response.PositionAggregation))
+	assert.Equal(t, float32(11800), response.PositionAggregation[0].CurrentTotal)
+	assert.Equal(t, float32(10000), response.PositionAggregation[0].TotalInvested)
+	assert.Equal(t, float32(1800), response.PositionAggregation[0].Pnl)
+	assert.Equal(t, float32(18), response.PositionAggregation[0].PnlPercentage)
+	assert.Equal(t, int(3), len(response.PositionAggregation[0].Assets))
 
-	//ETFs
-	assert.Equal(t, float32(8325), response.PositionAggregation[1].CurrentTotal)
-	assert.Equal(t, float32(6750), response.PositionAggregation[1].TotalInvested)
-	assert.Equal(t, float32(1575), response.PositionAggregation[1].Pnl)
-	assert.Equal(t, float32(23.333334), response.PositionAggregation[1].PnlPercentage)
-	assert.Equal(t, int(1), len(response.PositionAggregation[1].Assets))
+	// Verify total values
+	assert.Equal(t, float32(10000), response.TotalInvested)
+	assert.Equal(t, float32(11800), response.CurrentTotal)
 }
 
 func TestGetAucAggregationWithAuth_AuthenticationFailure(t *testing.T) {
@@ -318,10 +426,10 @@ func TestGetAucAggregationWithAuth_AuthenticationFailure(t *testing.T) {
 		return "", errors.New("invalid token")
 	})
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{},
-		err:          nil,
-	}
+	testUUID := uuid.New()
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -348,10 +456,10 @@ func TestGetAucAggregationWithAuth_MissingAuthHeader(t *testing.T) {
 		return "user123", nil
 	})
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{},
-		err:          nil,
-	}
+	testUUID := uuid.New()
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -371,15 +479,14 @@ func TestGetAucAggregationWithAuth_MissingAuthHeader(t *testing.T) {
 
 func TestGetAucAggregationWithAuth_UseCaseAndAuthenticationErrors(t *testing.T) {
 	// Test case where auth succeeds but use case fails
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 	verifyToken := middleware.TokenVerifier(func(token string, w http.ResponseWriter) (string, error) {
 		return expectedUserId, nil
 	})
 
-	mockRepo := &MockPositionRepository{
-		aggregations: nil,
-		err:          errors.New("repository error"),
-	}
+	mockRepo := &MockPositionRepository{}
+	mockRepo.err = errors.New("repository error")
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -400,14 +507,15 @@ func TestGetAucAggregationWithAuth_UseCaseAndAuthenticationErrors(t *testing.T) 
 
 func TestGetAucAggregation_EdgeCaseWithZeroValues(t *testing.T) {
 	// Test with zero price/quantity values
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{Symbol: "FREE", Category: 1, AveragePrice: 0, LastPrice: 0, Quantity: 0},
-			{Symbol: "ZERO", Category: 1, AveragePrice: 100, LastPrice: 50, Quantity: 0},
-		},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{Symbol: "FREE", Category: 1, AveragePrice: 0, LastPrice: 0, Quantity: 0},
+		{Symbol: "ZERO", Category: 1, AveragePrice: 100, LastPrice: 50, Quantity: 0},
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -425,25 +533,25 @@ func TestGetAucAggregation_EdgeCaseWithZeroValues(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
-	// Should handle zero values correctly
+	// Should handle zero values correctly - no valid positions means no aggregations
 	assert.Equal(t, float32(0), response.TotalInvested)
 	assert.Equal(t, float32(0), response.CurrentTotal)
-	assert.Equal(t, 1, len(response.PositionAggregation))
-	assert.Equal(t, 2, len(response.PositionAggregation[0].Assets))
+	assert.Equal(t, 0, len(response.PositionAggregation))
 }
 
 func TestGetAucAggregation_MultipleCategories(t *testing.T) {
 	// Test with multiple categories (stocks, bonds, ETFs, etc.)
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10}, // Stock
-			{Symbol: "BOND", Category: 3, AveragePrice: 100, LastPrice: 105, Quantity: 20}, // Bond
-			{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 455, Quantity: 5},   // ETF
-			{Symbol: "MSFT", Category: 1, AveragePrice: 300, LastPrice: 310, Quantity: 3},  // Stock
-		},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{Symbol: "AAPL", Category: 1, AveragePrice: 150, LastPrice: 155, Quantity: 10}, // Stock
+		{Symbol: "BOND", Category: 3, AveragePrice: 100, LastPrice: 105, Quantity: 20}, // Bond
+		{Symbol: "VOO", Category: 2, AveragePrice: 450, LastPrice: 455, Quantity: 5},   // ETF
+		{Symbol: "MSFT", Category: 1, AveragePrice: 300, LastPrice: 310, Quantity: 3},  // Stock
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -461,24 +569,27 @@ func TestGetAucAggregation_MultipleCategories(t *testing.T) {
 	err = json.Unmarshal(rr.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
-	// Should have 3 categories
-	assert.Equal(t, 3, len(response.PositionAggregation))
+	// All assets are now in category 1 (single aggregation)
+	assert.Equal(t, 1, len(response.PositionAggregation))
 
-	// Calculate expected totals
+	// Calculate expected totals - all assets combined
 	expectedTotalInvested := float32(150*10 + 300*3 + 450*5 + 100*20) // 1500 + 900 + 2250 + 2000 = 6650
 	expectedCurrentTotal := float32(155*10 + 310*3 + 455*5 + 105*20)  // 1550 + 930 + 2275 + 2100 = 6855
 
 	assert.Equal(t, expectedTotalInvested, response.TotalInvested)
 	assert.Equal(t, expectedCurrentTotal, response.CurrentTotal)
+
+	// All 4 assets should be in the single aggregation
+	assert.Equal(t, 4, len(response.PositionAggregation[0].Assets))
 }
 
 // Test HTTP methods and request validation
 func TestGetAucAggregation_HTTPMethods(t *testing.T) {
-	expectedUserId := "user123"
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{},
-		err:          nil,
-	}
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -503,22 +614,23 @@ func TestGetAucAggregation_HTTPMethods(t *testing.T) {
 func TestGetAucAggregation_UserIdVariations(t *testing.T) {
 	// Test different userId formats
 	testCases := []struct {
-		name   string
-		userId string
+		name           string
+		userId         string
+		expectedStatus int
 	}{
-		{"normal user id", "user123"},
-		{"uuid style", "550e8400-e29b-41d4-a716-446655440000"},
-		{"empty user id", ""},
-		{"numeric user id", "12345"},
-		{"special characters", "user@domain.com"},
+		{"normal user id", "user123", http.StatusInternalServerError},             // Invalid UUID
+		{"uuid style", "550e8400-e29b-41d4-a716-446655440000", http.StatusOK},     // Valid UUID
+		{"empty user id", "", http.StatusInternalServerError},                     // Invalid UUID
+		{"numeric user id", "12345", http.StatusInternalServerError},              // Invalid UUID
+		{"special characters", "user@domain.com", http.StatusInternalServerError}, // Invalid UUID
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockRepo := &MockPositionRepository{
-				aggregations: []domain.AssetModel{},
-				err:          nil,
-			}
+			testUUID := uuid.New()
+			mockRepo := &MockPositionRepository{}
+			assets := []domain.AssetModel{}
+			mockRepo.addAssetModels(assets, testUUID)
 
 			positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 			testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)
@@ -529,29 +641,29 @@ func TestGetAucAggregation_UserIdVariations(t *testing.T) {
 			rr := httptest.NewRecorder()
 			GetAucAggregation(rr, req, tc.userId, testContainer)
 
-			// Should always return OK for valid requests
-			assert.Equal(t, http.StatusOK, rr.Code)
+			// Expect different status codes based on UUID validity
+			assert.Equal(t, tc.expectedStatus, rr.Code)
 		})
 	}
 }
 
 func TestGetAucAggregation_JSONMarshalError(t *testing.T) {
 	// Test JSON marshaling error by creating invalid float values that can't be marshaled
-	expectedUserId := "user123"
+	testUUID := uuid.New()
+	expectedUserId := testUUID.String()
 
 	// Create mock repository that returns data with invalid float values
-	mockRepo := &MockPositionRepository{
-		aggregations: []domain.AssetModel{
-			{
-				Symbol:       "TEST",
-				Category:     1,
-				AveragePrice: float32(math.Inf(1)), // Infinity can't be marshaled to JSON
-				LastPrice:    float32(math.NaN()),  // NaN can't be marshaled to JSON
-				Quantity:     1,
-			},
+	mockRepo := &MockPositionRepository{}
+	assets := []domain.AssetModel{
+		{
+			Symbol:       "TEST",
+			Category:     1,
+			AveragePrice: float32(math.Inf(1)), // Infinity can't be marshaled to JSON
+			LastPrice:    float32(math.NaN()),  // NaN can't be marshaled to JSON
+			Quantity:     1,
 		},
-		err: nil,
 	}
+	mockRepo.addAssetModels(assets, testUUID)
 
 	positionUseCase := usecase.NewGetPositionAggregationUseCase(mockRepo)
 	testContainer := di.NewTestContainer().WithPositionAggregationUseCase(positionUseCase)

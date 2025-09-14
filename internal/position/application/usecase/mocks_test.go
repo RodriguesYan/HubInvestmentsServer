@@ -30,11 +30,6 @@ func NewMockPositionRepositoryForNew() *MockPositionRepositoryForNew {
 	}
 }
 
-// Legacy method for compatibility
-func (m *MockPositionRepositoryForNew) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
-	return nil, errors.New("legacy method not implemented in new mock")
-}
-
 func (m *MockPositionRepositoryForNew) FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error) {
 	if m.shouldFailFind {
 		return nil, errors.New("mock find error")
@@ -145,58 +140,4 @@ func (m *MockPositionRepositoryForNew) GetPositionByID(positionID uuid.UUID) *do
 
 func (m *MockPositionRepositoryForNew) GetPositionCount() int {
 	return len(m.positions)
-}
-
-// MockPositionRepositoryLegacy is for legacy tests that only use the old interface
-type MockPositionRepositoryLegacy struct {
-	model []domain.AssetModel
-	err   error
-}
-
-func (r MockPositionRepositoryLegacy) GetPositionsByUserId(userId string) ([]domain.AssetModel, error) {
-	if r.err != nil {
-		return []domain.AssetModel{}, r.err
-	}
-	return r.model, nil
-}
-
-// Legacy mock doesn't implement new methods - will cause compile error if used incorrectly
-func (r MockPositionRepositoryLegacy) FindByID(ctx context.Context, positionID uuid.UUID) (*domain.Position, error) {
-	return nil, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) FindByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
-	return nil, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) FindByUserIDAndSymbol(ctx context.Context, userID uuid.UUID, symbol string) (*domain.Position, error) {
-	return nil, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) FindActivePositions(ctx context.Context, userID uuid.UUID) ([]*domain.Position, error) {
-	return nil, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) Save(ctx context.Context, position *domain.Position) error {
-	return errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) Update(ctx context.Context, position *domain.Position) error {
-	return errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) Delete(ctx context.Context, positionID uuid.UUID) error {
-	return errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) ExistsForUser(ctx context.Context, userID uuid.UUID, symbol string) (bool, error) {
-	return false, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) CountPositionsForUser(ctx context.Context, userID uuid.UUID) (int, error) {
-	return 0, errors.New("legacy mock doesn't support new methods")
-}
-
-func (r MockPositionRepositoryLegacy) GetTotalInvestmentForUser(ctx context.Context, userID uuid.UUID) (float64, error) {
-	return 0, errors.New("legacy mock doesn't support new methods")
 }
