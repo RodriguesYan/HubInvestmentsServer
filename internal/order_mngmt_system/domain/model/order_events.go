@@ -91,7 +91,6 @@ func NewOrderProcessingStartedEvent(orderID, userID string, marketPrice *float64
 	}
 }
 
-// Enhanced with position-relevant data for position update system integration
 type OrderExecutedEvent struct {
 	OrderEvent
 	Symbol              string

@@ -8,6 +8,7 @@ import (
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
 	"HubInvestments/internal/order_mngmt_system/domain/repository"
 	"HubInvestments/internal/order_mngmt_system/infra/external"
+	"HubInvestments/internal/order_mngmt_system/infra/messaging"
 )
 
 type IProcessOrderUseCase interface {
@@ -44,7 +45,7 @@ type ProcessOrderResult struct {
 type ProcessOrderUseCase struct {
 	orderRepository  repository.IOrderRepository
 	marketDataClient external.IMarketDataClient
-	// Domain services will be added when interfaces are properly defined
+	eventPublisher   messaging.IEventPublisher
 }
 
 type ProcessOrderUseCaseConfig struct {
@@ -57,10 +58,12 @@ type ProcessOrderUseCaseConfig struct {
 func NewProcessOrderUseCase(
 	orderRepository repository.IOrderRepository,
 	marketDataClient external.IMarketDataClient,
+	eventPublisher messaging.IEventPublisher,
 ) IProcessOrderUseCase {
 	return &ProcessOrderUseCase{
 		orderRepository:  orderRepository,
 		marketDataClient: marketDataClient,
+		eventPublisher:   eventPublisher,
 	}
 }
 
@@ -342,9 +345,28 @@ func (uc *ProcessOrderUseCase) executeOrder(ctx context.Context, order *domain.O
 }
 
 func (uc *ProcessOrderUseCase) markOrderAsExecuted(ctx context.Context, order *domain.Order, executionPrice float64, executionTime time.Time) error {
-	// In a complete implementation, you would use a more comprehensive update method
 	if err := uc.orderRepository.UpdateStatus(ctx, order.ID(), order.Status()); err != nil {
 		return fmt.Errorf("failed to update order execution in database: %w", err)
+	}
+
+	totalValue := executionPrice * order.Quantity()
+
+	event := domain.NewOrderExecutedEvent(
+		order.ID(),
+		order.UserID(),
+		order.Symbol(),
+		order.OrderSide(),
+		order.OrderType(),
+		order.Quantity(),
+		executionPrice,
+		totalValue,
+		executionTime,
+		order.MarketPriceAtSubmission(),
+		order.MarketDataTimestamp(),
+	)
+
+	if err := uc.eventPublisher.PublishOrderExecutedEvent(ctx, event); err != nil {
+		return fmt.Errorf("failed to publish order executed event: %w", err)
 	}
 
 	return nil

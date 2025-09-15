@@ -9,6 +9,34 @@ import (
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
 )
 
+// MockEventPublisher implements IEventPublisher for testing
+type MockEventPublisher struct {
+	PublishOrderExecutedEventFunc  func(ctx context.Context, event *domain.OrderExecutedEvent) error
+	PublishOrderFailedEventFunc    func(ctx context.Context, event *domain.OrderFailedEvent) error
+	PublishOrderCancelledEventFunc func(ctx context.Context, event *domain.OrderCancelledEvent) error
+}
+
+func (m *MockEventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *domain.OrderExecutedEvent) error {
+	if m.PublishOrderExecutedEventFunc != nil {
+		return m.PublishOrderExecutedEventFunc(ctx, event)
+	}
+	return nil
+}
+
+func (m *MockEventPublisher) PublishOrderFailedEvent(ctx context.Context, event *domain.OrderFailedEvent) error {
+	if m.PublishOrderFailedEventFunc != nil {
+		return m.PublishOrderFailedEventFunc(ctx, event)
+	}
+	return nil
+}
+
+func (m *MockEventPublisher) PublishOrderCancelledEvent(ctx context.Context, event *domain.OrderCancelledEvent) error {
+	if m.PublishOrderCancelledEventFunc != nil {
+		return m.PublishOrderCancelledEventFunc(ctx, event)
+	}
+	return nil
+}
+
 func TestProcessOrderUseCase_Execute_Success(t *testing.T) {
 	// Arrange
 	mockRepo := &MockOrderRepository{
@@ -27,7 +55,8 @@ func TestProcessOrderUseCase_Execute_Success(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -79,7 +108,8 @@ func TestProcessOrderUseCase_Execute_OrderNotFound(t *testing.T) {
 	}
 	mockMarketData := &MockMarketDataClient{}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -123,7 +153,8 @@ func TestProcessOrderUseCase_Execute_OrderAlreadyExecuted(t *testing.T) {
 	}
 	mockMarketData := &MockMarketDataClient{}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -167,7 +198,8 @@ func TestProcessOrderUseCase_Execute_OrderCancelled(t *testing.T) {
 	}
 	mockMarketData := &MockMarketDataClient{}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -216,7 +248,8 @@ func TestProcessOrderUseCase_Execute_MarketDataError(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -265,7 +298,8 @@ func TestProcessOrderUseCase_Execute_RepositorySaveError(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -314,7 +348,8 @@ func TestProcessOrderUseCase_Execute_MarketOrder(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -374,7 +409,8 @@ func TestProcessOrderUseCase_Execute_LimitOrderPriceNotMet(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -425,7 +461,8 @@ func TestProcessOrderUseCase_Execute_SellLimitOrderPriceNotMet(t *testing.T) {
 		},
 	}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
@@ -461,7 +498,8 @@ func TestProcessOrderUseCase_Execute_EmptyOrderID(t *testing.T) {
 	mockRepo := &MockOrderRepository{}
 	mockMarketData := &MockMarketDataClient{}
 
-	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData)
+	mockEventPublisher := &MockEventPublisher{}
+	useCase := NewProcessOrderUseCase(mockRepo, mockMarketData, mockEventPublisher)
 
 	ctx := context.Background()
 	cmd := &ProcessOrderCommand{
