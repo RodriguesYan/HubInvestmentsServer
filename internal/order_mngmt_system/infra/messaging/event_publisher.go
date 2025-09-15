@@ -17,16 +17,18 @@ type IEventPublisher interface {
 	PublishOrderCancelledEvent(ctx context.Context, event *domain.OrderCancelledEvent) error
 }
 
-type RabbitMQEventPublisher struct {
+// EventPublisher implements IEventPublisher using the messaging abstraction
+type EventPublisher struct {
 	messageHandler messaging.MessageHandler
 	exchangeName   string
 }
 
-func NewRabbitMQEventPublisher(messageHandler messaging.MessageHandler, exchangeName string) *RabbitMQEventPublisher {
+// NewEventPublisher creates a new event publisher using the messaging abstraction
+func NewEventPublisher(messageHandler messaging.MessageHandler, exchangeName string) *EventPublisher {
 	if exchangeName == "" {
 		exchangeName = "orders.events"
 	}
-	return &RabbitMQEventPublisher{
+	return &EventPublisher{
 		messageHandler: messageHandler,
 		exchangeName:   exchangeName,
 	}
@@ -44,7 +46,7 @@ type EventMessage struct {
 	Source        string                 `json:"source"`
 }
 
-func (p *RabbitMQEventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *domain.OrderExecutedEvent) error {
+func (p *EventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *domain.OrderExecutedEvent) error {
 	if event == nil {
 		return fmt.Errorf("event cannot be nil")
 	}
@@ -92,7 +94,7 @@ func (p *RabbitMQEventPublisher) PublishOrderExecutedEvent(ctx context.Context, 
 	return p.publishEvent(ctx, queueName, messageBytes, eventMessage.MessageID, headers)
 }
 
-func (p *RabbitMQEventPublisher) PublishOrderFailedEvent(ctx context.Context, event *domain.OrderFailedEvent) error {
+func (p *EventPublisher) PublishOrderFailedEvent(ctx context.Context, event *domain.OrderFailedEvent) error {
 	if event == nil {
 		return fmt.Errorf("event cannot be nil")
 	}
@@ -131,7 +133,7 @@ func (p *RabbitMQEventPublisher) PublishOrderFailedEvent(ctx context.Context, ev
 	return p.publishEvent(ctx, queueName, messageBytes, eventMessage.MessageID, headers)
 }
 
-func (p *RabbitMQEventPublisher) PublishOrderCancelledEvent(ctx context.Context, event *domain.OrderCancelledEvent) error {
+func (p *EventPublisher) PublishOrderCancelledEvent(ctx context.Context, event *domain.OrderCancelledEvent) error {
 	if event == nil {
 		return fmt.Errorf("event cannot be nil")
 	}
@@ -172,7 +174,7 @@ func (p *RabbitMQEventPublisher) PublishOrderCancelledEvent(ctx context.Context,
 	return p.publishEvent(ctx, queueName, messageBytes, eventMessage.MessageID, headers)
 }
 
-func (p *RabbitMQEventPublisher) publishEvent(
+func (p *EventPublisher) publishEvent(
 	ctx context.Context,
 	queueName string,
 	messageBytes []byte,

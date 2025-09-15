@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// DomainEvent represents the base interface for all domain events
 type DomainEvent interface {
 	EventID() string
 	EventType() string
@@ -14,7 +13,6 @@ type DomainEvent interface {
 	OccurredAt() time.Time
 }
 
-// OrderEvent represents the base struct for all order-related domain events
 type OrderEvent struct {
 	eventID     string
 	eventType   string
@@ -24,7 +22,6 @@ type OrderEvent struct {
 	userID      string
 }
 
-// NewOrderEvent creates a new base order event
 func NewOrderEvent(eventType, orderID, userID string) OrderEvent {
 	return OrderEvent{
 		eventID:     uuid.New().String(),
@@ -36,37 +33,30 @@ func NewOrderEvent(eventType, orderID, userID string) OrderEvent {
 	}
 }
 
-// EventID returns the unique event identifier
 func (e OrderEvent) EventID() string {
 	return e.eventID
 }
 
-// EventType returns the type of the event
 func (e OrderEvent) EventType() string {
 	return e.eventType
 }
 
-// AggregateID returns the ID of the aggregate that generated this event
 func (e OrderEvent) AggregateID() string {
 	return e.aggregateID
 }
 
-// OccurredAt returns when the event occurred
 func (e OrderEvent) OccurredAt() time.Time {
 	return e.occurredAt
 }
 
-// OrderID returns the order ID
 func (e OrderEvent) OrderID() string {
 	return e.orderID
 }
 
-// UserID returns the user ID who owns the order
 func (e OrderEvent) UserID() string {
 	return e.userID
 }
 
-// OrderSubmittedEvent represents an event when an order is submitted
 type OrderSubmittedEvent struct {
 	OrderEvent
 	Symbol    string
@@ -76,7 +66,6 @@ type OrderSubmittedEvent struct {
 	Price     *float64
 }
 
-// NewOrderSubmittedEvent creates a new OrderSubmittedEvent
 func NewOrderSubmittedEvent(orderID, userID, symbol string, orderSide OrderSide, orderType OrderType, quantity float64, price *float64) *OrderSubmittedEvent {
 	return &OrderSubmittedEvent{
 		OrderEvent: NewOrderEvent("OrderSubmitted", orderID, userID),
@@ -88,14 +77,12 @@ func NewOrderSubmittedEvent(orderID, userID, symbol string, orderSide OrderSide,
 	}
 }
 
-// OrderProcessingStartedEvent represents an event when order processing starts
 type OrderProcessingStartedEvent struct {
 	OrderEvent
 	MarketPrice     *float64
 	MarketTimestamp *time.Time
 }
 
-// NewOrderProcessingStartedEvent creates a new OrderProcessingStartedEvent
 func NewOrderProcessingStartedEvent(orderID, userID string, marketPrice *float64, marketTimestamp *time.Time) *OrderProcessingStartedEvent {
 	return &OrderProcessingStartedEvent{
 		OrderEvent:      NewOrderEvent("OrderProcessingStarted", orderID, userID),
@@ -104,32 +91,62 @@ func NewOrderProcessingStartedEvent(orderID, userID string, marketPrice *float64
 	}
 }
 
-// OrderExecutedEvent represents an event when an order is successfully executed
+// Enhanced with position-relevant data for position update system integration
 type OrderExecutedEvent struct {
 	OrderEvent
-	ExecutionPrice float64
-	ExecutedAt     time.Time
-	TotalValue     float64
+	Symbol              string
+	OrderSide           OrderSide
+	OrderType           OrderType
+	Quantity            float64
+	ExecutionPrice      float64
+	ExecutedAt          time.Time
+	TotalValue          float64
+	MarketPriceAtExec   *float64
+	MarketDataTimestamp *time.Time
 }
 
-// NewOrderExecutedEvent creates a new OrderExecutedEvent
-func NewOrderExecutedEvent(orderID, userID string, executionPrice, totalValue float64, executedAt time.Time) *OrderExecutedEvent {
+// NewOrderExecutedEvent creates a new OrderExecutedEvent with position-relevant data
+func NewOrderExecutedEvent(
+	orderID, userID, symbol string,
+	orderSide OrderSide,
+	orderType OrderType,
+	quantity, executionPrice, totalValue float64,
+	executedAt time.Time,
+	marketPriceAtExec *float64,
+	marketDataTimestamp *time.Time,
+) *OrderExecutedEvent {
 	return &OrderExecutedEvent{
-		OrderEvent:     NewOrderEvent("OrderExecuted", orderID, userID),
-		ExecutionPrice: executionPrice,
-		ExecutedAt:     executedAt,
-		TotalValue:     totalValue,
+		OrderEvent:          NewOrderEvent("OrderExecuted", orderID, userID),
+		Symbol:              symbol,
+		OrderSide:           orderSide,
+		OrderType:           orderType,
+		Quantity:            quantity,
+		ExecutionPrice:      executionPrice,
+		ExecutedAt:          executedAt,
+		TotalValue:          totalValue,
+		MarketPriceAtExec:   marketPriceAtExec,
+		MarketDataTimestamp: marketDataTimestamp,
 	}
 }
 
-// OrderFailedEvent represents an event when an order fails to execute
+func (e *OrderExecutedEvent) IsPositionRelevant() bool {
+	return true // All executed orders affect positions
+}
+
+func (e *OrderExecutedEvent) IsBuyOrder() bool {
+	return e.OrderSide.IsBuy()
+}
+
+func (e *OrderExecutedEvent) IsSellOrder() bool {
+	return e.OrderSide.IsSell()
+}
+
 type OrderFailedEvent struct {
 	OrderEvent
 	FailureReason string
 	FailedAt      time.Time
 }
 
-// NewOrderFailedEvent creates a new OrderFailedEvent
 func NewOrderFailedEvent(orderID, userID, failureReason string, failedAt time.Time) *OrderFailedEvent {
 	return &OrderFailedEvent{
 		OrderEvent:    NewOrderEvent("OrderFailed", orderID, userID),
@@ -138,7 +155,6 @@ func NewOrderFailedEvent(orderID, userID, failureReason string, failedAt time.Ti
 	}
 }
 
-// OrderCancelledEvent represents an event when an order is cancelled
 type OrderCancelledEvent struct {
 	OrderEvent
 	CancelledAt  time.Time
@@ -146,7 +162,6 @@ type OrderCancelledEvent struct {
 	CancelledBy  string // user ID who cancelled (could be admin)
 }
 
-// NewOrderCancelledEvent creates a new OrderCancelledEvent
 func NewOrderCancelledEvent(orderID, userID, cancelReason, cancelledBy string, cancelledAt time.Time) *OrderCancelledEvent {
 	return &OrderCancelledEvent{
 		OrderEvent:   NewOrderEvent("OrderCancelled", orderID, userID),
@@ -156,7 +171,6 @@ func NewOrderCancelledEvent(orderID, userID, cancelReason, cancelledBy string, c
 	}
 }
 
-// MarketDataReceivedEvent represents an event when market data is received for an order
 type MarketDataReceivedEvent struct {
 	OrderEvent
 	Symbol              string
@@ -165,7 +179,6 @@ type MarketDataReceivedEvent struct {
 	DataSource          string
 }
 
-// NewMarketDataReceivedEvent creates a new MarketDataReceivedEvent
 func NewMarketDataReceivedEvent(orderID, userID, symbol, dataSource string, marketPrice float64, marketDataTimestamp time.Time) *MarketDataReceivedEvent {
 	return &MarketDataReceivedEvent{
 		OrderEvent:          NewOrderEvent("MarketDataReceived", orderID, userID),
@@ -176,7 +189,6 @@ func NewMarketDataReceivedEvent(orderID, userID, symbol, dataSource string, mark
 	}
 }
 
-// OrderStatusChangedEvent represents an event when an order status changes
 type OrderStatusChangedEvent struct {
 	OrderEvent
 	FromStatus OrderStatus
@@ -185,7 +197,6 @@ type OrderStatusChangedEvent struct {
 	Reason     string
 }
 
-// NewOrderStatusChangedEvent creates a new OrderStatusChangedEvent
 func NewOrderStatusChangedEvent(orderID, userID string, fromStatus, toStatus OrderStatus, reason string, changedAt time.Time) *OrderStatusChangedEvent {
 	return &OrderStatusChangedEvent{
 		OrderEvent: NewOrderEvent("OrderStatusChanged", orderID, userID),
@@ -196,7 +207,6 @@ func NewOrderStatusChangedEvent(orderID, userID string, fromStatus, toStatus Ord
 	}
 }
 
-// RiskCheckPerformedEvent represents an event when risk checks are performed
 type RiskCheckPerformedEvent struct {
 	OrderEvent
 	RiskCheckType   string
@@ -205,7 +215,6 @@ type RiskCheckPerformedEvent struct {
 	CheckedAt       time.Time
 }
 
-// NewRiskCheckPerformedEvent creates a new RiskCheckPerformedEvent
 func NewRiskCheckPerformedEvent(orderID, userID, riskCheckType, result string, riskScore float64, checkedAt time.Time) *RiskCheckPerformedEvent {
 	return &RiskCheckPerformedEvent{
 		OrderEvent:      NewOrderEvent("RiskCheckPerformed", orderID, userID),
@@ -216,14 +225,12 @@ func NewRiskCheckPerformedEvent(orderID, userID, riskCheckType, result string, r
 	}
 }
 
-// OrderValidationFailedEvent represents an event when order validation fails
 type OrderValidationFailedEvent struct {
 	OrderEvent
 	ValidationErrors []string
 	ValidatedAt      time.Time
 }
 
-// NewOrderValidationFailedEvent creates a new OrderValidationFailedEvent
 func NewOrderValidationFailedEvent(orderID, userID string, validationErrors []string, validatedAt time.Time) *OrderValidationFailedEvent {
 	return &OrderValidationFailedEvent{
 		OrderEvent:       NewOrderEvent("OrderValidationFailed", orderID, userID),
@@ -232,7 +239,6 @@ func NewOrderValidationFailedEvent(orderID, userID string, validationErrors []st
 	}
 }
 
-// PositionValidationFailedEvent represents an event when position validation fails for sell orders
 type PositionValidationFailedEvent struct {
 	OrderEvent
 	Symbol            string
@@ -241,7 +247,6 @@ type PositionValidationFailedEvent struct {
 	ValidationError   string
 }
 
-// NewPositionValidationFailedEvent creates a new PositionValidationFailedEvent
 func NewPositionValidationFailedEvent(orderID, userID, symbol string, requestedQuantity, availableQuantity float64, validationError string) *PositionValidationFailedEvent {
 	return &PositionValidationFailedEvent{
 		OrderEvent:        NewOrderEvent("PositionValidationFailed", orderID, userID),

@@ -416,6 +416,12 @@ result := order.Validate()  // Validate the order
 orderID := uuid.New().String()  // Generate new order ID
 ```
 
+5. **Comment the same thing the method name does**
+```go
+// BAD: Describing useless information about the method. Its own name already does that.
+func NewEventPublishe()// NewEventPublisher creates a new event publisher using the messaging abstraction
+```
+
 ### Comment Quality Guidelines
 
 #### 1. **Explain the Why, Not the What**

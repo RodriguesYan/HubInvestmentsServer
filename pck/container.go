@@ -20,6 +20,7 @@ import (
 	orderService "HubInvestments/internal/order_mngmt_system/domain/service"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
 	orderIdempotency "HubInvestments/internal/order_mngmt_system/infra/idempotency"
+	orderMessaging "HubInvestments/internal/order_mngmt_system/infra/messaging"
 	orderRabbitMQ "HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
 	orderPersistence "HubInvestments/internal/order_mngmt_system/infra/persistence"
 	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
@@ -111,9 +112,10 @@ type containerImpl struct {
 	ProcessOrderUseCase   orderUsecase.IProcessOrderUseCase
 
 	// Order Management System - Infrastructure
-	OrderProducer      *orderRabbitMQ.OrderProducer
-	OrderWorkerManager *orderWorker.WorkerManager
-	IdempotencyService orderService.IIdempotencyService
+	OrderProducer       *orderRabbitMQ.OrderProducer
+	OrderEventPublisher orderMessaging.IEventPublisher
+	OrderWorkerManager  *orderWorker.WorkerManager
+	IdempotencyService  orderService.IIdempotencyService
 
 	// Realtime Quotes System
 	AssetDataService               *quotesAssetService.AssetDataService
@@ -358,11 +360,17 @@ func NewContainer() (Container, error) {
 	idempotencyRepo := orderIdempotency.NewRedisIdempotencyRepository(cacheHandler)
 	idempotencyService := orderService.NewIdempotencyService(idempotencyRepo)
 
+	// Create event publisher for order domain events
+	var orderEventPublisher orderMessaging.IEventPublisher
+	if messageHandler != nil {
+		orderEventPublisher = orderMessaging.NewEventPublisher(messageHandler, "orders.events")
+	}
+
 	// Create order management use cases with dependencies
 	submitOrderUseCase := orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient, idempotencyService)
 	getOrderStatusUseCase := orderUsecase.NewGetOrderStatusUseCase(orderRepo, orderMarketDataClient)
 	cancelOrderUseCase := orderUsecase.NewCancelOrderUseCase(orderRepo)
-	processOrderUseCase := orderUsecase.NewProcessOrderUseCase(orderRepo, orderMarketDataClient)
+	processOrderUseCase := orderUsecase.NewProcessOrderUseCase(orderRepo, orderMarketDataClient, orderEventPublisher)
 	//====== Order Management System Use Cases end============
 
 	//====== Order Management Infrastructure begin============
@@ -432,6 +440,7 @@ func NewContainer() (Container, error) {
 		CancelOrderUseCase:             cancelOrderUseCase,
 		ProcessOrderUseCase:            processOrderUseCase,
 		OrderProducer:                  orderProducer,
+		OrderEventPublisher:            orderEventPublisher,
 		OrderWorkerManager:             orderWorkerManager,
 		IdempotencyService:             idempotencyService,
 		AssetDataService:               assetDataService,
