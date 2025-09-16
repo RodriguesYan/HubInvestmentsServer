@@ -578,7 +578,7 @@ func TestDomainEventInterface(t *testing.T) {
 	events := []DomainEvent{
 		NewOrderSubmittedEvent(orderID, userID, "AAPL", OrderSideBuy, OrderTypeLimit, 100.0, nil),
 		NewOrderProcessingStartedEvent(orderID, userID, nil, nil),
-		NewOrderExecutedEvent(orderID, userID, 150.0, 15000.0, time.Now()),
+		NewOrderExecutedEventWithDetails(orderID, userID, "AAPL", OrderSideBuy, OrderTypeLimit, 100.0, 150.0, 15000.0, time.Now(), nil, nil),
 		NewOrderFailedEvent(orderID, userID, "Test failure", time.Now()),
 		NewOrderCancelledEvent(orderID, userID, "Test cancel", userID, time.Now()),
 		NewMarketDataReceivedEvent(orderID, userID, "AAPL", "test", 150.0, time.Now()),

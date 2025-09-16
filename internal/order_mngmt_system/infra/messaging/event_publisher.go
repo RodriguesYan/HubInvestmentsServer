@@ -7,7 +7,7 @@ import (
 	"time"
 
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
-	"HubInvestments/shared/infra/messaging"
+	msg "HubInvestments/shared/infra/messaging"
 )
 
 // TODO: implement opened and partial filled
@@ -17,14 +17,12 @@ type IEventPublisher interface {
 	PublishOrderCancelledEvent(ctx context.Context, event *domain.OrderCancelledEvent) error
 }
 
-// EventPublisher implements IEventPublisher using the messaging abstraction
 type EventPublisher struct {
-	messageHandler messaging.MessageHandler
+	messageHandler msg.MessageHandler
 	exchangeName   string
 }
 
-// NewEventPublisher creates a new event publisher using the messaging abstraction
-func NewEventPublisher(messageHandler messaging.MessageHandler, exchangeName string) *EventPublisher {
+func NewEventPublisher(messageHandler msg.MessageHandler, exchangeName string) *EventPublisher {
 	if exchangeName == "" {
 		exchangeName = "orders.events"
 	}
@@ -187,7 +185,7 @@ func (p *EventPublisher) publishEvent(
 		return nil
 	}
 	// Try with options if simple publish fails
-	options := messaging.PublishOptions{
+	options := msg.PublishOptions{
 		QueueName:     queueName,
 		Message:       messageBytes,
 		MessageID:     messageID,

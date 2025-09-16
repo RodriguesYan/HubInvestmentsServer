@@ -104,8 +104,8 @@ type OrderExecutedEvent struct {
 	MarketDataTimestamp *time.Time
 }
 
-// NewOrderExecutedEvent creates a new OrderExecutedEvent with position-relevant data
-func NewOrderExecutedEvent(
+// NewOrderExecutedEventWithDetails creates a new OrderExecutedEvent with full data
+func NewOrderExecutedEventWithDetails(
 	orderID, userID, symbol string,
 	orderSide OrderSide,
 	orderType OrderType,
@@ -125,6 +125,21 @@ func NewOrderExecutedEvent(
 		TotalValue:          totalValue,
 		MarketPriceAtExec:   marketPriceAtExec,
 		MarketDataTimestamp: marketDataTimestamp,
+	}
+}
+
+func NewOrderExecutedEvent(orderID, userID string, executionPrice, totalValue float64, executedAt time.Time) *OrderExecutedEvent {
+	return &OrderExecutedEvent{
+		OrderEvent:          NewOrderEvent("OrderExecuted", orderID, userID),
+		Symbol:              "",
+		OrderSide:           OrderSideBuy,
+		OrderType:           OrderTypeMarket,
+		Quantity:            0.0,
+		ExecutionPrice:      executionPrice,
+		ExecutedAt:          executedAt,
+		TotalValue:          totalValue,
+		MarketPriceAtExec:   nil,
+		MarketDataTimestamp: nil,
 	}
 }
 

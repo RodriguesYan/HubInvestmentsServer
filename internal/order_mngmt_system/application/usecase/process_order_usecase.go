@@ -351,7 +351,7 @@ func (uc *ProcessOrderUseCase) markOrderAsExecuted(ctx context.Context, order *d
 
 	totalValue := executionPrice * order.Quantity()
 
-	event := domain.NewOrderExecutedEvent(
+	event := domain.NewOrderExecutedEventWithDetails(
 		order.ID(),
 		order.UserID(),
 		order.Symbol(),
