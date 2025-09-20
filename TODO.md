@@ -600,10 +600,18 @@ PostgreSQL: positions table
   - [x] Added faster retry intervals (2min → 10min → 30min → 2hr) for position consistency
   - [x] Added comprehensive unit tests with MockMessageHandler
   - [x] Queue length limits (100k messages) to prevent memory issues during high volume
-- [ ] **Step 4.2**: Position Update Worker Implementation
-  - [ ] Create `position/infra/worker/position_update_worker.go`
-  - [ ] Implement RabbitMQ consumer for `positions.updates` queue
-  - [ ] Add worker lifecycle management and error handling
+- [x] **Step 4.2**: Position Update Worker Implementation (COMPLETED)
+  - [x] Created `position/infra/worker/position_update_worker.go` with comprehensive implementation
+  - [x] Created `position/infra/worker/position_consumer.go` for RabbitMQ message consumption
+  - [x] Implemented RabbitMQ consumer for `positions.updates` and `positions.retry` queues
+  - [x] Added worker lifecycle management: Start/Stop, heartbeat monitoring, health checks
+  - [x] Added comprehensive error handling and retry logic with exponential backoff
+  - [x] Integrated with existing position use cases (Create, Update, Close) 
+  - [x] Added position-specific business logic: handle buy/sell orders, position splitting/merging
+  - [x] Added semaphore pattern for concurrency control (20 concurrent position updates)
+  - [x] Added comprehensive metrics tracking and health monitoring
+  - [x] Created extensive unit tests (6 test cases, all passing ✅)
+  - [ ] Create repository method to fetch position by symbol to avoid calling FindByUserID in handleSellOrder (position_update_worker.go) and make a loop in all position
 
 
 
