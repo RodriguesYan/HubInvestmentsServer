@@ -583,11 +583,13 @@ PostgreSQL: positions table
     - [x] Performance optimization with composite indexes
 
 ### **Step 3**: Event Publishing Integration
-- [ ] **Step 3.1**: Order Execution Event Enhancement
-  - [ ] Update `ProcessOrderUseCase.executeOrder()` to publish `OrderExecutedEvent`
-  - [ ] Include all position-relevant data: symbol, quantity, execution_price, order_side
-  - [ ] Add instrument_id resolution from symbol lookup
-  - [ ] Ensure event publication is part of database transaction
+- [x] **Step 3.1**: Order Execution Event Enhancement (COMPLETED)
+  - [x] Update `ProcessOrderUseCase.executeOrder()` to publish `OrderExecutedEvent`
+  - [x] Include all position-relevant data: symbol, quantity, execution_price, order_side
+  - [x] Add market data context: market_price_at_exec, market_data_timestamp  
+  - [x] Ensure event publication is part of database transaction
+  - [x] Remove legacy `NewOrderExecutedEvent` constructor to enforce position-relevant data
+  - [x] Update all tests to use enhanced `NewOrderExecutedEventWithDetails` constructor
 
 ### **Step 4**: RabbitMQ Position Update Infrastructure
 - [ ] **Step 4.1**: Position Queue Configuration

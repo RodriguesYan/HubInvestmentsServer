@@ -194,16 +194,26 @@ func TestNewOrderProcessingStartedEvent_NilValues(t *testing.T) {
 	}
 }
 
-func TestNewOrderExecutedEvent(t *testing.T) {
+func TestNewOrderExecutedEventWithDetails(t *testing.T) {
 	// Arrange
 	orderID := "order-123"
 	userID := "user-456"
+	symbol := "AAPL"
+	orderSide := OrderSideBuy
+	orderType := OrderTypeLimit
+	quantity := 100.0
 	executionPrice := 150.25
 	totalValue := 15025.0
 	executedAt := time.Now()
+	marketPrice := 150.30
+	marketTimestamp := time.Now().Add(-1 * time.Minute)
 
 	// Act
-	event := NewOrderExecutedEvent(orderID, userID, executionPrice, totalValue, executedAt)
+	event := NewOrderExecutedEventWithDetails(
+		orderID, userID, symbol, orderSide, orderType,
+		quantity, executionPrice, totalValue, executedAt,
+		&marketPrice, &marketTimestamp,
+	)
 
 	// Assert
 	if event.EventType() != "OrderExecuted" {
@@ -218,6 +228,22 @@ func TestNewOrderExecutedEvent(t *testing.T) {
 		t.Errorf("Expected user ID %s, got %s", userID, event.UserID())
 	}
 
+	if event.Symbol != symbol {
+		t.Errorf("Expected symbol %s, got %s", symbol, event.Symbol)
+	}
+
+	if event.OrderSide != orderSide {
+		t.Errorf("Expected order side %v, got %v", orderSide, event.OrderSide)
+	}
+
+	if event.OrderType != orderType {
+		t.Errorf("Expected order type %v, got %v", orderType, event.OrderType)
+	}
+
+	if event.Quantity != quantity {
+		t.Errorf("Expected quantity %f, got %f", quantity, event.Quantity)
+	}
+
 	if event.ExecutionPrice != executionPrice {
 		t.Errorf("Expected execution price %f, got %f", executionPrice, event.ExecutionPrice)
 	}
@@ -228,6 +254,27 @@ func TestNewOrderExecutedEvent(t *testing.T) {
 
 	if !event.ExecutedAt.Equal(executedAt) {
 		t.Errorf("Expected executed at %v, got %v", executedAt, event.ExecutedAt)
+	}
+
+	if event.MarketPriceAtExec == nil || *event.MarketPriceAtExec != marketPrice {
+		t.Errorf("Expected market price %f, got %v", marketPrice, event.MarketPriceAtExec)
+	}
+
+	if event.MarketDataTimestamp == nil || !event.MarketDataTimestamp.Equal(marketTimestamp) {
+		t.Errorf("Expected market timestamp %v, got %v", marketTimestamp, event.MarketDataTimestamp)
+	}
+
+	// Test position relevance methods
+	if !event.IsPositionRelevant() {
+		t.Errorf("Expected event to be position relevant")
+	}
+
+	if !event.IsBuyOrder() {
+		t.Errorf("Expected event to be identified as buy order")
+	}
+
+	if event.IsSellOrder() {
+		t.Errorf("Expected event to not be identified as sell order")
 	}
 }
 

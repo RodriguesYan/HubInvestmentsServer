@@ -128,21 +128,6 @@ func NewOrderExecutedEventWithDetails(
 	}
 }
 
-func NewOrderExecutedEvent(orderID, userID string, executionPrice, totalValue float64, executedAt time.Time) *OrderExecutedEvent {
-	return &OrderExecutedEvent{
-		OrderEvent:          NewOrderEvent("OrderExecuted", orderID, userID),
-		Symbol:              "",
-		OrderSide:           OrderSideBuy,
-		OrderType:           OrderTypeMarket,
-		Quantity:            0.0,
-		ExecutionPrice:      executionPrice,
-		ExecutedAt:          executedAt,
-		TotalValue:          totalValue,
-		MarketPriceAtExec:   nil,
-		MarketDataTimestamp: nil,
-	}
-}
-
 func (e *OrderExecutedEvent) IsPositionRelevant() bool {
 	return true // All executed orders affect positions
 }
