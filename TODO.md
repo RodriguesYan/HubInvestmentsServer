@@ -592,10 +592,14 @@ PostgreSQL: positions table
   - [x] Update all tests to use enhanced `NewOrderExecutedEventWithDetails` constructor
 
 ### **Step 4**: RabbitMQ Position Update Infrastructure
-- [ ] **Step 4.1**: Position Queue Configuration
-  - [ ] Extend `OrderQueueManager` or create `PositionQueueManager`
-  - [ ] Define queues: `positions.updates`, `positions.updates.dlq`, `positions.retry`
-  - [ ] Configure queue durability, TTL, and DLQ routing
+- [x] **Step 4.1**: Position Queue Configuration (COMPLETED)
+  - [x] Created `PositionQueueManager` following `OrderQueueManager` pattern
+  - [x] Defined queues: `positions.updates`, `positions.updates.dlq`, `positions.retry`
+  - [x] Configured queue durability, TTL, and DLQ routing with position-specific settings
+  - [x] Implemented queue management methods: PublishToPositionUpdatesQueue, PublishToRetryQueue, PublishToDLQ
+  - [x] Added faster retry intervals (2min → 10min → 30min → 2hr) for position consistency
+  - [x] Added comprehensive unit tests with MockMessageHandler
+  - [x] Queue length limits (100k messages) to prevent memory issues during high volume
 - [ ] **Step 4.2**: Position Update Worker Implementation
   - [ ] Create `position/infra/worker/position_update_worker.go`
   - [ ] Implement RabbitMQ consumer for `positions.updates` queue
