@@ -610,23 +610,15 @@ func (w *PositionUpdateWorker) handleSellOrder(ctx context.Context, message *Pos
 		return "", fmt.Errorf("invalid user ID: %w", err)
 	}
 
-	// Find positions for this user
-	positions, err := w.positionRepository.FindByUserID(ctx, userID)
+	// Directly find the position for this user and symbol (optimized query)
+	targetPosition, err := w.positionRepository.FindByUserIDAndSymbol(ctx, userID, message.Symbol)
 	if err != nil {
-		return "", fmt.Errorf("failed to find existing positions: %w", err)
+		return "", fmt.Errorf("failed to find existing position for symbol %s: %w", message.Symbol, err)
 	}
 
-	// Find the position for this symbol
-	var targetPosition *domain.Position
-	for _, pos := range positions {
-		if pos.Symbol == message.Symbol && pos.Status == domain.PositionStatusActive {
-			targetPosition = pos
-			break
-		}
-	}
-
-	if targetPosition == nil {
-		return "", fmt.Errorf("no active position found for user %s and symbol %s", message.UserID, message.Symbol)
+	// Verify the position is active before processing sell order
+	if targetPosition.Status != domain.PositionStatusActive {
+		return "", fmt.Errorf("position for symbol %s is not active (status: %s)", message.Symbol, targetPosition.Status)
 	}
 
 	sourceOrderID := message.OrderID
