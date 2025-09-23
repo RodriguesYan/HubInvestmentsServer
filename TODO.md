@@ -613,11 +613,70 @@ PostgreSQL: positions table
   - [x] Created extensive unit tests (6 test cases, all passing ✅)
   - [x] Create repository method to fetch position by symbol to avoid calling FindByUserID in handleSellOrder (position_update_worker.go) and make a loop in all position
 
-
+### ⏳ Phase 9: Advanced Architecture & Microservices (SIMPLIFIED APPROACH)
+- [ ] **Implement gRPC for inter-service communication** ⏳ **SIMPLIFIED PLAN**
+  
+  **🎯 SIMPLE APPROACH - CREATE ONLY 4 FILES:**
+  
+- [x] **Step 1**: Create single consolidated proto file (`shared/grpc/services.proto`) (COMPLETED)
+  - [x] Define all service interfaces in one file: AuthService, OrderService, PositionService  
+  - [x] Include common message types (APIResponse, UserInfo, ErrorDetails)
+  - [x] Keep it simple with essential methods only (Login, SubmitOrder, GetPositions)
+  - [x] **Result**: One proto file instead of 4+ separate files
+    
+  - [ ] **Step 2**: Create unified gRPC server (`shared/grpc/server.go`) 
+    - Single server that hosts all gRPC services on one port (e.g. :50051)
+    - Implement basic versions of each service (Auth, Order, Position)
+    - Use existing use cases from container (no new business logic)
+    - Include simple JWT authentication middleware
+    - **Result**: One server file instead of multiple service files
+    
+  - [ ] **Step 3**: Create gRPC client helper (`shared/grpc/client.go`)
+    - Simple client with methods like CallAuth(), CallOrder(), CallPosition()
+    - Handle connection management and authentication
+    - Provide easy-to-use interface for inter-service calls
+    - **Result**: One client file instead of complex client management system
+    
+  - [ ] **Step 4**: Integration into main.go (minimal changes)
+    - Start gRPC server alongside HTTP server
+    - Add 5-10 lines of code maximum
+    - Graceful shutdown integration
+    - **Result**: Simple integration without complex service registry
+    
+  **🚀 EXAMPLE USE CASE:**
+  ```go
+  // Portfolio service calls Position service via gRPC
+  client := grpc.NewClient()
+  positions, err := client.CallPosition("GetPositions", userID)
+  
+  // Order service calls Auth service for validation  
+  valid, err := client.CallAuth("ValidateToken", token)
+  ```
+  
+  **📦 TOTAL FILES CREATED: 4 files only**
+  - `shared/grpc/services.proto` (consolidated protobuf)
+  - `shared/grpc/server.go` (unified gRPC server)  
+  - `shared/grpc/client.go` (simple client helper)
+  - Generated protobuf Go files (auto-generated)
+  
+  **✅ ACHIEVES SAME GOALS:**
+  - Inter-service communication via gRPC
+  - Authentication between services
+  - Performance benefits of gRPC over HTTP
+  - Foundation for microservices architecture
+  - **But with 90% fewer files and complexity!**
+  
+- [ ] Design microservices decomposition strategy
+- [ ] Add service discovery and registration
+- [ ] Implement circuit breaker patterns
+- [ ] Add distributed tracing and monitoring
+- [ ] Create independent service deployment capabilities
+- [ ] Implement horizontal scaling considerations
+- **Priority**: High - gRPC inter-service communication (simplified), other features optional
 
 ### Make assets trading hour configurable in market_data_client.go(persist in DB, for now)
 
-### ⏳ Phase 9: Authentication & Login Improvements
+### ⏳ Phase 10: Authentication & Login Improvements
 - [ ] **Step 1**: User Registration and Account Creation
   - [ ] Create user registration domain model and validation
   - [ ] Implement `create_user_usecase.go` with proper business logic
@@ -637,7 +696,7 @@ PostgreSQL: positions table
 - [ ] Implement secure password handling improvements
 - **Priority**: High - Security and maintainability improvements
 
-    ### ⏳ Phase 10: Orders last mile
+    ### ⏳ Phase 11: Orders last mile
 - [ ] **Step 12**: Error Handling and Monitoring
   - [ ] Implement comprehensive error handling:
     - [ ] Order validation errors with user-friendly messages
@@ -716,7 +775,7 @@ PostgreSQL: positions table
   - Order processing: Real-time price fetching, execution price determination
   - Order monitoring: Market data context for order analysis and reporting
 
-### ⏳ Phase 11: Database Infrastructure & DevOps Setup
+### ⏳ Phase 12: Database Infrastructure & DevOps Setup
 - [ ] Create comprehensive database schema for all entities:
   - [ ] **Users table** with proper authentication fields:
     ```sql
@@ -750,7 +809,7 @@ PostgreSQL: positions table
     - [ ] Profile and optimize memory usage and garbage collection
 - **Priority**: High - Foundation for all other features
 
-### ⏳ Phase 12: Security & Production Readiness
+### ⏳ Phase 13: Security & Production Readiness
 - [ ] **Step 1**: Database Security and SQL Injection Prevention
   - [ ] Audit all database queries for SQL injection vulnerabilities
   - [ ] Implement parameterized queries/prepared statements across all repositories
@@ -770,7 +829,7 @@ PostgreSQL: positions table
 - [ ] Create security headers and protection policies
 - **Priority**: High - Production security requirements
 
-### ⏳ Phase 13: API Documentation & Testing
+### ⏳ Phase 14: API Documentation & Testing
 - [ ] Implement Swagger/OpenAPI documentation
 - [ ] Create interactive API explorer
 - [ ] Add automated API documentation generation
@@ -786,21 +845,6 @@ PostgreSQL: positions table
 - [ ] Test for memory leaks and connection issues during concurrent access
 - [ ] Mutation tests
 - **Priority**: Medium - Quality assurance and developer experience
-
-### ⏳ Phase 14: Advanced Architecture & Microservices
-- [ ] Implement gRPC for inter-service communication
-- [ ] Design microservices decomposition strategy
-- [ ] Add service discovery and registration
-- [ ] Implement circuit breaker patterns
-- [ ] Add distributed tracing and monitoring
-- [ ] Create independent service deployment capabilities
-- [ ] Implement horizontal scaling considerations
-- [ ] **Step 3.7**: Service Discovery and Load Balancing (PENDING)
-    - [ ] Implement service registration for gRPC endpoints
-    - [ ] Add health checks for gRPC service
-    - [ ] Configure load balancing for multiple gRPC instances
-    - [ ] Add monitoring and metrics for gRPC performance
-- **Priority**: Low - Advanced architecture (optional but recommended)
 
 ### ⏳ Phase 15: Performance & Monitoring
 - [ ] Implement application and infrastructure monitoring (Prometheus para coletar metricas , grafana para exibir dash, jaeger tracing distribuido, openTelemetry coleta unificada de dados)
