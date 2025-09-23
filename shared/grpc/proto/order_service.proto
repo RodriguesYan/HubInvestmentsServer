@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package hub_investments;
+
+import "common.proto";
+
+option go_package = "./proto";
+
+// ====================================
+// ORDER SERVICE
+// ====================================
+
+// OrderService provides order management operations
+service OrderService {
+  // SubmitOrder submits a new trading order
+  rpc SubmitOrder(SubmitOrderRequest) returns (SubmitOrderResponse);
+  // GetOrderDetails retrieves detailed information about a specific order
+  rpc GetOrderDetails(GetOrderDetailsRequest) returns (GetOrderDetailsResponse);
+  // GetOrderStatus retrieves the status of a specific order
+  rpc GetOrderStatus(GetOrderStatusRequest) returns (GetOrderStatusResponse);
+  // CancelOrder cancels a pending order
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+}
+
+// ====================================
+// ORDER SERVICE MESSAGES
+// ====================================
+
+message SubmitOrderRequest {
+  string user_id = 1;
+  string symbol = 2;
+  string order_type = 3;  // MARKET, LIMIT, STOP_LOSS, STOP_LIMIT
+  string order_side = 4;  // BUY, SELL
+  double quantity = 5;
+  optional double price = 6;  // Required for LIMIT orders
+}
+
+message SubmitOrderResponse {
+  APIResponse api_response = 1;
+  string order_id = 2;
+  string status = 3;
+  optional double estimated_price = 4;
+  optional double estimated_value = 5;
+  optional double market_price = 6;
+  string submitted_at = 7;
+}
+
+message GetOrderDetailsRequest {
+  string order_id = 1;
+  string user_id = 2;
+}
+
+message GetOrderDetailsResponse {
+  APIResponse api_response = 1;
+  OrderDetails order = 2;
+}
+
+message GetOrderStatusRequest {
+  string order_id = 1;
+  string user_id = 2;
+}
+
+message GetOrderStatusResponse {
+  APIResponse api_response = 1;
+  string order_id = 2;
+  string status = 3;
+  string status_message = 4;
+  string updated_at = 5;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+  string user_id = 2;
+}
+
+message CancelOrderResponse {
+  APIResponse api_response = 1;
+  string order_id = 2;
+  string status = 3;
+  string cancelled_at = 4;
+}
+
+// OrderDetails contains complete order information
+message OrderDetails {
+  string order_id = 1;
+  string user_id = 2;
+  string symbol = 3;
+  string order_type = 4;
+  string order_side = 5;
+  double quantity = 6;
+  optional double price = 7;
+  string status = 8;
+  string created_at = 9;
+  string updated_at = 10;
+  optional string executed_at = 11;
+  optional double execution_price = 12;
+  optional double market_price_at_submission = 13;
+  optional string market_data_timestamp = 14;
+  double estimated_value = 15;
+  optional double execution_value = 16;
+}
