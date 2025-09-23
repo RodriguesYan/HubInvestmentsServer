@@ -624,12 +624,12 @@ PostgreSQL: positions table
   - [x] Keep it simple with essential methods only (Login, SubmitOrder, GetPositions)
   - [x] **Result**: One proto file instead of 4+ separate files
     
-  - [ ] **Step 2**: Create unified gRPC server (`shared/grpc/server.go`) 
-    - Single server that hosts all gRPC services on one port (e.g. :50051)
-    - Implement basic versions of each service (Auth, Order, Position)
-    - Use existing use cases from container (no new business logic)
-    - Include simple JWT authentication middleware
-    - **Result**: One server file instead of multiple service files
+  - [x] **Step 2**: Create unified gRPC server (`shared/grpc/server.go`) (COMPLETED)
+    - [x] Single server that hosts all gRPC services on one port (e.g. :50051)
+    - [x] Implement basic versions of each service (Auth, Order, Position)
+    - [x] Use existing use cases from container (no new business logic)
+    - [x] Include simple JWT authentication middleware
+    - [x] **Result**: One server file instead of multiple service files
     
   - [ ] **Step 3**: Create gRPC client helper (`shared/grpc/client.go`)
     - Simple client with methods like CallAuth(), CallOrder(), CallPosition()

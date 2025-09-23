@@ -17,7 +17,6 @@ import (
 	"HubInvestments/internal/auth/token"
 	balanceHandler "HubInvestments/internal/balance/presentation/http"
 	doLoginHandler "HubInvestments/internal/login/presentation/http"
-	grpcHandler "HubInvestments/internal/market_data/presentation/grpc"
 	adminHandler "HubInvestments/internal/market_data/presentation/http"
 	marketDataHandler "HubInvestments/internal/market_data/presentation/http"
 	orderHandler "HubInvestments/internal/order_mngmt_system/presentation/http"
@@ -27,6 +26,7 @@ import (
 	watchlistHandler "HubInvestments/internal/watchlist/presentation/http"
 	di "HubInvestments/pck"
 	"HubInvestments/shared/config"
+	grpcServer "HubInvestments/shared/grpc"
 	"HubInvestments/shared/middleware"
 	"log"
 	"net/http"
@@ -52,9 +52,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Start gRPC server in background
-	grpcHandler.StartGRPCServerAsync(container, cfg.GRPCPort)
-	log.Printf("gRPC server will start on %s", cfg.GRPCPort)
+	// Start unified gRPC server in background
+	grpcServer.StartGRPCServerAsync(container, cfg.GRPCPort)
+	log.Printf("Unified gRPC server will start on %s", cfg.GRPCPort)
 
 	// API Routes
 	// http.HandleFunc("/login", login.Login)
