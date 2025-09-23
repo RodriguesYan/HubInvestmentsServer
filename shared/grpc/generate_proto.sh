@@ -5,39 +5,22 @@
 
 set -e
 
-PROTO_DIR="shared/grpc/proto"
-OUTPUT_DIR="shared/grpc/proto"
+PROTO_DIR="proto"
+OUTPUT_DIR="proto"
 
 echo "Generating proto files..."
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
 
-# Generate common types
-echo "Generating common.proto..."
-protoc --go_out="$OUTPUT_DIR" --go_opt=paths=source_relative \
-    --proto_path="$PROTO_DIR" \
-    "$PROTO_DIR/common.proto"
-
-# Generate auth service
-echo "Generating auth_service.proto..."
+# Generate all proto files together to handle cross-references properly
+echo "Generating all proto files together..."
 protoc --go_out="$OUTPUT_DIR" --go_opt=paths=source_relative \
     --go-grpc_out="$OUTPUT_DIR" --go-grpc_opt=paths=source_relative \
     --proto_path="$PROTO_DIR" \
-    "$PROTO_DIR/auth_service.proto"
-
-# Generate order service
-echo "Generating order_service.proto..."
-protoc --go_out="$OUTPUT_DIR" --go_opt=paths=source_relative \
-    --go-grpc_out="$OUTPUT_DIR" --go-grpc_opt=paths=source_relative \
-    --proto_path="$PROTO_DIR" \
-    "$PROTO_DIR/order_service.proto"
-
-# Generate position service
-echo "Generating position_service.proto..."
-protoc --go_out="$OUTPUT_DIR" --go_opt=paths=source_relative \
-    --go-grpc_out="$OUTPUT_DIR" --go-grpc_opt=paths=source_relative \
-    --proto_path="$PROTO_DIR" \
+    "$PROTO_DIR/common.proto" \
+    "$PROTO_DIR/auth_service.proto" \
+    "$PROTO_DIR/order_service.proto" \
     "$PROTO_DIR/position_service.proto"
 
 echo "Proto generation completed!"
