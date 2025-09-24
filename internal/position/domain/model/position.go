@@ -371,7 +371,7 @@ func (p *Position) ClearEvents() {
 }
 
 func (p *Position) HasEvents() bool {
-	return p.events != nil && len(p.events) > 0
+	return len(p.events) > 0
 }
 
 func (p *Position) EmitValidationFailedEvent(validationErrors []string, validationContext string) {

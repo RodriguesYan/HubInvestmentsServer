@@ -28,9 +28,14 @@ import (
 	"HubInvestments/shared/config"
 	grpcServer "HubInvestments/shared/grpc"
 	"HubInvestments/shared/middleware"
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -47,14 +52,14 @@ func main() {
 	})
 
 	container, err := di.NewContainer()
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Start unified gRPC server in background
-	grpcServer.StartGRPCServerAsync(container, cfg.GRPCPort)
-	log.Printf("Unified gRPC server will start on %s", cfg.GRPCPort)
+	grpcSrv, lis, err := grpcServer.NewGRPCServer(container, cfg.GRPCPort)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// API Routes
 	// http.HandleFunc("/login", login.Login)
@@ -108,25 +113,29 @@ func main() {
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
-	log.Printf("HTTP server starting on %s", cfg.HTTPPort)
-	log.Printf("Order Management endpoints available:")
-	log.Printf("  POST   http://%s/orders - Submit new order", cfg.HTTPPort)
-	log.Printf("  GET    http://%s/orders/{id} - Get order details", cfg.HTTPPort)
-	log.Printf("  GET    http://%s/orders/{id}/status - Get order status", cfg.HTTPPort)
-	log.Printf("  PUT    http://%s/orders/{id}/cancel - Cancel order", cfg.HTTPPort)
-	log.Printf("  GET    http://%s/orders/history - Get order history", cfg.HTTPPort)
-	log.Printf("Realtime Quotes endpoints available:")
-	log.Printf("  GET    http://%s/quotes - Get all asset quotes", cfg.HTTPPort)
-	log.Printf("  GET    http://%s/quotes/stocks - Get stock quotes", cfg.HTTPPort)
-	log.Printf("  GET    http://%s/quotes/etfs - Get ETF quotes", cfg.HTTPPort)
-	log.Printf("  WS     ws://%s/ws/quotes - Realtime quotes WebSocket", cfg.HTTPPort)
-	log.Printf("Admin cache endpoints available:")
-	log.Printf("  DELETE http://%s/admin/market-data/cache/invalidate?symbols=AAPL,GOOGL", cfg.HTTPPort)
-	log.Printf("  POST   http://%s/admin/market-data/cache/warm?symbols=AAPL,GOOGL", cfg.HTTPPort)
-	log.Printf("Swagger documentation available at: http://%s/swagger/index.html", cfg.HTTPPort)
+	go func() {
+		log.Printf("gRPC server starting on %s", cfg.GRPCPort)
+		if err := grpcSrv.Serve(lis); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
 
-	err = http.ListenAndServe(cfg.HTTPPort, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	httpSrv := &http.Server{Addr: cfg.HTTPPort}
+	go func() {
+		log.Printf("HTTP server starting on %s", cfg.HTTPPort)
+		if err := httpSrv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Printf("HTTP server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down servers...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	grpcSrv.GracefulStop()
+	httpSrv.Shutdown(ctx)
 }
