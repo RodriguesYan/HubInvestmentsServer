@@ -1,0 +1,145 @@
+graph TB
+    subgraph "Client Layer"
+        WEB[Web Application]
+        MOBILE[Mobile Application]
+        API[External API Clients]
+    end
+
+    subgraph "API Gateway Layer"
+        GATEWAY[API Gateway / Load Balancer<br/>- Request Routing<br/>- Authentication<br/>- Rate Limiting<br/>- SSL Termination]
+    end
+
+    subgraph "Microservices Architecture"
+        subgraph "User Management Service"
+            USER[User Management Service<br/>Port: 8081, 50051<br/>- User Authentication<br/>- JWT Token Management<br/>- User Profiles<br/>- Session Management]
+            USER_DB[(Users Database<br/>PostgreSQL)]
+        end
+
+        subgraph "Market Data Service"
+            MARKET[Market Data Service<br/>Port: 8082, 50052<br/>- Asset Master Data<br/>- Real-time Prices<br/>- Market Status<br/>- WebSocket Streaming]
+            MARKET_DB[(Market Data Database<br/>PostgreSQL)]
+        end
+
+        subgraph "Order Management Service"
+            ORDER[Order Management Service<br/>Port: 8083, 50053<br/>- Order Validation<br/>- Order Execution<br/>- Risk Management<br/>- Compliance Checks]
+            ORDER_DB[(Orders Database<br/>PostgreSQL)]
+        end
+
+        subgraph "Position & Portfolio Service"
+            POSITION[Position & Portfolio Service<br/>Port: 8084, 50054<br/>- Position Management<br/>- Portfolio Aggregation<br/>- P&L Calculations<br/>- Performance Metrics]
+            POSITION_DB[(Portfolio Database<br/>PostgreSQL)]
+        end
+
+        subgraph "Account Management Service"
+            ACCOUNT[Account Management Service<br/>Port: 8085, 50055<br/>- Balance Tracking<br/>- Fund Transfers<br/>- Transaction History<br/>- Account Statements]
+            ACCOUNT_DB[(Accounts Database<br/>PostgreSQL)]
+        end
+
+        subgraph "Watchlist Service"
+            WATCH[Watchlist Service<br/>Port: 8086, 50056<br/>- User Watchlists<br/>- Price Alerts<br/>- Custom Groups<br/>- Notifications]
+            WATCH_DB[(Watchlist Database<br/>PostgreSQL)]
+        end
+    end
+
+    subgraph "Shared Infrastructure"
+        subgraph "Message Broker"
+            RABBITMQ[RabbitMQ Cluster<br/>- Event Distribution<br/>- Async Communication<br/>- Dead Letter Queues<br/>- Retry Logic]
+        end
+
+        subgraph "Cache Layer"
+            REDIS[Redis Cluster<br/>- Session Cache<br/>- Market Data Cache<br/>- Application Cache<br/>- Rate Limiting]
+        end
+
+        subgraph "Observability Stack"
+            PROMETHEUS[Prometheus<br/>Metrics Collection]
+            GRAFANA[Grafana<br/>Dashboards]
+            JAEGER[Jaeger<br/>Distributed Tracing]
+            ELK[ELK Stack<br/>Centralized Logging]
+        end
+    end
+
+    subgraph "External Systems"
+        BROKER[External Broker API<br/>- Trade Execution<br/>- Market Data Feed<br/>- Settlement]
+        BANK[Banking System<br/>- Fund Transfers<br/>- Account Verification<br/>- Compliance]
+        NOTIFICATIONS[Notification Services<br/>- Email Service<br/>- SMS Service<br/>- Push Notifications]
+    end
+
+    %% Client connections
+    WEB --> GATEWAY
+    MOBILE --> GATEWAY
+    API --> GATEWAY
+
+    %% API Gateway to services
+    GATEWAY --> USER
+    GATEWAY --> MARKET
+    GATEWAY --> ORDER
+    GATEWAY --> POSITION
+    GATEWAY --> ACCOUNT
+    GATEWAY --> WATCH
+
+    %% Service to database connections
+    USER --> USER_DB
+    MARKET --> MARKET_DB
+    ORDER --> ORDER_DB
+    POSITION --> POSITION_DB
+    ACCOUNT --> ACCOUNT_DB
+    WATCH --> WATCH_DB
+
+    %% Synchronous gRPC Communications
+    ORDER -.->|gRPC: ValidateSymbol<br/>GetCurrentPrice| MARKET
+    ORDER -.->|gRPC: CheckBalance<br/>ReserveFunds| ACCOUNT
+    ORDER -.->|gRPC: ValidateToken| USER
+    POSITION -.->|gRPC: GetPositions<br/>GetAggregation| POSITION
+    POSITION -.->|gRPC: GetCurrentPrice| MARKET
+    WATCH -.->|gRPC: GetMarketData| MARKET
+    WATCH -.->|gRPC: ValidateToken| USER
+
+    %% Asynchronous Event Communications via RabbitMQ
+    ORDER -->|OrderExecutedEvent<br/>OrderCancelledEvent| RABBITMQ
+    RABBITMQ -->|Order Events| POSITION
+    RABBITMQ -->|Order Events| ACCOUNT
+    RABBITMQ -->|Order Events| NOTIFICATIONS
+
+    POSITION -->|PositionUpdatedEvent<br/>PositionClosedEvent| RABBITMQ
+    ACCOUNT -->|BalanceUpdatedEvent<br/>TransactionEvent| RABBITMQ
+    MARKET -->|PriceUpdatedEvent<br/>MarketStatusEvent| RABBITMQ
+
+    %% Cache connections
+    USER --> REDIS
+    MARKET --> REDIS
+    ORDER --> REDIS
+    POSITION --> REDIS
+    ACCOUNT --> REDIS
+    WATCH --> REDIS
+
+    %% External system connections
+    ORDER --> BROKER
+    ACCOUNT --> BANK
+    WATCH --> NOTIFICATIONS
+
+    %% Monitoring connections
+    USER --> PROMETHEUS
+    MARKET --> PROMETHEUS
+    ORDER --> PROMETHEUS
+    POSITION --> PROMETHEUS
+    ACCOUNT --> PROMETHEUS
+    WATCH --> PROMETHEUS
+
+    PROMETHEUS --> GRAFANA
+    USER --> JAEGER
+    MARKET --> JAEGER
+    ORDER --> JAEGER
+    POSITION --> JAEGER
+    ACCOUNT --> JAEGER
+    WATCH --> JAEGER
+
+    %% Styling
+    classDef serviceClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef dbClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef infraClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef externalClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+
+    class USER,MARKET,ORDER,POSITION,ACCOUNT,WATCH serviceClass
+    class USER_DB,MARKET_DB,ORDER_DB,POSITION_DB,ACCOUNT_DB,WATCH_DB dbClass
+    class RABBITMQ,REDIS,PROMETHEUS,GRAFANA,JAEGER,ELK,GATEWAY infraClass
+    class BROKER,BANK,NOTIFICATIONS externalClass

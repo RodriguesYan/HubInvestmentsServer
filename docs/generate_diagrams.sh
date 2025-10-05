@@ -36,6 +36,14 @@ mmdc -i websocket_quotes_architecture.mmd -o websocket_quotes_architecture.png -
 echo "🔄 Generating Position Update Flow..."
 mmdc -i position_update_flow.mmd -o position_update_flow.png -w 1600 -H 1200 -b white
 
+# Generate Microservices Architecture
+echo "🏛️ Generating Microservices Architecture..."
+mmdc -i microservices_architecture.mmd -o microservices_architecture.png -w 1800 -H 1400 -b white
+
+# Generate Microservices Event Flow
+echo "📨 Generating Microservices Event Flow..."
+mmdc -i microservices_event_flow.mmd -o microservices_event_flow.png -w 1600 -H 1200 -b white
+
 echo "✅ Diagrams generated successfully!"
 echo "📁 Files created:"
 echo "   - order_flow_diagram.png"
@@ -43,3 +51,5 @@ echo "   - microservices_overview.png"
 echo "   - order_flow_with_idempotency.png"
 echo "   - websocket_quotes_architecture.png"
 echo "   - position_update_flow.png"
+echo "   - microservices_architecture.png"
+echo "   - microservices_event_flow.png"

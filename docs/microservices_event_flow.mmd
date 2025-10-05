@@ -1,0 +1,138 @@
+sequenceDiagram
+    participant Client
+    participant Gateway as API Gateway
+    participant Auth as User Management Service
+    participant Market as Market Data Service  
+    participant Order as Order Management Service
+    participant Account as Account Management Service
+    participant Position as Position & Portfolio Service
+    participant RabbitMQ as Message Broker
+    participant Redis as Cache Layer
+
+    Note over Client,Redis: Order Submission & Execution Flow with Microservices
+
+    %% Authentication Phase
+    Client->>Gateway: POST /auth/login
+    Gateway->>Auth: Login Request
+    Auth->>Auth: Validate Credentials
+    Auth-->>Gateway: JWT Token
+    Gateway-->>Client: Authentication Response
+
+    %% Order Submission Phase
+    Client->>Gateway: POST /orders (with JWT)
+    Gateway->>Gateway: Validate JWT Token
+    Gateway->>Order: Submit Order Request
+
+    %% Order Validation Phase
+    Order->>Market: gRPC: ValidateSymbol(AAPL)
+    Market->>Redis: Check Symbol Cache
+    Redis-->>Market: Cache Hit/Miss
+    alt Cache Miss
+        Market->>Market: Query Database
+        Market->>Redis: Update Cache
+    end
+    Market-->>Order: Symbol Valid + Current Price
+
+    Order->>Account: gRPC: CheckBalance(userID, amount)
+    Account->>Account: Query User Balance
+    Account-->>Order: Balance Sufficient
+
+    Order->>Market: gRPC: GetTradingHours(AAPL)
+    Market-->>Order: Market Open Status
+
+    %% Order Processing Phase
+    Order->>Order: Validate Order Rules
+    Order->>Order: Save Order (PENDING Status)
+    Order-->>Gateway: 202 Accepted + OrderID
+    Gateway-->>Client: Order Submitted
+
+    %% Asynchronous Processing Phase
+    Order->>RabbitMQ: Publish OrderSubmittedEvent
+    RabbitMQ->>Order: Consume OrderSubmittedEvent
+    Order->>Order: Process Order Execution
+
+    %% Execution Phase
+    Order->>Market: gRPC: GetCurrentPrice(AAPL)
+    Market-->>Order: Real-time Price
+    Order->>Account: gRPC: ReserveFunds(userID, amount)
+    Account->>Account: Reserve Balance
+    Account-->>Order: Funds Reserved
+
+    Order->>Order: Execute Order
+    Order->>Order: Update Status (EXECUTED)
+
+    %% Event Publication Phase
+    Order->>RabbitMQ: Publish OrderExecutedEvent
+    Note over RabbitMQ: Event: {OrderID, UserID, Symbol, Quantity, Price, Side}
+
+    %% Position Update Phase
+    RabbitMQ->>Position: Consume OrderExecutedEvent
+    Position->>Position: Process Position Update
+    alt New Position
+        Position->>Position: Create New Position
+    else Existing Position
+        Position->>Position: Update Quantity & Avg Price
+    end
+    Position->>Position: Save Updated Position
+    Position->>RabbitMQ: Publish PositionUpdatedEvent
+
+    %% Account Settlement Phase  
+    RabbitMQ->>Account: Consume OrderExecutedEvent
+    Account->>Account: Process Transaction
+    Account->>Account: Confirm Fund Settlement
+    Account->>Account: Update Balance
+    Account->>RabbitMQ: Publish BalanceUpdatedEvent
+
+    %% Real-time Updates Phase
+    RabbitMQ->>Gateway: Position & Balance Events
+    Gateway->>Client: WebSocket: Portfolio Update
+
+    Note over Client,Redis: Portfolio Aggregation Flow
+
+    %% Portfolio Request Phase
+    Client->>Gateway: GET /portfolio/summary
+    Gateway->>Position: gRPC: GetPositionAggregation(userID)
+    
+    Position->>Position: Query User Positions
+    Position->>Market: gRPC: GetCurrentPrices(symbols[])
+    Market->>Redis: Batch Price Lookup
+    Redis-->>Market: Cached Prices
+    Market-->>Position: Current Market Prices
+    
+    Position->>Account: gRPC: GetBalance(userID)
+    Account-->>Position: Account Balance
+    
+    Position->>Position: Calculate Portfolio Metrics
+    Position-->>Gateway: Portfolio Summary
+    Gateway-->>Client: Portfolio Data
+
+    Note over Client,Redis: Real-time Price Updates
+
+    %% Market Data Streaming
+    Market->>Market: Receive External Price Feed
+    Market->>Redis: Update Price Cache
+    Market->>RabbitMQ: Publish PriceUpdatedEvent
+    
+    RabbitMQ->>Position: Consume PriceUpdatedEvent
+    Position->>Position: Update Position P&L
+    Position->>RabbitMQ: Publish PositionPnLUpdatedEvent
+    
+    RabbitMQ->>Gateway: Real-time Updates
+    Gateway->>Client: WebSocket: Live Price Updates
+
+    Note over Client,Redis: Error Handling & Compensation
+
+    alt Order Execution Failure
+        Order->>Account: gRPC: ReleaseFunds(userID, amount)
+        Account->>Account: Release Reserved Funds
+        Account-->>Order: Funds Released
+        
+        Order->>Order: Update Status (FAILED)
+        Order->>RabbitMQ: Publish OrderFailedEvent
+        
+        RabbitMQ->>Position: Consume OrderFailedEvent
+        Position->>Position: Log Failed Transaction
+        
+        RabbitMQ->>Gateway: Error Notification
+        Gateway->>Client: WebSocket: Order Failed
+    end

@@ -666,17 +666,206 @@ PostgreSQL: positions table
   - Foundation for microservices architecture
   - **But with 90% fewer files and complexity!**
   
-- [ ] Design microservices decomposition strategy
-- [ ] Add service discovery and registration
-- [ ] Implement circuit breaker patterns
-- [ ] Add distributed tracing and monitoring
-- [ ] Create independent service deployment capabilities
-- [ ] Implement horizontal scaling considerations
+
 - **Priority**: High - gRPC inter-service communication (simplified), other features optional
 
 ### Make assets trading hour configurable in market_data_client.go(persist in DB, for now)
 
-### ⏳ Phase 10: Authentication & Login Improvements
+### ⏳ Phase 10: Microservices Architecture Migration (MAJOR)
+
+- [x] Design microservices decomposition strategy (COMPLETED)
+
+**📋 Overview:** Transform the monolithic Hub Investments application into 6 microservices following the comprehensive decomposition strategy. This is a major architectural evolution requiring careful planning and execution.
+
+**📖 Reference Documents:**
+- [Microservices Decomposition Strategy](docs/microservices_decomposition_strategy.md)
+- [Service Mapping Guide](docs/service_mapping_guide.md)
+- [Architecture Diagrams](docs/microservices_architecture.png)
+- [Event Flow Diagrams](docs/microservices_event_flow.png)
+
+#### **🏗️ Phase 10.1: Infrastructure Foundation (Months 1-3)**
+- [ ] **Step 1**: Kubernetes Cluster Setup
+  - [ ] Provision development Kubernetes cluster
+  - [ ] Install Istio service mesh for service discovery and security
+  - [ ] Set up namespaces: `hub-services`, `hub-infrastructure`, `hub-monitoring`
+  - [ ] Configure network policies and security groups
+  - [ ] Test cluster connectivity and resource allocation
+  - **Priority**: Critical - Foundation for all microservices
+
+- [ ] **Step 2**: Observability Stack Deployment
+  - [ ] Deploy Prometheus for metrics collection
+  - [ ] Set up Grafana dashboards for monitoring
+  - [ ] Install Jaeger for distributed tracing
+  - [ ] Configure ELK stack for centralized logging
+  - [ ] Create service health check endpoints
+  - [ ] Set up alerting rules and notification channels
+  - **Priority**: Critical - Observability before migration
+
+- [ ] **Step 3**: Message Broker Infrastructure
+  - [ ] Deploy RabbitMQ cluster with high availability
+  - [ ] Configure event exchanges and queues
+  - [ ] Set up dead letter queues and retry logic
+  - [ ] Implement message routing and topic structures
+  - [ ] Test message durability and performance
+  - **Priority**: High - Required for event-driven architecture
+
+- [ ] **Step 4**: CI/CD Pipeline Setup
+  - [ ] Create GitHub Actions workflows for each microservice
+  - [ ] Set up container registry and image management
+  - [ ] Implement automated testing pipelines
+  - [ ] Configure deployment automation with rollback
+  - [ ] Set up environment promotion (dev → staging → prod)
+  - **Priority**: High - Required for safe deployments
+
+#### **🔄 Phase 10.2: Service Extraction - Foundation Services (Months 2-4)**
+- [ ] **Step 5**: Extract User Management Service
+  - [ ] Create `hub-user-service` repository and structure
+  - [ ] Migrate `internal/auth/` and `internal/login/` modules
+  - [ ] Implement gRPC AuthService with JWT validation
+  - [ ] Create service-specific database: `hub_users_db`
+  - [ ] Migrate user data with integrity validation
+  - [ ] Deploy service with monitoring and health checks
+  - [ ] Update existing services to use new AuthService gRPC client
+  - **Priority**: High - Required by all other services
+
+- [ ] **Step 6**: Extract Market Data Service  
+  - [ ] Create `hub-market-service` repository
+  - [ ] Migrate `internal/market_data/` and `internal/realtime_quotes/`
+  - [ ] Implement MarketDataService gRPC interface
+  - [ ] Set up WebSocket streaming infrastructure
+  - [ ] Create service-specific database: `hub_market_db`
+  - [ ] Implement Redis caching layer for performance
+  - [ ] Deploy service with real-time monitoring
+  - [ ] Test WebSocket connections and price streaming
+  - **Priority**: High - Core business functionality
+
+- [ ] **Step 7**: Extract Watchlist Service
+  - [ ] Create `hub-watchlist-service` repository
+  - [ ] Migrate `internal/watchlist/` module
+  - [ ] Implement WatchlistService gRPC interface
+  - [ ] Create service-specific database: `hub_watchlist_db`
+  - [ ] Integrate with Market Data Service for price data
+  - [ ] Implement price alert notifications
+  - [ ] Deploy with user authentication integration
+  - **Priority**: Medium - Independent user feature
+
+#### **🏢 Phase 10.3: Business Logic Services (Months 4-7)**
+- [ ] **Step 8**: Extract Account Management Service
+  - [ ] Create `hub-account-service` repository
+  - [ ] Migrate `internal/balance/` module
+  - [ ] Implement AccountService gRPC interface
+  - [ ] Create service-specific database: `hub_accounts_db`
+  - [ ] Implement fund reservation and release logic
+  - [ ] Add transaction history and audit trails
+  - [ ] Deploy with comprehensive financial compliance monitoring
+  - **Priority**: Critical - Required for order processing
+
+- [ ] **Step 9**: Extract Position & Portfolio Service
+  - [ ] Create `hub-portfolio-service` repository  
+  - [ ] Migrate `internal/position/` and `internal/portfolio_summary/`
+  - [ ] Implement PositionService gRPC interface
+  - [ ] Create service-specific database: `hub_portfolio_db`
+  - [ ] Migrate position data from `positions_v2` table
+  - [ ] Set up event processing for position updates
+  - [ ] Implement real-time portfolio aggregation
+  - [ ] Deploy with performance monitoring for large portfolios
+  - **Priority**: High - Core portfolio functionality
+
+#### **⚡ Phase 10.4: Order Management Migration (Months 6-9)**
+- [ ] **Step 10**: Event-Driven Architecture Implementation
+  - [ ] Design and implement event schemas (OrderExecutedEvent, PositionUpdatedEvent)
+  - [ ] Create event publisher/consumer patterns
+  - [ ] Implement saga orchestration for distributed transactions
+  - [ ] Set up event sourcing for order audit trails
+  - [ ] Test event flow end-to-end with compensation logic
+  - [ ] Monitor event processing latency and reliability
+  - **Priority**: Critical - Required for order execution
+
+- [ ] **Step 11**: Extract Order Management Service (Most Complex)
+  - [ ] Create `hub-order-service` repository
+  - [ ] Migrate entire `internal/order_mngmt_system/` module
+  - [ ] Implement OrderService gRPC interface
+  - [ ] Create service-specific database: `hub_orders_db`
+  - [ ] Integrate with all other services (Market Data, Account, Auth)
+  - [ ] Implement saga pattern for order execution workflow
+  - [ ] Set up comprehensive order lifecycle monitoring
+  - [ ] Test high-throughput order processing (1000+ orders/minute)
+  - **Priority**: Critical - Core trading functionality
+
+#### **🚀 Phase 10.5: Production Deployment & Optimization (Months 8-12)**
+- [ ] **Step 12**: Performance Testing & Optimization
+  - [ ] Load test each service independently (1000+ req/sec)
+  - [ ] Test end-to-end order flow under load
+  - [ ] Optimize database queries and connection pooling
+  - [ ] Tune gRPC connection settings and timeouts
+  - [ ] Validate <200ms p95 API response times
+  - [ ] Test WebSocket concurrent connections (10,000+)
+  - **Priority**: High - Performance requirements
+
+- [ ] **Step 13**: Security Hardening
+  - [ ] Implement mTLS between all services via Istio
+  - [ ] Set up service-to-service authentication
+  - [ ] Configure network policies and firewall rules
+  - [ ] Implement API rate limiting per service
+  - [ ] Add security scanning to CI/CD pipelines
+  - [ ] Conduct penetration testing on microservices
+  - **Priority**: Critical - Production security
+
+- [ ] **Step 14**: Production Readiness
+  - [ ] Set up blue-green deployment strategies
+  - [ ] Implement automated rollback procedures
+  - [ ] Configure production monitoring and alerting
+  - [ ] Create runbooks for incident response
+  - [ ] Set up backup and disaster recovery procedures
+  - [ ] Train development teams on microservices operations
+  - **Priority**: Critical - Production operations
+
+- [ ] **Step 15**: Migration Validation & Cleanup
+  - [ ] Validate all business functionality in microservices
+  - [ ] Performance benchmarking vs. monolithic version
+  - [ ] Gradual traffic migration with canary deployments
+  - [ ] Monitor system stability for 30 days
+  - [ ] Decommission monolithic infrastructure
+  - [ ] Document lessons learned and best practices
+  - **Priority**: High - Migration completion
+
+### **📊 Microservices Success Metrics**
+- **Technical KPIs:**
+  - [ ] 100% service independence (deploy without affecting others)
+  - [ ] <200ms p95 API response times maintained
+  - [ ] 99.9% uptime across all services
+  - [ ] <5s end-to-end event processing latency
+  - [ ] 30% infrastructure cost reduction through optimization
+
+- **Business KPIs:**
+  - [ ] 50% faster feature delivery (independent service teams)
+  - [ ] <30 minutes mean time to recovery for incidents
+  - [ ] 10x scalability capacity for peak trading hours
+  - [ ] 100% audit trail coverage for compliance
+  - [ ] Zero performance degradation during migration
+
+- **Operational KPIs:**
+  - [ ] Daily deployments per service capability
+  - [ ] <2 hours lead time from commit to production
+  - [ ] <5% change failure rate across services
+  - [ ] 100% test automation coverage
+  - [ ] Full observability across all services
+
+### **⚠️ Risk Mitigation Checklist**
+- [ ] **Data Consistency:** Saga patterns tested with failure scenarios
+- [ ] **Service Dependencies:** Circuit breakers implemented and tested
+- [ ] **Security Vulnerabilities:** Regular security scans and penetration testing
+- [ ] **Performance Degradation:** Comprehensive load testing before migration
+- [ ] **Operational Complexity:** Team training and comprehensive documentation
+- [ ] **Deployment Failures:** Automated rollback procedures tested
+
+**📋 Total Estimated Timeline:** 12 months for complete microservices migration
+**👥 Team Requirements:** 3-4 senior engineers + 1 DevOps engineer + 1 architect
+**💰 Infrastructure Investment:** Kubernetes cluster + monitoring + CI/CD tooling
+
+---
+
+### ⏳ Phase 11: Authentication & Login Improvements
 - [ ] **Step 1**: User Registration and Account Creation
   - [ ] Create user registration domain model and validation
   - [ ] Implement `create_user_usecase.go` with proper business logic
@@ -889,6 +1078,11 @@ PostgreSQL: positions table
 - [ ] International market expansion
 - [ ] Advanced charting and technical analysis tools
 - [ ] Send email? Or SMS? after sending and order
+- [ ] Add service discovery and registration
+- [ ] Implement circuit breaker patterns
+- [ ] Add distributed tracing and monitoring
+- [ ] Create independent service deployment capabilities
+- [ ] Implement horizontal scaling considerations
 
 ### Technical Debits
 - [ ] **Token Verification Duplication**: Handlers are repeating token verification logic - need to segregate into middleware to avoid code duplication (MockAuth and VerifyToken)
