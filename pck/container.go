@@ -27,6 +27,7 @@ import (
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
+	positionWorker "HubInvestments/internal/position/infra/worker"
 	quotesService "HubInvestments/internal/realtime_quotes/application/service"
 	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
 	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
@@ -45,6 +46,9 @@ type Container interface {
 	DoLoginUsecase() doLoginUsecase.IDoLoginUsecase
 	GetAuthService() auth.IAuthService
 	GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase
+	GetCreatePositionUseCase() posUsecase.ICreatePositionUseCase
+	GetUpdatePositionUseCase() posUsecase.IUpdatePositionUseCase
+	GetClosePositionUseCase() posUsecase.IClosePositionUseCase
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
 	GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase
@@ -62,6 +66,9 @@ type Container interface {
 	// Order Management System - Infrastructure
 	GetOrderProducer() *orderRabbitMQ.OrderProducer
 	GetOrderWorkerManager() *orderWorker.WorkerManager
+
+	// Position Management System - Infrastructure
+	GetPositionWorkerManager() *positionWorker.PositionUpdateWorker
 
 	// Cache management methods for admin operations
 	InvalidateMarketDataCache(symbols []string) error
@@ -86,6 +93,9 @@ type Container interface {
 type containerImpl struct {
 	AuthService                auth.IAuthService
 	PositionAggregationUseCase *posUsecase.GetPositionAggregationUseCase
+	CreatePositionUseCase      posUsecase.ICreatePositionUseCase
+	UpdatePositionUseCase      posUsecase.IUpdatePositionUseCase
+	ClosePositionUseCase       posUsecase.IClosePositionUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
 	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
@@ -117,6 +127,9 @@ type containerImpl struct {
 	OrderWorkerManager  *orderWorker.WorkerManager
 	IdempotencyService  orderService.IIdempotencyService
 
+	// Position Management System - Infrastructure
+	PositionWorkerManager *positionWorker.PositionUpdateWorker
+
 	// Realtime Quotes System
 	AssetDataService               *quotesAssetService.AssetDataService
 	PriceOscillationService        *quotesService.PriceOscillationService
@@ -130,6 +143,18 @@ func (c *containerImpl) GetAuthService() auth.IAuthService {
 
 func (c *containerImpl) GetPositionAggregationUseCase() *posUsecase.GetPositionAggregationUseCase {
 	return c.PositionAggregationUseCase
+}
+
+func (c *containerImpl) GetCreatePositionUseCase() posUsecase.ICreatePositionUseCase {
+	return c.CreatePositionUseCase
+}
+
+func (c *containerImpl) GetUpdatePositionUseCase() posUsecase.IUpdatePositionUseCase {
+	return c.UpdatePositionUseCase
+}
+
+func (c *containerImpl) GetClosePositionUseCase() posUsecase.IClosePositionUseCase {
+	return c.ClosePositionUseCase
 }
 
 func (c *containerImpl) GetBalanceUseCase() *balUsecase.GetBalanceUseCase {
@@ -195,6 +220,10 @@ func (c *containerImpl) GetOrderProducer() *orderRabbitMQ.OrderProducer {
 
 func (c *containerImpl) GetOrderWorkerManager() *orderWorker.WorkerManager {
 	return c.OrderWorkerManager
+}
+
+func (c *containerImpl) GetPositionWorkerManager() *positionWorker.PositionUpdateWorker {
+	return c.PositionWorkerManager
 }
 
 func (c *containerImpl) GetAssetDataService() *quotesAssetService.AssetDataService {
@@ -279,6 +308,11 @@ func NewContainer() (Container, error) {
 	// Create repositories using the database abstraction
 	positionRepo := positionPersistence.NewPositionRepository(db)
 	positionAggregationUseCase := posUsecase.NewGetPositionAggregationUseCase(positionRepo)
+
+	// Position Management Use Cases
+	createPositionUseCase := posUsecase.NewCreatePositionUseCase(positionRepo)
+	updatePositionUseCase := posUsecase.NewUpdatePositionUseCase(positionRepo)
+	closePositionUseCase := posUsecase.NewClosePositionUseCase(positionRepo)
 
 	balanceRepo := balancePersistence.NewBalanceRepository(db)
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
@@ -367,7 +401,7 @@ func NewContainer() (Container, error) {
 	}
 
 	// Create order management use cases with dependencies
-	submitOrderUseCase := orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient, idempotencyService)
+	// Note: SubmitOrderUseCase will be created after OrderProducer is available
 	getOrderStatusUseCase := orderUsecase.NewGetOrderStatusUseCase(orderRepo, orderMarketDataClient)
 	cancelOrderUseCase := orderUsecase.NewCancelOrderUseCase(orderRepo)
 	processOrderUseCase := orderUsecase.NewProcessOrderUseCase(orderRepo, orderMarketDataClient, orderEventPublisher)
@@ -376,10 +410,14 @@ func NewContainer() (Container, error) {
 	//====== Order Management Infrastructure begin============
 	var orderProducer *orderRabbitMQ.OrderProducer
 	var orderWorkerManager *orderWorker.WorkerManager
+	var submitOrderUseCase orderUsecase.ISubmitOrderUseCase
 
 	// Only create producer and worker manager if messaging is available
 	if messageHandler != nil {
 		orderProducer = orderRabbitMQ.NewOrderProducer(messageHandler)
+
+		// Create SubmitOrderUseCase with OrderProducer dependency
+		submitOrderUseCase = orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient, idempotencyService, orderProducer)
 
 		// Create worker manager with default configuration
 		workerManagerConfig := orderWorker.DefaultWorkerManagerConfig()
@@ -395,8 +433,37 @@ func NewContainer() (Container, error) {
 				fmt.Printf("Warning: Failed to start order worker manager: %v\n", err)
 			}
 		}()
+	} else {
+		// Create SubmitOrderUseCase without OrderProducer when messaging is not available
+		submitOrderUseCase = orderUsecase.NewSubmitOrderUseCase(orderRepo, orderMarketDataClient, idempotencyService, nil)
 	}
 	//====== Order Management Infrastructure end============
+
+	//====== Position Management Infrastructure begin============
+	var positionWorkerManager *positionWorker.PositionUpdateWorker
+
+	// Only create position worker manager if messaging is available
+	if messageHandler != nil {
+		// Create position worker with default configuration
+		workerConfig := positionWorker.DefaultPositionWorkerConfig("position-worker-1")
+		positionWorkerManager = positionWorker.NewPositionUpdateWorker(
+			"position-worker-1",
+			createPositionUseCase,
+			updatePositionUseCase,
+			closePositionUseCase,
+			positionRepo,
+			messageHandler,
+			workerConfig,
+		)
+
+		// Start position worker in background
+		go func() {
+			if err := positionWorkerManager.Start(); err != nil {
+				fmt.Printf("Warning: Failed to start position worker manager: %v\n", err)
+			}
+		}()
+	}
+	//====== Position Management Infrastructure end============
 
 	//====== Realtime Quotes System begin============
 	// Create asset data service with predefined stocks and ETFs
@@ -424,6 +491,9 @@ func NewContainer() (Container, error) {
 
 	return &containerImpl{
 		PositionAggregationUseCase:     positionAggregationUseCase,
+		CreatePositionUseCase:          createPositionUseCase,
+		UpdatePositionUseCase:          updatePositionUseCase,
+		ClosePositionUseCase:           closePositionUseCase,
 		BalanceUsecase:                 balanceUsecase,
 		PortfolioSummaryUsecase:        portfolioSummaryUseCase,
 		MarketDataUsecase:              marketDataUsecase,
@@ -443,6 +513,7 @@ func NewContainer() (Container, error) {
 		OrderEventPublisher:            orderEventPublisher,
 		OrderWorkerManager:             orderWorkerManager,
 		IdempotencyService:             idempotencyService,
+		PositionWorkerManager:          positionWorkerManager,
 		AssetDataService:               assetDataService,
 		PriceOscillationService:        priceOscillationService,
 		RealtimeQuotesWebSocketHandler: realtimeQuotesWebSocketHandler,

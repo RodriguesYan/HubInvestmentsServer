@@ -10,6 +10,7 @@ import (
 	"HubInvestments/internal/order_mngmt_system/domain/repository"
 	"HubInvestments/internal/order_mngmt_system/domain/service"
 	"HubInvestments/internal/order_mngmt_system/infra/external"
+	"HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
 )
 
 type ISubmitOrderUseCase interface {
@@ -20,6 +21,7 @@ type SubmitOrderUseCase struct {
 	orderRepository    repository.IOrderRepository
 	marketDataClient   external.IMarketDataClient
 	idempotencyService service.IIdempotencyService
+	orderProducer      *rabbitmq.OrderProducer
 }
 
 type SubmitOrderUseCaseConfig struct {
@@ -33,11 +35,13 @@ func NewSubmitOrderUseCase(
 	orderRepository repository.IOrderRepository,
 	marketDataClient external.IMarketDataClient,
 	idempotencyService service.IIdempotencyService,
+	orderProducer *rabbitmq.OrderProducer,
 ) ISubmitOrderUseCase {
 	return &SubmitOrderUseCase{
 		orderRepository:    orderRepository,
 		marketDataClient:   marketDataClient,
 		idempotencyService: idempotencyService,
+		orderProducer:      orderProducer,
 	}
 }
 
@@ -137,6 +141,15 @@ func (uc *SubmitOrderUseCase) processOrderSubmission(ctx context.Context, cmd *c
 
 	if err := uc.orderRepository.Save(ctx, order); err != nil {
 		return nil, fmt.Errorf("failed to save order: %w", err)
+	}
+
+	// Publish order for processing (only if orderProducer is available)
+	if uc.orderProducer != nil {
+		if err := uc.orderProducer.PublishOrderForProcessing(ctx, order); err != nil {
+			// Log the error but don't fail the order submission
+			// The order is saved and can be processed later
+			fmt.Printf("Warning: Failed to publish order for processing: %v\n", err)
+		}
 	}
 
 	estimatedPrice := uc.calculateEstimatedExecutionPrice(order, marketData.CurrentPrice)

@@ -49,7 +49,8 @@ func (p *EventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *d
 		return fmt.Errorf("event cannot be nil")
 	}
 
-	eventData := map[string]interface{}{
+	// Create position update message in the format expected by position worker
+	positionUpdateMessage := map[string]interface{}{
 		"order_id":              event.OrderID(),
 		"user_id":               event.UserID(),
 		"symbol":                event.Symbol,
@@ -61,35 +62,36 @@ func (p *EventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *d
 		"total_value":           event.TotalValue,
 		"market_price_at_exec":  event.MarketPriceAtExec,
 		"market_data_timestamp": event.MarketDataTimestamp,
+		"message_metadata": map[string]interface{}{
+			"message_id":       fmt.Sprintf("position_update_%s_%d", event.OrderID(), time.Now().UnixNano()),
+			"correlation_id":   event.OrderID(),
+			"timestamp":        time.Now(),
+			"retry_attempt":    0,
+			"priority":         uint8(1),
+			"source":           "order_execution",
+			"message_type":     "position_update",
+			"processing_stage": "initial",
+		},
 	}
 
-	eventMessage := EventMessage{
-		EventID:       event.EventID(),
-		EventType:     event.EventType(),
-		AggregateID:   event.AggregateID(),
-		OccurredAt:    event.OccurredAt(),
-		EventData:     eventData,
-		MessageID:     fmt.Sprintf("event_%s_%d", event.EventID(), time.Now().UnixNano()),
-		CorrelationID: event.OrderID(),
-		Timestamp:     time.Now(),
-		Source:        "order_execution",
-	}
-
-	messageBytes, err := json.Marshal(eventMessage)
+	messageBytes, err := json.Marshal(positionUpdateMessage)
 	if err != nil {
-		return fmt.Errorf("failed to serialize event message: %w", err)
+		return fmt.Errorf("failed to serialize position update message: %w", err)
 	}
 
-	queueName := "position.updates"
+	queueName := "positions.updates"
+	messageID := fmt.Sprintf("position_update_%s_%d", event.OrderID(), time.Now().UnixNano())
 	headers := map[string]interface{}{
-		"event_type":   event.EventType(),
-		"order_side":   string(event.OrderSide),
-		"symbol":       event.Symbol,
-		"user_id":      event.UserID(),
-		"execution_at": event.ExecutedAt.Format(time.RFC3339),
+		"event_type":     "OrderExecuted",
+		"order_side":     string(event.OrderSide),
+		"symbol":         event.Symbol,
+		"user_id":        event.UserID(),
+		"execution_at":   event.ExecutedAt.Format(time.RFC3339),
+		"message_id":     messageID,
+		"correlation_id": event.OrderID(),
 	}
 
-	return p.publishEvent(ctx, queueName, messageBytes, eventMessage.MessageID, headers)
+	return p.publishEvent(ctx, queueName, messageBytes, messageID, headers)
 }
 
 func (p *EventPublisher) PublishOrderFailedEvent(ctx context.Context, event *domain.OrderFailedEvent) error {
