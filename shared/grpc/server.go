@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 
+	marketDataGrpc "HubInvestments/internal/market_data/presentation/grpc"
 	"HubInvestments/internal/market_data/presentation/grpc/interceptors"
+	marketDataProto "HubInvestments/internal/market_data/presentation/grpc/proto"
 	di "HubInvestments/pck"
 	"HubInvestments/shared/grpc/proto"
 
@@ -27,10 +29,12 @@ func NewGRPCServer(container di.Container, port string) (*grpc.Server, net.Liste
 	authServer := NewAuthServiceServer(container)
 	orderServer := NewOrderServiceServer(container)
 	positionServer := NewPositionServiceServer(container)
+	marketDataServer := marketDataGrpc.NewMarketDataGRPCServer(container)
 
 	proto.RegisterAuthServiceServer(server, authServer)
 	proto.RegisterOrderServiceServer(server, orderServer)
 	proto.RegisterPositionServiceServer(server, positionServer)
+	marketDataProto.RegisterMarketDataServiceServer(server, marketDataServer)
 
 	return server, lis, nil
 }

@@ -94,15 +94,16 @@ func Test_GetPositionAggregationUseCase_WithDependencyInjection(t *testing.T) {
 	assert.Len(t, result.PositionAggregation[0].Assets, 2)
 }
 
-func Test_GetPositionAggregationUseCase_InvalidUUID(t *testing.T) {
-	invalidUserId := "invalid-uuid"
+func Test_GetPositionAggregationUseCase_InvalidUserID(t *testing.T) {
+	invalidUserId := "invalid-user-id-format"
 
 	repo := NewMockPositionRepositoryForNew()
 
 	_, err := NewGetPositionAggregationUseCase(repo).Execute(invalidUserId)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid UUID")
+	assert.Contains(t, err.Error(), "invalid user ID format")
+	assert.Contains(t, err.Error(), "cannot be parsed as UUID or integer")
 }
 
 func Test_GetPositionAggregationUseCase_EmptyPositions(t *testing.T) {
@@ -117,4 +118,89 @@ func Test_GetPositionAggregationUseCase_EmptyPositions(t *testing.T) {
 	assert.Equal(t, float32(0.0), result.TotalInvested)
 	assert.Equal(t, float32(0.0), result.CurrentTotal)
 	assert.Len(t, result.PositionAggregation, 0)
+}
+
+func TestParseUserIDToUUID(t *testing.T) {
+	tests := []struct {
+		name        string
+		userID      string
+		expectError bool
+		description string
+	}{
+		{
+			name:        "Valid UUID string",
+			userID:      "550e8400-e29b-41d4-a716-446655440000",
+			expectError: false,
+			description: "Should parse valid UUID string directly",
+		},
+		{
+			name:        "Integer string - single digit",
+			userID:      "1",
+			expectError: false,
+			description: "Should convert integer '1' to deterministic UUID",
+		},
+		{
+			name:        "Integer string - multiple digits",
+			userID:      "12345",
+			expectError: false,
+			description: "Should convert integer '12345' to deterministic UUID",
+		},
+		{
+			name:        "Invalid string",
+			userID:      "invalid-user-id",
+			expectError: true,
+			description: "Should fail for non-UUID, non-integer strings",
+		},
+		{
+			name:        "Empty string",
+			userID:      "",
+			expectError: true,
+			description: "Should fail for empty string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseUserIDToUUID(tt.userID)
+
+			if tt.expectError {
+				assert.Error(t, err, tt.description)
+				assert.Equal(t, uuid.Nil, result, "Should return Nil UUID on error")
+			} else {
+				assert.NoError(t, err, tt.description)
+				assert.NotEqual(t, uuid.Nil, result, "Should return valid UUID")
+
+				// Test consistency: same input should produce same UUID
+				result2, err2 := parseUserIDToUUID(tt.userID)
+				assert.NoError(t, err2)
+				assert.Equal(t, result, result2, "Same input should produce consistent UUID")
+			}
+		})
+	}
+}
+
+func Test_GetPositionAggregationUseCase_IntegerUserID(t *testing.T) {
+	// This test specifically addresses the original issue: userId="1"
+	integerUserId := "1"
+
+	// The parseUserIDToUUID should convert "1" to a deterministic UUID
+	expectedUUID, err := parseUserIDToUUID(integerUserId)
+	assert.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, expectedUUID)
+
+	// Create a position with the converted UUID
+	position1, _ := domain.NewPosition(expectedUUID, "AAPL", 5.0, 10.0, domain.PositionTypeLong)
+	position1.CurrentPrice = 11.0
+	position1.MarketValue = position1.Quantity * position1.CurrentPrice
+
+	repo := NewMockPositionRepositoryForNew()
+	repo.AddPosition(position1)
+
+	// Execute with string "1" - should work now
+	result, err := NewGetPositionAggregationUseCase(repo).Execute(integerUserId)
+
+	assert.NoError(t, err, "Should successfully handle integer user ID '1'")
+	assert.Equal(t, 1, len(result.PositionAggregation))
+	assert.Equal(t, float32(50.0), result.TotalInvested) // 5 * 10
+	assert.Equal(t, float32(55.0), result.CurrentTotal)  // 5 * 11
 }

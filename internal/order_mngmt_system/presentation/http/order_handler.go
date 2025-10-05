@@ -183,13 +183,17 @@ func convertToOrderDetailsResponse(order *domain.Order) OrderDetailsResponse {
 // @Failure 500 {object} ErrorResponse "Internal server error"
 // @Router /orders [post]
 func SubmitOrder(w http.ResponseWriter, r *http.Request, userID string, container di.Container) {
+	fmt.Printf("[DEBUG] SubmitOrder called - UserID: %s, Method: %s\n", userID, r.Method)
+
 	if r.Method != http.MethodPost {
+		fmt.Printf("[DEBUG] Invalid method: %s\n", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req SubmitOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		fmt.Printf("[DEBUG] JSON decode error: %v\n", err)
 		errorResponse := ErrorResponse{
 			Error:   "Invalid JSON",
 			Message: err.Error(),
@@ -200,7 +204,10 @@ func SubmitOrder(w http.ResponseWriter, r *http.Request, userID string, containe
 		return
 	}
 
+	fmt.Printf("[DEBUG] Request decoded successfully: %+v\n", req)
+
 	if err := validateSubmitOrderRequest(&req); err != nil {
+		fmt.Printf("[DEBUG] Validation error: %v\n", err)
 		errorResponse := ErrorResponse{
 			Error:   "Validation Error",
 			Message: err.Error(),
@@ -210,6 +217,8 @@ func SubmitOrder(w http.ResponseWriter, r *http.Request, userID string, containe
 		json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
+
+	fmt.Printf("[DEBUG] Validation passed\n")
 
 	// Convert request to command
 	cmd := &command.SubmitOrderCommand{
@@ -221,9 +230,13 @@ func SubmitOrder(w http.ResponseWriter, r *http.Request, userID string, containe
 		Price:     req.Price,
 	}
 
+	fmt.Printf("[DEBUG] Command created: %+v\n", cmd)
+
 	ctx := context.Background()
+	fmt.Printf("[DEBUG] Calling SubmitOrderUseCase.Execute...\n")
 	result, err := container.GetSubmitOrderUseCase().Execute(ctx, cmd)
 	if err != nil {
+		fmt.Printf("[DEBUG] UseCase execution failed: %v\n", err)
 		errorResponse := ErrorResponse{
 			Error:   "Order Submission Failed",
 			Message: err.Error(),
@@ -233,6 +246,8 @@ func SubmitOrder(w http.ResponseWriter, r *http.Request, userID string, containe
 		json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
+
+	fmt.Printf("[DEBUG] UseCase execution successful: %+v\n", result)
 
 	response := SubmitOrderResponse{
 		OrderID:     result.OrderID,

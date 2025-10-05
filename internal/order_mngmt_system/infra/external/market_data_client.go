@@ -315,9 +315,9 @@ func (c *MarketDataClient) getTodayTime(hour, minute int) time.Time {
 
 func (c *MarketDataClient) isMarketCurrentlyOpen(now time.Time, hours *TradingHours) bool {
 	// Skip weekends for non-crypto assets
-	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-		return false
-	}
+	// if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+	// 	return false
+	// }
 
 	// Check if current time is within trading hours
 	return now.After(hours.MarketOpen) && now.Before(hours.MarketClose)
