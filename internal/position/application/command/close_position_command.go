@@ -29,7 +29,7 @@ func (cmd *ClosePositionCommand) Validate() error {
 		return errors.New("user ID is required")
 	}
 
-	if _, err := uuid.Parse(cmd.UserID); err != nil {
+	if _, err := parseUserIDToUUID(cmd.UserID); err != nil {
 		return fmt.Errorf("invalid user ID format: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func (cmd *ClosePositionCommand) ToPositionID() (uuid.UUID, error) {
 }
 
 func (cmd *ClosePositionCommand) ToUserID() (uuid.UUID, error) {
-	return uuid.Parse(cmd.UserID)
+	return parseUserIDToUUID(cmd.UserID)
 }
 
 func (cmd *ClosePositionCommand) ToSourceOrderID() (*uuid.UUID, error) {

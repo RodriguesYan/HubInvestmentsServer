@@ -66,19 +66,19 @@ func (uc *GetPositionAggregationUseCase) Execute(userId string) (domain.AucAggre
 
 // converts user ID string to UUID with flexible parsing
 // Supports both UUID format strings and integer strings (for backward compatibility)
+// MUST use the same format as command/helpers.go to ensure consistency!
 func parseUserIDToUUID(userId string) (uuid.UUID, error) {
 	// First, try parsing as a direct UUID
 	if userUUID, err := uuid.Parse(userId); err == nil {
 		return userUUID, nil
 	}
 
-	// If UUID parsing fails, try parsing as integer and convert to deterministic UUID
-	// This provides backward compatibility with integer-based user IDs
+	// If UUID parsing fails, try treating it as an integer and convert to UUID format
+	// Uses the same format as command/helpers.go: 00000000-0000-0000-0000-000000000001
 	if userInt, err := strconv.Atoi(userId); err == nil {
-		// Create a deterministic UUID based on the integer ID
-		// Using a namespace UUID to ensure consistency
-		namespace := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // Standard namespace for names
-		return uuid.NewSHA1(namespace, []byte(fmt.Sprintf("user_%d", userInt))), nil
+		// Convert integer to UUID format: 00000000-0000-0000-0000-000000000001
+		uuidStr := fmt.Sprintf("00000000-0000-0000-0000-%012d", userInt)
+		return uuid.Parse(uuidStr)
 	}
 
 	// If both parsing attempts fail, return error
