@@ -11,6 +11,7 @@ import (
 	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
+	positionWorker "HubInvestments/internal/position/infra/worker"
 	quotesService "HubInvestments/internal/realtime_quotes/application/service"
 	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
 	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
@@ -193,6 +194,10 @@ func (c *TestContainer) GetOrderProducer() *orderRabbitMQ.OrderProducer {
 }
 
 func (c *TestContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
+	return nil
+}
+
+func (c *TestContainer) GetPositionWorkerManager() *positionWorker.PositionUpdateWorker {
 	return nil
 }
 

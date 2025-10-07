@@ -106,7 +106,6 @@ func (m *MockMarketDataClient) GetAssetDetails(ctx context.Context, symbol strin
 		LastQuote:    150.50,
 		IsActive:     true,
 		IsTradeable:  true,
-		MinOrderSize: 1.0,
 		MaxOrderSize: 10000.0,
 		PriceStep:    0.01,
 		LastUpdated:  time.Now(),
@@ -201,7 +200,7 @@ func TestSubmitOrderUseCase_Execute_Success(t *testing.T) {
 	mockMarketData := &MockMarketDataClient{}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00
@@ -245,7 +244,7 @@ func TestSubmitOrderUseCase_Execute_InvalidCommand(t *testing.T) {
 	mockMarketData := &MockMarketDataClient{}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	cmd := &command.SubmitOrderCommand{
@@ -279,7 +278,7 @@ func TestSubmitOrderUseCase_Execute_IdempotencyAlreadyProcessed(t *testing.T) {
 		},
 	}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00
@@ -323,7 +322,7 @@ func TestSubmitOrderUseCase_Execute_MarketDataValidationFailure(t *testing.T) {
 	}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00
@@ -363,7 +362,7 @@ func TestSubmitOrderUseCase_Execute_MarketClosed(t *testing.T) {
 	}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00
@@ -403,7 +402,7 @@ func TestSubmitOrderUseCase_Execute_PriceValidationFailure(t *testing.T) {
 	}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	// Price too far from market price (should fail validation)
@@ -444,7 +443,7 @@ func TestSubmitOrderUseCase_Execute_RepositoryError(t *testing.T) {
 	mockMarketData := &MockMarketDataClient{}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00
@@ -480,7 +479,7 @@ func TestSubmitOrderUseCase_Execute_MarketOrder(t *testing.T) {
 	mockMarketData := &MockMarketDataClient{}
 	mockIdempotency := &MockIdempotencyService{}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	cmd := &command.SubmitOrderCommand{
@@ -519,7 +518,7 @@ func TestSubmitOrderUseCase_Execute_IdempotencyServiceError(t *testing.T) {
 		},
 	}
 
-	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency)
+	useCase := NewSubmitOrderUseCase(mockRepo, mockMarketData, mockIdempotency, nil)
 
 	ctx := context.Background()
 	price := 150.00

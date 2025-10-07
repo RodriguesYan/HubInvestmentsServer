@@ -23,6 +23,7 @@ import (
 	orderWorker "HubInvestments/internal/order_mngmt_system/infra/worker"
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
+	positionWorker "HubInvestments/internal/position/infra/worker"
 	quotesService "HubInvestments/internal/realtime_quotes/application/service"
 	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
 	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
@@ -95,6 +96,22 @@ func (m *MockContainer) GetOrderProducer() *orderRabbitMQ.OrderProducer {
 }
 
 func (m *MockContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
+	return nil
+}
+
+func (m *MockContainer) GetPositionWorkerManager() *positionWorker.PositionUpdateWorker {
+	return nil
+}
+
+func (m *MockContainer) GetCreatePositionUseCase() posUsecase.ICreatePositionUseCase {
+	return nil
+}
+
+func (m *MockContainer) GetUpdatePositionUseCase() posUsecase.IUpdatePositionUseCase {
+	return nil
+}
+
+func (m *MockContainer) GetClosePositionUseCase() posUsecase.IClosePositionUseCase {
 	return nil
 }
 
