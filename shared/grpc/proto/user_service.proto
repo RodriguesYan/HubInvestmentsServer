@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package userservice;
+
+option go_package = "./proto";
+
+// UserService provides authentication and user management operations
+service UserService {
+  // Login authenticates a user and returns a JWT token
+  rpc UserLogin(UserLoginRequest) returns (UserLoginResponse);
+  
+  // ValidateToken validates a JWT token
+  rpc UserValidateToken(UserValidateTokenRequest) returns (UserValidateTokenResponse);
+  
+  // RegisterUser creates a new user account
+  rpc RegisterUser(RegisterUserRequest) returns (RegisterUserResponse);
+  
+  // GetUserProfile retrieves user profile information
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+  
+  // HealthCheck checks if the service is healthy
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// UserLoginRequest contains credentials for authentication
+message UserLoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+// UserLoginResponse contains authentication result
+message UserLoginResponse {
+  bool success = 1;
+  string token = 2;
+  string user_id = 3;
+  string email = 4;
+  string first_name = 5;
+  string last_name = 6;
+  bool email_verified = 7;
+  string error_message = 8;
+}
+
+// UserValidateTokenRequest contains the token to validate
+message UserValidateTokenRequest {
+  string token = 1;
+}
+
+// UserValidateTokenResponse contains token validation result
+message UserValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string email = 3;
+  string error_message = 4;
+}
+
+// RegisterUserRequest contains new user information
+message RegisterUserRequest {
+  string email = 1;
+  string password = 2;
+  string first_name = 3;
+  string last_name = 4;
+}
+
+// RegisterUserResponse contains registration result
+message RegisterUserResponse {
+  bool success = 1;
+  string user_id = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string error_message = 6;
+}
+
+// GetUserProfileRequest contains the user ID
+message GetUserProfileRequest {
+  string user_id = 1;
+}
+
+// GetUserProfileResponse contains user profile information
+message GetUserProfileResponse {
+  bool success = 1;
+  string user_id = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  bool is_active = 6;
+  bool email_verified = 7;
+  string error_message = 8;
+}
+
+// HealthCheckRequest for service health check
+message HealthCheckRequest {}
+
+// HealthCheckResponse contains service health status
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+}
