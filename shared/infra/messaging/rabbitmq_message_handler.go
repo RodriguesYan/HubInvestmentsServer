@@ -90,6 +90,108 @@ func (r *RabbitMQMessageHandler) connect() error {
 	return nil
 }
 
+// checks if the channel is open and recreates it if needed
+// Must be called with mutex already held
+func (r *RabbitMQMessageHandler) ensureChannelHealthy() error {
+	// Check if channel exists and is open
+	if r.channel != nil {
+		// Try a simple operation to check if channel is actually working
+		// If this fails, the channel is closed or broken
+		select {
+		case <-r.channel.NotifyClose(make(chan *amqp.Error, 1)):
+			// Channel is closed
+			log.Printf("Channel is closed, recreating...")
+		default:
+			// Channel appears to be open
+			return nil
+		}
+	}
+
+	// Channel is nil or closed, need to recreate
+	if r.connection == nil || r.connection.IsClosed() {
+		// Connection is also broken, need full reconnect
+		log.Printf("Connection is closed, attempting full reconnection...")
+		return r.connectInternal()
+	}
+
+	// Connection is good, just need new channel
+	log.Printf("Creating new channel...")
+	ch, err := r.connection.Channel()
+	if err != nil {
+		log.Printf("Failed to create channel: %v, attempting full reconnection...", err)
+		return r.connectInternal()
+	}
+
+	// Set QoS if prefetch count is configured
+	if r.config.PrefetchCount > 0 {
+		if err := ch.Qos(r.config.PrefetchCount, 0, false); err != nil {
+			ch.Close()
+			return fmt.Errorf("failed to set QoS: %w", err)
+		}
+	}
+
+	// Enable publisher confirmation if configured
+	if r.config.EnableConfirmation {
+		if err := ch.Confirm(false); err != nil {
+			ch.Close()
+			return fmt.Errorf("failed to enable publisher confirmation: %w", err)
+		}
+	}
+
+	r.channel = ch
+	log.Printf("Channel recreated successfully")
+	return nil
+}
+
+// connectInternal is the internal connection method without locking
+// Must be called with mutex already held
+func (r *RabbitMQMessageHandler) connectInternal() error {
+	// Close existing connection if any
+	if r.connection != nil && !r.connection.IsClosed() {
+		r.connection.Close()
+	}
+
+	// Establish new connection
+	conn, err := amqp.DialConfig(r.config.URL, amqp.Config{
+		Heartbeat: time.Duration(r.config.HeartbeatInterval) * time.Second,
+		Dial:      amqp.DefaultDial(time.Duration(r.config.ConnectionTimeout) * time.Second),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect to RabbitMQ: %w", err)
+	}
+
+	// Create channel
+	ch, err := conn.Channel()
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to open channel: %w", err)
+	}
+
+	// Set QoS if prefetch count is configured
+	if r.config.PrefetchCount > 0 {
+		if err := ch.Qos(r.config.PrefetchCount, 0, false); err != nil {
+			ch.Close()
+			conn.Close()
+			return fmt.Errorf("failed to set QoS: %w", err)
+		}
+	}
+
+	// Enable publisher confirmation if configured
+	if r.config.EnableConfirmation {
+		if err := ch.Confirm(false); err != nil {
+			ch.Close()
+			conn.Close()
+			return fmt.Errorf("failed to enable publisher confirmation: %w", err)
+		}
+	}
+
+	r.connection = conn
+	r.channel = ch
+	r.closed = false
+
+	return nil
+}
+
 // handleConnectionClose handles connection close events and attempts reconnection
 func (r *RabbitMQMessageHandler) handleConnectionClose() {
 	closeNotify := r.connection.NotifyClose(make(chan *amqp.Error))
@@ -130,16 +232,16 @@ func (r *RabbitMQMessageHandler) Publish(ctx context.Context, queueName string, 
 
 // PublishWithOptions sends a message with additional options
 func (r *RabbitMQMessageHandler) PublishWithOptions(ctx context.Context, options PublishOptions) error {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	if r.closed || r.channel == nil {
+	if r.closed {
 		return ErrConnectionClosed
 	}
 
-	// Ensure queue exists
-	if err := r.declareQueueInternal(options.QueueName, QueueOptions{Durable: true}); err != nil {
-		return fmt.Errorf("failed to declare queue: %w", err)
+	// Ensure channel is healthy before publishing
+	if err := r.ensureChannelHealthy(); err != nil {
+		return fmt.Errorf("failed to ensure channel health: %w", err)
 	}
 
 	// Prepare message properties
@@ -187,21 +289,42 @@ func (r *RabbitMQMessageHandler) PublishWithOptions(ctx context.Context, options
 }
 
 // Consume starts consuming messages from a queue
+// Creates a dedicated channel for this consumer to avoid conflicts
 func (r *RabbitMQMessageHandler) Consume(ctx context.Context, queueName string, handler MessageConsumer) error {
 	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
-	if r.closed || r.channel == nil {
+	if r.closed {
+		r.mutex.RUnlock()
 		return ErrConnectionClosed
 	}
 
-	// Ensure queue exists
-	if err := r.declareQueueInternal(queueName, QueueOptions{Durable: true}); err != nil {
-		return fmt.Errorf("failed to declare queue: %w", err)
+	// Create dedicated channel for this consumer
+	conn := r.connection
+	r.mutex.RUnlock()
+
+	if conn == nil || conn.IsClosed() {
+		return ErrConnectionClosed
 	}
 
-	// Start consuming
-	msgs, err := r.channel.Consume(
+	// Create a new dedicated channel for this consumer
+	log.Printf("Creating dedicated channel for consumer on queue: %s", queueName)
+	consumerChannel, err := conn.Channel()
+	if err != nil {
+		return fmt.Errorf("failed to create consumer channel for %s: %w", queueName, err)
+	}
+
+	// Set QoS for this consumer channel
+	if r.config.PrefetchCount > 0 {
+		if err := consumerChannel.Qos(r.config.PrefetchCount, 0, false); err != nil {
+			consumerChannel.Close()
+			return fmt.Errorf("failed to set QoS on consumer channel: %w", err)
+		}
+	}
+
+	// NOTE: Queue should already be declared by queue setup manager
+	// Don't redeclare here to avoid TTL configuration conflicts
+
+	// Start consuming on dedicated channel
+	msgs, err := consumerChannel.Consume(
 		queueName, // queue
 		"",        // consumer
 		false,     // auto-ack
@@ -211,11 +334,13 @@ func (r *RabbitMQMessageHandler) Consume(ctx context.Context, queueName string, 
 		nil,       // args
 	)
 	if err != nil {
+		consumerChannel.Close()
 		return fmt.Errorf("failed to register consumer: %w", err)
 	}
 
-	// Process messages
+	// Process messages in dedicated goroutine with dedicated channel
 	go func() {
+		defer consumerChannel.Close() // Close channel when goroutine exits
 		for {
 			select {
 			case <-ctx.Done():
@@ -250,7 +375,7 @@ func (r *RabbitMQMessageHandler) Consume(ctx context.Context, queueName string, 
 
 				// Handle message
 				if err := handler.HandleMessage(ctx, message); err != nil {
-					log.Printf("Error handling message: %v", err)
+					log.Printf("Error handling message on queue %s: %v", queueName, err)
 					message.Nack(true) // Requeue on error
 				} else {
 					message.Ack()
@@ -264,8 +389,17 @@ func (r *RabbitMQMessageHandler) Consume(ctx context.Context, queueName string, 
 
 // DeclareQueue creates a queue if it doesn't exist
 func (r *RabbitMQMessageHandler) DeclareQueue(queueName string, options QueueOptions) error {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if r.closed {
+		return ErrConnectionClosed
+	}
+
+	// Ensure channel is healthy before declaring queue
+	if err := r.ensureChannelHealthy(); err != nil {
+		return fmt.Errorf("failed to ensure channel health: %w", err)
+	}
 
 	return r.declareQueueInternal(queueName, options)
 }

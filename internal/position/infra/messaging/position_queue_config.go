@@ -107,13 +107,9 @@ func (pqm *PositionQueueManager) setupPrimaryQueues() error {
 		Exclusive:  false,
 		NoWait:     false,
 		Arguments: map[string]interface{}{
-			// Route failed messages to DLQ after max retries
 			"x-dead-letter-exchange":    pqm.queueNames.DLQExchange,
 			"x-dead-letter-routing-key": pqm.queueNames.PositionsDLQ,
-			// Message TTL: 6 hours for position updates (positions need timely processing)
-			"x-message-ttl": int64(6 * time.Hour / time.Millisecond),
-			// Queue length limit to prevent memory issues during high volume
-			"x-max-length": 100000,
+			"x-max-length":              100000,
 		},
 	}
 
@@ -141,10 +137,7 @@ func (pqm *PositionQueueManager) setupManagementQueues() error {
 		AutoDelete: false,
 		Exclusive:  false,
 		NoWait:     false,
-		Arguments: map[string]interface{}{
-			// DLQ messages persist for 7 days for manual investigation
-			"x-message-ttl": int64(7 * 24 * time.Hour / time.Millisecond),
-		},
+		Arguments:  map[string]interface{}{},
 	}
 
 	dlqOptions := messaging.QueueOptions{
@@ -167,11 +160,8 @@ func (pqm *PositionQueueManager) setupManagementQueues() error {
 		Exclusive:  false,
 		NoWait:     false,
 		Arguments: map[string]interface{}{
-			// Messages in retry queue will be routed back to position updates after TTL
 			"x-dead-letter-exchange":    "",
 			"x-dead-letter-routing-key": pqm.queueNames.PositionUpdates,
-			// Default retry TTL (will be overridden per message based on retry attempt)
-			"x-message-ttl": int64(pqm.retryConfig.RetryIntervals[0] / time.Millisecond),
 		},
 	}
 

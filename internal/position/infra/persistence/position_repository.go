@@ -119,7 +119,7 @@ func (r *PositionRepository) Save(ctx context.Context, position *domain.Position
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)`
 
-	_, err = r.db.Exec(query,
+	_, err = r.db.ExecContext(ctx, query,
 		positionDTO.ID, positionDTO.UserID, positionDTO.Symbol,
 		positionDTO.Quantity, positionDTO.AveragePrice, positionDTO.TotalInvestment,
 		positionDTO.CurrentPrice, positionDTO.MarketValue, positionDTO.UnrealizedPnL,
@@ -199,17 +199,17 @@ func (r *PositionRepository) Delete(ctx context.Context, positionID uuid.UUID) e
 
 func (r *PositionRepository) ExistsForUser(ctx context.Context, userID uuid.UUID, symbol string) (bool, error) {
 	query := `
-		SELECT COUNT(*) > 0 
+		SELECT COUNT(*) 
 		FROM yanrodrigues.positions_v2 
-		WHERE user_id = $1 AND symbol = $2`
+		WHERE user_id = $1 AND symbol = $2 AND status = 'ACTIVE'`
 
-	var exists bool
-	err := r.db.Get(&exists, query, userID, symbol)
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID, symbol).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check position existence: %w", err)
 	}
 
-	return exists, nil
+	return count > 0, nil
 }
 
 func (r *PositionRepository) CountPositionsForUser(ctx context.Context, userID uuid.UUID) (int, error) {

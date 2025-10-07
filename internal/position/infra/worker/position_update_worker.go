@@ -530,8 +530,7 @@ func (w *PositionUpdateWorker) processPositionUpdateMessage(ctx context.Context,
 }
 
 func (w *PositionUpdateWorker) handleBuyOrder(ctx context.Context, message *PositionUpdateMessage) (string, error) {
-	// Check if position already exists for this user and symbol
-	userID, err := uuid.Parse(message.UserID)
+	userID, err := w.parseUserIDToUUID(message.UserID)
 	if err != nil {
 		return "", fmt.Errorf("invalid user ID: %w", err)
 	}
@@ -604,8 +603,7 @@ func (w *PositionUpdateWorker) handleBuyOrder(ctx context.Context, message *Posi
 }
 
 func (w *PositionUpdateWorker) handleSellOrder(ctx context.Context, message *PositionUpdateMessage) (string, error) {
-	// For sell orders, find the existing position and update it
-	userID, err := uuid.Parse(message.UserID)
+	userID, err := w.parseUserIDToUUID(message.UserID)
 	if err != nil {
 		return "", fmt.Errorf("invalid user ID: %w", err)
 	}
@@ -722,4 +720,22 @@ func (w *PositionUpdateWorker) scheduleRetry(message *PositionUpdateMessage, err
 		message.MessageMetadata.MessageID,
 		message.MessageMetadata.RetryAttempt,
 	)
+}
+
+func (w *PositionUpdateWorker) parseUserIDToUUID(userIDStr string) (uuid.UUID, error) {
+	parsedUUID, err := uuid.Parse(userIDStr)
+	if err == nil {
+		return parsedUUID, nil
+	}
+
+	// If UUID parsing fails, try treating it as an integer and convert to UUID format
+	var userIDInt int
+	_, scanErr := fmt.Sscanf(userIDStr, "%d", &userIDInt)
+	if scanErr == nil {
+		// Convert integer to UUID format: 00000000-0000-0000-0000-000000000001
+		uuidStr := fmt.Sprintf("00000000-0000-0000-0000-%012d", userIDInt)
+		return uuid.Parse(uuidStr)
+	}
+
+	return uuid.UUID{}, fmt.Errorf("invalid user ID format: %s", userIDStr)
 }
