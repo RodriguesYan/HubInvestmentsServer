@@ -227,10 +227,6 @@ func (uc *ProcessOrderUseCase) validateMarketConditions(ctx context.Context, ord
 		return fmt.Errorf("asset %s is not tradeable", order.Symbol())
 	}
 
-	if order.Quantity() < marketData.AssetDetails.MinOrderSize {
-		return fmt.Errorf("order quantity %f is below minimum %f", order.Quantity(), marketData.AssetDetails.MinOrderSize)
-	}
-
 	if order.Quantity() > marketData.AssetDetails.MaxOrderSize {
 		return fmt.Errorf("order quantity %f exceeds maximum %f", order.Quantity(), marketData.AssetDetails.MaxOrderSize)
 	}

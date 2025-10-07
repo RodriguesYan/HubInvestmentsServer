@@ -40,7 +40,6 @@ type AssetDetails struct {
 	LastQuote    float64
 	IsActive     bool
 	IsTradeable  bool
-	MinOrderSize float64
 	MaxOrderSize float64
 	PriceStep    float64
 	LastUpdated  time.Time
@@ -143,7 +142,6 @@ func (c *MarketDataClient) GetAssetDetails(ctx context.Context, symbol string) (
 		LastQuote:    float64(data.LastQuote),
 		IsActive:     true, // Assume active if we got data
 		IsTradeable:  c.isSymbolTradeable(data),
-		MinOrderSize: c.getMinOrderSize(data.Category),
 		MaxOrderSize: c.getMaxOrderSize(data.Category),
 		PriceStep:    c.getPriceStep(data.Category),
 		LastUpdated:  time.Now(),
@@ -202,7 +200,7 @@ func (c *MarketDataClient) GetTradingHours(ctx context.Context, symbol string) (
 	// Set trading hours based on asset category
 	switch assetDetails.Category {
 	case AssetCategoryStock, AssetCategoryETF:
-		tradingHours.MarketOpen = c.getTodayTime(9, 30)      // 9:30 AM
+		tradingHours.MarketOpen = c.getTodayTime(7, 30)      // 9:30 AM
 		tradingHours.MarketClose = c.getTodayTime(22, 0)     // 4:00 PM
 		tradingHours.PreMarketOpen = c.getTodayTime(4, 0)    // 4:00 AM
 		tradingHours.PostMarketClose = c.getTodayTime(20, 0) // 8:00 PM
@@ -217,7 +215,7 @@ func (c *MarketDataClient) GetTradingHours(ctx context.Context, symbol string) (
 		return tradingHours, nil
 	default:
 		// Default to stock market hours
-		tradingHours.MarketOpen = c.getTodayTime(9, 30)
+		tradingHours.MarketOpen = c.getTodayTime(7, 30)
 		tradingHours.MarketClose = c.getTodayTime(22, 0)
 		tradingHours.ExtendedHours = false
 	}
@@ -264,20 +262,6 @@ func mapCategoryFromMarketData(category int) AssetCategory {
 func (c *MarketDataClient) isSymbolTradeable(data marketDataModel.MarketDataModel) bool {
 	// Basic tradeability check - in production you'd have more sophisticated rules
 	return data.LastQuote > 0 && data.Symbol != ""
-}
-
-func (c *MarketDataClient) getMinOrderSize(category int) float64 {
-	// Minimum order sizes based on asset category
-	switch AssetCategory(category) {
-	case AssetCategoryStock, AssetCategoryETF:
-		return 1.0 // 1 share minimum
-	case AssetCategoryCrypto:
-		return 0.00000001 // Very small minimum for crypto
-	case AssetCategoryBond:
-		return 1000.0 // $1000 minimum for bonds
-	default:
-		return 1.0
-	}
 }
 
 func (c *MarketDataClient) getMaxOrderSize(category int) float64 {
