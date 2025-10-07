@@ -122,7 +122,7 @@ func NewOrderWorker(
 	}
 
 	// Create consumer if not provided
-	if consumer == nil && messageHandler == nil {
+	if consumer == nil {
 		// Create a message handler that will be passed to the consumer
 		orderMessageHandler := &OrderMessageHandler{
 			worker:    worker,

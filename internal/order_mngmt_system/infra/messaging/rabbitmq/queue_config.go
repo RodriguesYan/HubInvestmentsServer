@@ -124,11 +124,8 @@ func (qm *OrderQueueManager) setupPrimaryQueues(ctx context.Context) error {
 			Exclusive:  false,
 			NoWait:     false,
 			Arguments: map[string]interface{}{
-				// Route failed messages to DLQ after max retries
 				"x-dead-letter-exchange":    qm.queueNames.DLQExchange,
 				"x-dead-letter-routing-key": qm.queueNames.OrdersDLQ,
-				// Message TTL: 24 hours for order submission
-				"x-message-ttl": int64(24 * time.Hour / time.Millisecond),
 			},
 		},
 		{
@@ -140,8 +137,6 @@ func (qm *OrderQueueManager) setupPrimaryQueues(ctx context.Context) error {
 			Arguments: map[string]interface{}{
 				"x-dead-letter-exchange":    qm.queueNames.DLQExchange,
 				"x-dead-letter-routing-key": qm.queueNames.OrdersDLQ,
-				// Message TTL: 2 hours for order processing
-				"x-message-ttl": int64(2 * time.Hour / time.Millisecond),
 			},
 		},
 		{
@@ -153,8 +148,6 @@ func (qm *OrderQueueManager) setupPrimaryQueues(ctx context.Context) error {
 			Arguments: map[string]interface{}{
 				"x-dead-letter-exchange":    qm.queueNames.DLQExchange,
 				"x-dead-letter-routing-key": qm.queueNames.OrdersDLQ,
-				// Message TTL: 4 hours for settlement
-				"x-message-ttl": int64(4 * time.Hour / time.Millisecond),
 			},
 		},
 		{
@@ -163,10 +156,7 @@ func (qm *OrderQueueManager) setupPrimaryQueues(ctx context.Context) error {
 			AutoDelete: false,
 			Exclusive:  false,
 			NoWait:     false,
-			Arguments: map[string]interface{}{
-				// Status updates have shorter TTL
-				"x-message-ttl": int64(1 * time.Hour / time.Millisecond),
-			},
+			Arguments:  map[string]interface{}{},
 		},
 	}
 
@@ -196,10 +186,7 @@ func (qm *OrderQueueManager) setupManagementQueues(ctx context.Context) error {
 		AutoDelete: false,
 		Exclusive:  false,
 		NoWait:     false,
-		Arguments: map[string]interface{}{
-			// DLQ messages persist for 7 days for manual investigation
-			"x-message-ttl": int64(7 * 24 * time.Hour / time.Millisecond),
-		},
+		Arguments:  map[string]interface{}{},
 	}
 
 	dlqOptions := messaging.QueueOptions{
@@ -222,11 +209,8 @@ func (qm *OrderQueueManager) setupManagementQueues(ctx context.Context) error {
 		Exclusive:  false,
 		NoWait:     false,
 		Arguments: map[string]interface{}{
-			// Messages in retry queue will be routed back to processing after TTL
 			"x-dead-letter-exchange":    "",
 			"x-dead-letter-routing-key": qm.queueNames.OrdersProcessing,
-			// Default retry TTL (will be overridden per message)
-			"x-message-ttl": int64(qm.retryConfig.RetryIntervals[0] / time.Millisecond),
 		},
 	}
 

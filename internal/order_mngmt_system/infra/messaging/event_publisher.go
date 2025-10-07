@@ -54,8 +54,8 @@ func (p *EventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *d
 		"order_id":              event.OrderID(),
 		"user_id":               event.UserID(),
 		"symbol":                event.Symbol,
-		"order_side":            string(event.OrderSide),
-		"order_type":            string(event.OrderType),
+		"order_side":            event.OrderSide.String(),
+		"order_type":            event.OrderType.String(),
 		"quantity":              event.Quantity,
 		"execution_price":       event.ExecutionPrice,
 		"executed_at":           event.ExecutedAt,
@@ -83,7 +83,7 @@ func (p *EventPublisher) PublishOrderExecutedEvent(ctx context.Context, event *d
 	messageID := fmt.Sprintf("position_update_%s_%d", event.OrderID(), time.Now().UnixNano())
 	headers := map[string]interface{}{
 		"event_type":     "OrderExecuted",
-		"order_side":     string(event.OrderSide),
+		"order_side":     event.OrderSide.String(),
 		"symbol":         event.Symbol,
 		"user_id":        event.UserID(),
 		"execution_at":   event.ExecutedAt.Format(time.RFC3339),
