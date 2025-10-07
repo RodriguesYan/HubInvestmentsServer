@@ -675,7 +675,7 @@ PostgreSQL: positions table
 
 - [x] Design microservices decomposition strategy (COMPLETED)
 
-**📋 Overview:** Transform the monolithic Hub Investments application into 6 microservices following the comprehensive decomposition strategy. This is a major architectural evolution requiring careful planning and execution.
+**📋 Overview:** Transform the monolithic Hub Investments application into 6 microservices following the comprehensive decomposition strategy using the **Strangler Fig Pattern** for incremental, low-risk migration. This is a major architectural evolution requiring careful planning and execution.
 
 **📖 Reference Documents:**
 - [Microservices Decomposition Strategy](docs/microservices_decomposition_strategy.md)
@@ -683,151 +683,509 @@ PostgreSQL: positions table
 - [Architecture Diagrams](docs/microservices_architecture.png)
 - [Event Flow Diagrams](docs/microservices_event_flow.png)
 
-#### **🏗️ Phase 10.1: Infrastructure Foundation (Months 1-3)**
-- [ ] **Step 1**: Kubernetes Cluster Setup
-  - [ ] Provision development Kubernetes cluster
-  - [ ] Install Istio service mesh for service discovery and security
-  - [ ] Set up namespaces: `hub-services`, `hub-infrastructure`, `hub-monitoring`
-  - [ ] Configure network policies and security groups
-  - [ ] Test cluster connectivity and resource allocation
-  - **Priority**: Critical - Foundation for all microservices
+**🎯 Migration Strategy: Strangler Fig Pattern**
+The Strangler Fig Pattern allows us to gradually replace monolithic functionality by:
+1. Building new microservice alongside monolith (both run in parallel)
+2. Routing specific requests to the new microservice via API Gateway
+3. Maintaining monolith functionality until microservice is proven stable
+4. Gradually increasing traffic to microservice (0% → 10% → 50% → 100%)
+5. Decommissioning monolith module only after full validation
 
-- [ ] **Step 2**: Observability Stack Deployment
-  - [ ] Deploy Prometheus for metrics collection
-  - [ ] Set up Grafana dashboards for monitoring
-  - [ ] Install Jaeger for distributed tracing
-  - [ ] Configure ELK stack for centralized logging
-  - [ ] Create service health check endpoints
-  - [ ] Set up alerting rules and notification channels
-  - **Priority**: Critical - Observability before migration
+**Key Principles:**
+- ✅ **Zero Downtime**: Monolith continues working throughout migration
+- ✅ **Incremental Rollout**: Gradual traffic shifting with feature toggles
+- ✅ **Easy Rollback**: Can revert to monolith instantly if issues arise
+- ✅ **Shared Authentication**: JWT tokens work across monolith and microservices
+- ✅ **Data Consistency**: Maintain single source of truth during transition
 
-- [ ] **Step 3**: Message Broker Infrastructure
-  - [ ] Deploy RabbitMQ cluster with high availability
-  - [ ] Configure event exchanges and queues
-  - [ ] Set up dead letter queues and retry logic
-  - [ ] Implement message routing and topic structures
-  - [ ] Test message durability and performance
-  - **Priority**: High - Required for event-driven architecture
+---
 
-- [ ] **Step 4**: CI/CD Pipeline Setup
-  - [ ] Create GitHub Actions workflows for each microservice
-  - [ ] Set up container registry and image management
-  - [ ] Implement automated testing pipelines
-  - [ ] Configure deployment automation with rollback
-  - [ ] Set up environment promotion (dev → staging → prod)
-  - **Priority**: High - Required for safe deployments
+## **🚀 PHASE 10.1: User Management Service Migration (First Microservice)**
 
-#### **🔄 Phase 10.2: Service Extraction - Foundation Services (Months 2-4)**
-- [ ] **Step 5**: Extract User Management Service
-  - [ ] Create `hub-user-service` repository and structure
-  - [ ] Migrate `internal/auth/` and `internal/login/` modules
-  - [ ] Implement gRPC AuthService with JWT validation
-  - [ ] Create service-specific database: `hub_users_db`
-  - [ ] Migrate user data with integrity validation
-  - [ ] Deploy service with monitoring and health checks
-  - [ ] Update existing services to use new AuthService gRPC client
-  - **Priority**: High - Required by all other services
+**Target Module:** `internal/auth/` + `internal/login/`  
+**Service Name:** `hub-user-service`  
+**Estimated Duration:** 6-8 weeks  
+**Risk Level:** Low (minimal dependencies, clear boundaries)
 
-- [ ] **Step 6**: Extract Market Data Service  
-  - [ ] Create `hub-market-service` repository
-  - [ ] Migrate `internal/market_data/` and `internal/realtime_quotes/`
-  - [ ] Implement MarketDataService gRPC interface
-  - [ ] Set up WebSocket streaming infrastructure
-  - [ ] Create service-specific database: `hub_market_db`
-  - [ ] Implement Redis caching layer for performance
-  - [ ] Deploy service with real-time monitoring
-  - [ ] Test WebSocket connections and price streaming
-  - **Priority**: High - Core business functionality
+### **Pre-Migration Analysis (Week 1)**
 
-- [ ] **Step 7**: Extract Watchlist Service
-  - [ ] Create `hub-watchlist-service` repository
-  - [ ] Migrate `internal/watchlist/` module
-  - [ ] Implement WatchlistService gRPC interface
-  - [ ] Create service-specific database: `hub_watchlist_db`
-  - [ ] Integrate with Market Data Service for price data
-  - [ ] Implement price alert notifications
-  - [ ] Deploy with user authentication integration
-  - **Priority**: Medium - Independent user feature
+- [ ] **Step 1.1: Deep Code Analysis**
+  - [ ] Audit `internal/auth/auth_service.go` - understand current JWT token creation and validation
+  - [ ] Audit `internal/auth/token/token_service.go` - analyze token signing, expiration, and secret management
+  - [ ] Audit `internal/login/application/usecase/do_login_usecase.go` - understand login flow and dependencies
+  - [ ] Audit `internal/login/domain/model/user_model.go` - document User domain model structure
+  - [ ] Audit `internal/login/domain/valueobject/` - document Email and Password value objects
+  - [ ] Audit `internal/login/infra/persistense/login_repository.go` - understand database queries and schema
+  - [ ] **Deliverable**: Complete code inventory document with dependency map
 
-#### **🏢 Phase 10.3: Business Logic Services (Months 4-7)**
-- [ ] **Step 8**: Extract Account Management Service
-  - [ ] Create `hub-account-service` repository
-  - [ ] Migrate `internal/balance/` module
-  - [ ] Implement AccountService gRPC interface
-  - [ ] Create service-specific database: `hub_accounts_db`
-  - [ ] Implement fund reservation and release logic
-  - [ ] Add transaction history and audit trails
-  - [ ] Deploy with comprehensive financial compliance monitoring
-  - **Priority**: Critical - Required for order processing
+- [ ] **Step 1.2: Database Schema Analysis**
+  - [ ] Review existing migration: `shared/infra/migration/sql/000001_create_users_table.up.sql`
+  - [ ] Verify users table schema matches current implementation:
+    - `id SERIAL PRIMARY KEY`
+    - `email VARCHAR(255) NOT NULL UNIQUE`
+    - `name VARCHAR(255) NOT NULL`
+    - `password VARCHAR(255) NOT NULL`
+    - `created_at TIMESTAMP WITH TIME ZONE`
+    - `updated_at TIMESTAMP WITH TIME ZONE`
+  - [ ] **Decision**: Reuse existing migration file for microservice
+  - [ ] Check for foreign key relationships with other tables
+  - [ ] Analyze indexes: `idx_users_email`, `idx_users_created_at`
+  - [ ] **Deliverable**: Confirmation that existing migration is suitable
 
-- [ ] **Step 9**: Extract Position & Portfolio Service
-  - [ ] Create `hub-portfolio-service` repository  
-  - [ ] Migrate `internal/position/` and `internal/portfolio_summary/`
-  - [ ] Implement PositionService gRPC interface
-  - [ ] Create service-specific database: `hub_portfolio_db`
-  - [ ] Migrate position data from `positions_v2` table
-  - [ ] Set up event processing for position updates
-  - [ ] Implement real-time portfolio aggregation
-  - [ ] Deploy with performance monitoring for large portfolios
-  - **Priority**: High - Core portfolio functionality
+- [ ] **Step 1.3: Integration Point Mapping**
+  - [ ] Identify all places in monolith that call `AuthService.VerifyToken()`
+  - [ ] Identify all places that call `AuthService.CreateToken()`
+  - [ ] Map all HTTP handlers using `middleware.TokenVerifier()`
+  - [ ] Document current authentication flow end-to-end
+  - [ ] List all services that depend on user authentication
+  - [ ] **Deliverable**: Integration point diagram showing all auth touchpoints
 
-#### **⚡ Phase 10.4: Order Management Migration (Months 6-9)**
-- [ ] **Step 10**: Event-Driven Architecture Implementation
-  - [ ] Design and implement event schemas (OrderExecutedEvent, PositionUpdatedEvent)
-  - [ ] Create event publisher/consumer patterns
-  - [ ] Implement saga orchestration for distributed transactions
-  - [ ] Set up event sourcing for order audit trails
-  - [ ] Test event flow end-to-end with compensation logic
-  - [ ] Monitor event processing latency and reliability
-  - **Priority**: Critical - Required for order execution
+- [ ] **Step 1.4: JWT Token Compatibility Analysis**
+  - [ ] Document current JWT token structure (claims: username, userId, exp)
+  - [ ] Document current JWT signing algorithm (HS256)
+  - [ ] Document JWT secret management (from config.JWTSecret)
+  - [ ] Identify token expiration policy (currently 10 minutes)
+  - [ ] Plan for shared JWT secret between monolith and microservice
+  - [ ] **Deliverable**: JWT token specification document ensuring backward compatibility
 
-- [ ] **Step 11**: Extract Order Management Service (Most Complex)
-  - [ ] Create `hub-order-service` repository
-  - [ ] Migrate entire `internal/order_mngmt_system/` module
-  - [ ] Implement OrderService gRPC interface
-  - [ ] Create service-specific database: `hub_orders_db`
-  - [ ] Integrate with all other services (Market Data, Account, Auth)
-  - [ ] Implement saga pattern for order execution workflow
-  - [ ] Set up comprehensive order lifecycle monitoring
-  - [ ] Test high-throughput order processing (1000+ orders/minute)
-  - **Priority**: Critical - Core trading functionality
+- [ ] **Step 1.5: Test Inventory**
+  - [ ] Catalog existing tests to be reused:
+    - `internal/auth/auth_service_test.go` (273 lines, comprehensive)
+    - `internal/auth/token/token_service_test.go`
+    - `internal/login/application/usecase/do_login_usecase_test.go`
+    - `internal/login/domain/model/user_model_test.go`
+    - `internal/login/domain/valueobject/email_test.go`
+    - `internal/login/domain/valueobject/password_test.go`
+    - `internal/login/infra/persistense/login_repository_test.go`
+  - [ ] Plan to copy tests as-is to microservice (only update import paths)
+  - [ ] **Deliverable**: Test migration plan
 
-#### **🚀 Phase 10.5: Production Deployment & Optimization (Months 8-12)**
-- [ ] **Step 12**: Performance Testing & Optimization
-  - [ ] Load test each service independently (1000+ req/sec)
-  - [ ] Test end-to-end order flow under load
-  - [ ] Optimize database queries and connection pooling
-  - [ ] Tune gRPC connection settings and timeouts
-  - [ ] Validate <200ms p95 API response times
-  - [ ] Test WebSocket concurrent connections (10,000+)
-  - **Priority**: High - Performance requirements
+### **Microservice Development (Weeks 2-3)**
 
-- [ ] **Step 13**: Security Hardening
-  - [ ] Implement mTLS between all services via Istio
-  - [ ] Set up service-to-service authentication
-  - [ ] Configure network policies and firewall rules
-  - [ ] Implement API rate limiting per service
-  - [ ] Add security scanning to CI/CD pipelines
-  - [ ] Conduct penetration testing on microservices
-  - **Priority**: Critical - Production security
+- [ ] **Step 2.1: Repository and Project Setup**
+  - [ ] Create new Git repository: `hub-user-service`
+  - [ ] Initialize Go module: `go mod init hub-user-service`
+  - [ ] Set up project structure following clean architecture:
+    ```
+    hub-user-service/
+    ├── cmd/
+    │   └── server/
+    │       └── main.go                    # Service entry point
+    ├── internal/
+    │   ├── core/
+    │   │   ├── auth_service.go           # Copied from monolith (AS-IS)
+    │   │   └── token_service.go          # Copied from monolith (AS-IS)
+    │   ├── domain/
+    │   │   ├── model/
+    │   │   │   └── user.go               # Copied from monolith (AS-IS)
+    │   │   ├── valueobject/
+    │   │   │   ├── email.go              # Copied from monolith (AS-IS)
+    │   │   │   └── password.go           # Copied from monolith (AS-IS)
+    │   │   └── repository/
+    │   │       └── user_repository.go    # Repository interface (AS-IS)
+    │   ├── usecase/
+    │   │   └── login_usecase.go          # Copied from monolith (AS-IS)
+    │   ├── repository/
+    │   │   └── postgres_user_repository.go # Copied from monolith (AS-IS)
+    │   ├── grpc/
+    │   │   ├── proto/
+    │   │   │   └── auth_service.proto    # gRPC service definition
+    │   │   └── auth_server.go            # gRPC server implementation
+    │   └── http/
+    │       └── auth_handler.go           # HTTP REST endpoints (optional)
+    ├── config/
+    │   ├── config.go                     # Configuration management
+    │   └── config.yaml                   # Service configuration
+    ├── migrations/
+    │   └── 000001_create_users_table.up.sql   # Copied from monolith
+    │   └── 000001_create_users_table.down.sql # Copied from monolith
+    ├── Dockerfile                         # Container image definition
+    ├── docker-compose.yml                # Local development setup
+    ├── Makefile                          # Build and deployment commands
+    └── README.md                         # Service documentation
+    ```
+  - [ ] Configure linting and code quality tools
+  - [ ] **Deliverable**: Initialized repository with proper structure
 
-- [ ] **Step 14**: Production Readiness
-  - [ ] Set up blue-green deployment strategies
-  - [ ] Implement automated rollback procedures
-  - [ ] Configure production monitoring and alerting
-  - [ ] Create runbooks for incident response
-  - [ ] Set up backup and disaster recovery procedures
-  - [ ] Train development teams on microservices operations
-  - **Priority**: Critical - Production operations
+- [ ] **Step 2.2: Copy Core Authentication Logic (AS-IS)**
+  - [ ] Copy `internal/auth/auth_service.go` → `internal/core/auth_service.go`
+  - [ ] Copy `internal/auth/token/token_service.go` → `internal/core/token_service.go`
+  - [ ] **ONLY** update import paths (no business logic changes)
+  - [ ] Update to use microservice config package
+  - [ ] Ensure JWT secret is loaded from environment variable
+  - [ ] **Deliverable**: Authentication core copied with minimal changes
 
-- [ ] **Step 15**: Migration Validation & Cleanup
-  - [ ] Validate all business functionality in microservices
-  - [ ] Performance benchmarking vs. monolithic version
-  - [ ] Gradual traffic migration with canary deployments
-  - [ ] Monitor system stability for 30 days
-  - [ ] Decommission monolithic infrastructure
-  - [ ] Document lessons learned and best practices
-  - **Priority**: High - Migration completion
+- [ ] **Step 2.3: Copy Domain Layer (AS-IS)**
+  - [ ] Copy `internal/login/domain/model/user_model.go` → `internal/domain/model/user.go`
+  - [ ] Copy `internal/login/domain/valueobject/email.go` → `internal/domain/valueobject/email.go`
+  - [ ] Copy `internal/login/domain/valueobject/password.go` → `internal/domain/valueobject/password.go`
+  - [ ] Copy repository interface → `internal/domain/repository/user_repository.go`
+  - [ ] **ONLY** update import paths (no business logic changes)
+  - [ ] **Deliverable**: Domain layer copied as-is
+
+- [ ] **Step 2.4: Copy Use Cases (AS-IS)**
+  - [ ] Copy `internal/login/application/usecase/do_login_usecase.go` → `internal/usecase/login_usecase.go`
+  - [ ] **ONLY** update import paths (no business logic changes)
+  - [ ] **NO new use cases** (validate_token and refresh_token not needed for MVP)
+  - [ ] **Deliverable**: Use case layer copied as-is
+
+- [ ] **Step 2.5: Copy Repository Layer (AS-IS)**
+  - [ ] Copy `internal/login/infra/persistense/login_repository.go` → `internal/repository/postgres_user_repository.go`
+  - [ ] **ONLY** update import paths and database connection initialization
+  - [ ] Update database connection to use microservice config
+  - [ ] **NO changes to queries or business logic**
+  - [ ] **Deliverable**: Repository implementation copied as-is
+
+- [ ] **Step 2.6: Copy Database Migration Files**
+  - [ ] Copy `shared/infra/migration/sql/000001_create_users_table.up.sql` → `migrations/000001_create_users_table.up.sql`
+  - [ ] Copy `shared/infra/migration/sql/000001_create_users_table.down.sql` → `migrations/000001_create_users_table.down.sql`
+  - [ ] **NO changes to migration files** (use as-is)
+  - [ ] **Deliverable**: Migration files ready for microservice
+
+- [ ] **Step 2.7: Implement gRPC Service Interface**
+  - [ ] Copy existing proto from monolith: `shared/grpc/proto/auth_service.proto`
+  - [ ] Use existing service definition (Login, ValidateToken)
+  - [ ] Generate Go code from proto: `protoc --go_out=. --go-grpc_out=. auth_service.proto`
+  - [ ] Implement `auth_server.go` with gRPC methods:
+    - `Login()` - calls existing `login_usecase.Execute()`
+    - `ValidateToken()` - calls existing `auth_service.VerifyToken()`
+  - [ ] **NO new business logic** - just wire existing code to gRPC
+  - [ ] **Deliverable**: gRPC server wrapping existing logic
+
+- [ ] **Step 2.8: Configuration Management**
+  - [ ] Create `config/config.go` for configuration loading
+  - [ ] Support environment variables for all settings:
+    - `JWT_SECRET` - JWT signing secret (MUST match monolith)
+    - `DATABASE_URL` - PostgreSQL connection string
+    - `GRPC_PORT` - gRPC server port (default: 50051)
+    - `HTTP_PORT` - HTTP server port (default: 8081)
+  - [ ] Create `config.yaml` for local development defaults
+  - [ ] **Deliverable**: Configuration management
+
+- [ ] **Step 2.9: Database Connection Strategy**
+  - [ ] **Decision: Shared Database (Recommended for Phase 1)**
+    - [ ] Microservice connects to **same PostgreSQL database** as monolith
+    - [ ] Uses **same `users` table**
+    - [ ] **NO data migration required**
+    - [ ] Lower risk, faster deployment
+    - [ ] Plan for eventual database separation in Phase 2
+  - [ ] Configure database connection in microservice
+  - [ ] Reuse existing connection pooling patterns from monolith
+  - [ ] **Deliverable**: Database connection configuration
+
+### **Testing and Validation (Week 4)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests (AS-IS)**
+  - [ ] Copy `internal/auth/auth_service_test.go` → `internal/core/auth_service_test.go`
+  - [ ] Copy `internal/auth/token/token_service_test.go` → `internal/core/token_service_test.go`
+  - [ ] Copy `internal/login/application/usecase/do_login_usecase_test.go` → `internal/usecase/login_usecase_test.go`
+  - [ ] Copy `internal/login/domain/model/user_model_test.go` → `internal/domain/model/user_test.go`
+  - [ ] Copy `internal/login/domain/valueobject/email_test.go` → `internal/domain/valueobject/email_test.go`
+  - [ ] Copy `internal/login/domain/valueobject/password_test.go` → `internal/domain/valueobject/password_test.go`
+  - [ ] Copy `internal/login/infra/persistense/login_repository_test.go` → `internal/repository/postgres_user_repository_test.go`
+  - [ ] **ONLY** update import paths (no test logic changes)
+  - [ ] Run all tests: `go test ./...`
+  - [ ] Verify all tests pass
+  - [ ] **Deliverable**: All existing tests passing in microservice
+
+- [ ] **Step 3.2: gRPC Integration Testing**
+  - [ ] Write integration tests for gRPC endpoints:
+    - Test `Login()` RPC method
+    - Test `ValidateToken()` RPC method
+  - [ ] Test error scenarios (invalid credentials, expired tokens)
+  - [ ] **Deliverable**: gRPC integration test suite
+
+- [ ] **Step 3.3: JWT Token Compatibility Testing**
+  - [ ] Generate JWT token in microservice
+  - [ ] Validate token in monolith using existing `TokenService`
+  - [ ] Generate JWT token in monolith
+  - [ ] Validate token in microservice
+  - [ ] Verify claims structure matches exactly (username, userId, exp)
+  - [ ] Test token expiration behavior
+  - [ ] **Deliverable**: Proof that tokens are 100% compatible
+
+- [ ] **Step 3.4: Performance Testing (Optional)**
+  - [ ] Load test gRPC endpoints (1000+ req/sec)
+  - [ ] Measure login latency (target: <100ms p95)
+  - [ ] Measure token validation latency (target: <10ms p95)
+  - [ ] **Deliverable**: Performance benchmark report
+
+### **Deployment Infrastructure (Week 5)**
+
+- [ ] **Step 4.1: Containerization**
+  - [ ] Create optimized `Dockerfile`:
+    ```dockerfile
+    # Multi-stage build for smaller image
+    FROM golang:1.21-alpine AS builder
+    WORKDIR /app
+    COPY go.mod go.sum ./
+    RUN go mod download
+    COPY . .
+    RUN CGO_ENABLED=0 GOOS=linux go build -o /hub-user-service cmd/server/main.go
+    
+    FROM alpine:latest
+    RUN apk --no-cache add ca-certificates
+    WORKDIR /root/
+    COPY --from=builder /hub-user-service .
+    EXPOSE 50051 8081
+    CMD ["./hub-user-service"]
+    ```
+  - [ ] Create `docker-compose.yml` for local development
+  - [ ] Test container build and startup
+  - [ ] **Deliverable**: Docker image
+
+- [ ] **Step 4.2: Local Development Environment**
+  - [ ] Set up Docker Compose with:
+    - User service container
+    - PostgreSQL database (shared with monolith)
+  - [ ] Create `Makefile` with common commands:
+    - `make build` - Build service
+    - `make test` - Run tests
+    - `make run` - Run locally
+    - `make docker-build` - Build Docker image
+    - `make docker-run` - Run in Docker
+  - [ ] Document setup instructions in README
+  - [ ] **Deliverable**: Local development setup
+
+- [ ] **Step 4.3: Basic Observability**
+  - [ ] Add structured logging (simple text format is fine)
+  - [ ] Add health check endpoint: `/health`
+  - [ ] **Deliverable**: Basic observability
+
+### **Integration with Monolith (Week 6)**
+
+- [ ] **Step 5.1: Deploy Microservice Alongside Monolith**
+  - [ ] Deploy `hub-user-service` to development environment
+  - [ ] Configure to connect to same database as monolith
+  - [ ] Ensure JWT secret matches monolith configuration
+  - [ ] Verify service is healthy and responsive
+  - [ ] Test gRPC connectivity from external client
+  - [ ] **Deliverable**: Running microservice in dev environment
+
+- [ ] **Step 5.2: Update Monolith to Use Microservice**
+  - [ ] **Strategy**: Direct cutover (no feature toggle)
+  - [ ] Update `main.go` to use gRPC client instead of local auth:
+    ```go
+    // OLD CODE (remove):
+    // tokenService := token.NewTokenService()
+    // aucService := auth.NewAuthService(tokenService)
+    
+    // NEW CODE (add):
+    authClient, err := grpc.NewAuthClient("localhost:50051")
+    if err != nil {
+        log.Fatal("Failed to connect to auth service:", err)
+    }
+    aucService := auth.NewGRPCAuthServiceAdapter(authClient)
+    ```
+  - [ ] Create adapter that implements `auth.IAuthService` interface:
+    ```go
+    // internal/auth/grpc_auth_adapter.go
+    type GRPCAuthServiceAdapter struct {
+        grpcClient *grpc.AuthClient
+    }
+    
+    func NewGRPCAuthServiceAdapter(client *grpc.AuthClient) auth.IAuthService {
+        return &GRPCAuthServiceAdapter{grpcClient: client}
+    }
+    
+    func (a *GRPCAuthServiceAdapter) VerifyToken(tokenString string, w http.ResponseWriter) (string, error) {
+        resp, err := a.grpcClient.ValidateToken(context.Background(), tokenString)
+        if err != nil {
+            return "", err
+        }
+        return resp.UserInfo.UserId, nil
+    }
+    
+    func (a *GRPCAuthServiceAdapter) CreateToken(userName string, userId string) (string, error) {
+        resp, err := a.grpcClient.Login(context.Background(), &pb.LoginRequest{
+            Email: userName,
+            Password: "", // Token creation doesn't need password
+        })
+        if err != nil {
+            return "", err
+        }
+        return resp.Token, nil
+    }
+    ```
+  - [ ] Test monolith with microservice
+  - [ ] **Deliverable**: Monolith using microservice for authentication
+
+### **Validation and Monitoring (Weeks 7-8)**
+
+- [ ] **Step 6.1: Functional Validation**
+  - [ ] Test all authentication flows:
+    - User login via `/login` endpoint
+    - Token validation in all protected endpoints
+    - Token creation for new sessions
+  - [ ] Verify JWT tokens work correctly
+  - [ ] Test error scenarios (invalid credentials, expired tokens)
+  - [ ] **Deliverable**: All authentication working via microservice
+
+- [ ] **Step 6.2: Performance Validation**
+  - [ ] Monitor latency for 1 week:
+    - Login requests
+    - Token validation
+  - [ ] Compare with baseline (monolith performance)
+  - [ ] Ensure no degradation
+  - [ ] **Deliverable**: Performance validation report
+
+- [ ] **Step 6.3: Stability Validation**
+  - [ ] Run microservice for 2 weeks in production
+  - [ ] Monitor for errors and crashes
+  - [ ] Verify database connection stability
+  - [ ] Monitor memory and CPU usage
+  - [ ] **Deliverable**: Stability validation report
+
+### **Decommissioning Monolith Auth Module (Week 8+)**
+
+- [ ] **Step 7.1: Validation Period**
+  - [ ] Run microservice for 30 days minimum
+  - [ ] Zero critical incidents
+  - [ ] Performance meets or exceeds monolith
+  - [ ] All stakeholders approve migration
+  - [ ] **Deliverable**: Approval to decommission monolith module
+
+- [ ] **Step 7.2: Remove Monolith Auth Code**
+  - [ ] Remove `internal/auth/auth_service.go`
+  - [ ] Remove `internal/auth/token/token_service.go`
+  - [ ] Remove `internal/login/` module entirely
+  - [ ] Update dependency injection container (remove auth/login dependencies)
+  - [ ] Keep gRPC adapter in monolith
+  - [ ] **Deliverable**: Cleaned up monolith codebase
+
+- [ ] **Step 7.3: Documentation**
+  - [ ] Document microservice architecture
+  - [ ] Document gRPC API contracts
+  - [ ] Document deployment procedures
+  - [ ] Document how to run microservice locally
+  - [ ] **Deliverable**: Complete documentation package
+
+---
+
+## **🎯 Success Criteria for Phase 10.1**
+
+### **Technical Metrics**
+- [ ] **Service Independence**: User service deploys independently of monolith
+- [ ] **Zero Downtime**: No service interruptions during migration
+- [ ] **Performance**: <100ms p95 latency for authentication
+- [ ] **Reliability**: 99.9% uptime for user service
+- [ ] **Compatibility**: 100% JWT token compatibility with monolith
+
+### **Business Metrics**
+- [ ] **No User Impact**: Users don't notice any change
+- [ ] **No Functional Regression**: All auth features work exactly as before
+- [ ] **Improved Observability**: Better metrics and logging than monolith
+- [ ] **Team Confidence**: Team comfortable with microservices approach
+
+### **Risk Mitigation**
+- [ ] **Rollback Plan**: Can revert to monolith by reverting code changes
+- [ ] **Monitoring**: Basic logging catches issues
+- [ ] **Testing**: Reused tests from monolith prevent regressions
+
+---
+
+## **📋 FUTURE PHASES (After User Service Success)**
+
+### **Phase 10.2: Market Data Service** (Weeks 9-16)
+- Follow same strangler fig pattern
+- Extract `internal/market_data/` and `internal/realtime_quotes/`
+- More complex due to WebSocket connections and caching
+- Estimated: 8 weeks
+
+### **Phase 10.3: Watchlist Service** (Weeks 17-22)
+- Simpler service with fewer dependencies
+- Extract `internal/watchlist/`
+- Estimated: 6 weeks
+
+### **Phase 10.4: Account Management Service** (Weeks 23-30)
+- Critical financial service requiring extra validation
+- Extract `internal/balance/`
+- Estimated: 8 weeks
+
+### **Phase 10.5: Position & Portfolio Service** (Weeks 31-40)
+- Complex aggregation logic
+- Extract `internal/position/` and `internal/portfolio_summary/`
+- Estimated: 10 weeks
+
+### **Phase 10.6: Order Management Service** (Weeks 41-54)
+- Most complex service with many dependencies
+- Extract `internal/order_mngmt_system/`
+- Requires saga pattern for distributed transactions
+- Estimated: 14 weeks
+
+---
+
+## **🔧 Tools and Technologies**
+
+### **Development**
+- **Language**: Go 1.21+
+- **gRPC Framework**: google.golang.org/grpc
+- **Database**: PostgreSQL (shared initially, separate later)
+- **Caching**: Redis
+- **Messaging**: RabbitMQ
+
+### **Deployment**
+- **Containerization**: Docker
+- **Orchestration**: Docker Compose (dev), Kubernetes (prod later)
+- **CI/CD**: GitHub Actions
+- **Service Mesh**: Istio (future phase)
+
+### **Observability**
+- **Metrics**: Prometheus + Grafana
+- **Logging**: Structured JSON logs
+- **Tracing**: OpenTelemetry + Jaeger
+- **Alerting**: Prometheus AlertManager
+
+### **Testing**
+- **Unit Tests**: Go testing package
+- **Integration Tests**: Testcontainers
+- **Load Testing**: k6 or Apache Bench
+- **Contract Testing**: Pact (future)
+
+---
+
+## **⚠️ Risk Management**
+
+### **Technical Risks**
+| Risk | Mitigation | Rollback Plan |
+|------|-----------|---------------|
+| JWT incompatibility | Extensive compatibility testing | Revert code changes |
+| Performance degradation | Performance testing | Revert code changes |
+| Database connection issues | Connection pooling + monitoring | Revert code changes |
+| gRPC connectivity failures | Error handling + retries | Revert code changes |
+| Service unavailability | Health checks + restart | Revert code changes |
+
+### **Operational Risks**
+| Risk | Mitigation | Rollback Plan |
+|------|-----------|---------------|
+| Team unfamiliarity | Documentation | Keep monolith code temporarily |
+| Deployment complexity | Simple Docker deployment | Rollback deployment |
+| Monitoring gaps | Basic logging | Increase logging |
+| Incident response | Document procedures | Revert to monolith |
+
+---
+
+## **📊 Timeline Summary**
+
+| Phase | Duration | Deliverable |
+|-------|----------|-------------|
+| Pre-Migration Analysis | 1 week | Code audit + dependency map |
+| Microservice Development | 2 weeks | Working user service |
+| Testing & Validation | 1 week | Test suite + compatibility proof |
+| Deployment Infrastructure | 1 week | Docker + basic observability |
+| Integration with Monolith | 1 week | Direct cutover to microservice |
+| Validation & Monitoring | 2 weeks | Stability validation |
+| Decommissioning | Ongoing | Clean up monolith code |
+| **TOTAL** | **8 weeks** | **Production microservice** |
+
+---
+
+**🎉 After Phase 10.1 completion, we will have:**
+1. ✅ First microservice successfully extracted and running in production
+2. ✅ Proven strangler fig pattern that works for our architecture
+3. ✅ Team confidence and experience with microservices
+4. ✅ Template and playbook for extracting remaining services
+5. ✅ Foundation for scaling to 6 microservices architecture
 
 ### **📊 Microservices Success Metrics**
 - **Technical KPIs:**
