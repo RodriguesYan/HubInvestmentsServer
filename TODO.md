@@ -731,13 +731,17 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [x] **Deliverable**: Comprehensive database schema documentation
   - [x] **Document Created**: `docs/PHASE_10_1_DATABASE_SCHEMA_ANALYSIS.md` (comprehensive analysis with migration strategy)
 
-- [ ] **Step 1.3: Integration Point Mapping**
-  - [ ] Identify all places in monolith that call `AuthService.VerifyToken()`
-  - [ ] Identify all places that call `AuthService.CreateToken()`
-  - [ ] Map all HTTP handlers using `middleware.TokenVerifier()`
-  - [ ] Document current authentication flow end-to-end
-  - [ ] List all services that depend on user authentication
-  - [ ] **Deliverable**: Integration point diagram showing all auth touchpoints
+- [x] **Step 1.3: Integration Point Mapping** ✅ **COMPLETED**
+  - [x] Identified all `AuthService.VerifyToken()` calls: 3 direct + 1 WebSocket
+  - [x] Identified all `AuthService.CreateToken()` calls: 2 direct calls
+  - [x] Mapped all HTTP handlers using `TokenVerifier`: 12 protected endpoints
+  - [x] Documented current authentication flow end-to-end (login + protected endpoints)
+  - [x] Listed all services depending on authentication (balance, portfolio, orders, admin, etc.)
+  - [x] Created dependency graph showing container → auth service → endpoints
+  - [x] Analyzed migration impact: Only 3 files need changes (main.go, container.go, adapter)
+  - [x] **Key Finding**: 12 protected endpoints require ZERO changes (interface unchanged)
+  - [x] **Deliverable**: Comprehensive integration point documentation with flow diagrams
+  - [x] **Document Created**: `docs/PHASE_10_1_INTEGRATION_POINTS.md` (detailed analysis)
 
 - [ ] **Step 1.4: JWT Token Compatibility Analysis**
   - [ ] Document current JWT token structure (claims: username, userId, exp)
