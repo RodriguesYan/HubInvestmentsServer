@@ -1019,15 +1019,346 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [x] All 13 JWT compatibility tests passing (1 skipped for design reasons) ✅
   - [x] **Deliverable**: Proof of 100% JWT token compatibility ✅
 
-- [ ] **Step 3.4: Performance Testing (Optional)**
+- [x] **Step 3.4: Cross-Service Authentication Verification** ✅ **COMPLETED**
+  - [x] Created comprehensive integration test suite (`test/integration/cross_service_auth_test.go`)
+  - [x] Verified critical requirement: Microservice token → Monolith validates
+  - [x] Test Scenarios (6 comprehensive tests):
+    - [x] **Happy Path**: User login via microservice → Token validated by monolith ✅
+    - [x] **Token Expiration**: Both services respect 10-minute expiration ✅
+    - [x] **Secret Mismatch**: Validation fails with wrong secret (safety test) ✅
+    - [x] **Configuration Check**: JWT settings verified (HS256, 10min, claims) ✅
+    - [x] **Real-World Flow**: 5 consecutive requests with same token (stateless) ✅
+    - [x] **Environment Sync**: MY_JWT_SECRET synchronization validated ✅
+  - [x] All 6 integration tests passing ✅
+  - [x] Created comprehensive documentation (`docs/CROSS_SERVICE_AUTHENTICATION.md`)
+  - [x] **Key Findings**:
+    - ✅ Shared JWT secret (`MY_JWT_SECRET`) enables cross-service validation
+    - ✅ No database sync needed (stateless JWT)
+    - ✅ Both services must use identical configuration
+    - ✅ Token expiration synchronized (10 minutes)
+  - [x] **Deliverables**:
+    - ✅ Integration test suite with 100% pass rate
+    - ✅ Cross-service authentication documentation (15KB, deployment checklist included)
+    - ✅ Troubleshooting guide and verification steps
+
+- [ ] **Step 3.5: Performance Testing (Optional)**
   - [ ] Load test gRPC endpoints (1000+ req/sec)
   - [ ] Measure login latency (target: <100ms p95)
   - [ ] Measure token validation latency (target: <10ms p95)
   - [ ] **Deliverable**: Performance benchmark report
 
-### **Deployment Infrastructure (Week 5)**
+### **API Gateway Infrastructure (Week 5)**
 
-- [ ] **Step 4.1: Containerization**
+- [x] **Step 4.1: API Gateway Design and Architecture** ✅ **COMPLETED**
+  - [x] **Purpose**: Single entry point for all client requests (Web, Mobile, External APIs)
+  - [x] **Responsibilities**:
+    - [ ] Authentication and JWT token management
+    - [ ] Request routing to appropriate microservices
+    - [ ] Token validation for protected endpoints
+    - [ ] Rate limiting and throttling
+    - [ ] Request/response transformation
+    - [ ] CORS handling
+    - [ ] Logging and monitoring
+  - [ ] **Architecture Diagram**:
+    ```
+    Client (Web/Mobile)
+           ↓ HTTP/REST
+    ┌─────────────────────────────────────┐
+    │         API Gateway                 │
+    │                                     │
+    │  ┌─────────────────────────────┐   │
+    │  │  Authentication Middleware  │   │
+    │  │  - JWT Token Validation     │   │
+    │  │  - Token Caching (Redis)    │   │
+    │  └─────────────────────────────┘   │
+    │                                     │
+    │  ┌─────────────────────────────┐   │
+    │  │   Request Router            │   │
+    │  │   - Route to Services       │   │
+    │  │   - Load Balancing          │   │
+    │  └─────────────────────────────┘   │
+    └─────────────────────────────────────┘
+           ↓ gRPC/HTTP (Internal)
+    ┌──────────┬──────────┬──────────┐
+    │   User   │  Order   │ Market   │
+    │  Service │ Service  │  Data    │
+    │  (gRPC)  │ (gRPC)   │ (gRPC)   │
+    └──────────┴──────────┴──────────┘
+    ```
+  - [x] **Technology Choices**:
+    - [x] Option 1: Go-based custom gateway (full control, lightweight) ✅ **SELECTED**
+    - [x] Option 2: Kong Gateway (mature, plugin ecosystem) - Evaluated
+    - [x] Option 3: Traefik (cloud-native, Kubernetes-ready) - Evaluated
+    - [x] **Decision**: Go-based custom gateway (best fit for Phase 10.1)
+  - [x] **Project Structure Created**:
+    - [x] `hub-api-gateway/` repository initialized
+    - [x] Directory structure: `cmd/`, `internal/`, `config/`, `docs/`
+    - [x] Go module: `hub-api-gateway`
+    - [x] Builds successfully ✅
+  - [x] **Documentation Created**:
+    - [x] `docs/ARCHITECTURE.md` (comprehensive architecture document, 15KB)
+    - [x] `README.md` (quick start guide and API reference)
+    - [x] Decision rationale with comparison matrix
+    - [x] High-level architecture diagrams
+    - [x] Authentication flow diagrams
+    - [x] Request routing strategy
+    - [x] Performance targets defined
+  - [x] **Configuration Files Created**:
+    - [x] `config/config.example.yaml` (complete configuration with documentation)
+    - [x] `config/routes.yaml` (route definitions for all services)
+    - [x] Environment variable support
+  - [x] **Infrastructure Files Created**:
+    - [x] `Dockerfile` (multi-stage build, production-ready)
+    - [x] `docker-compose.yml` (gateway + Redis setup)
+    - [x] `Makefile` (build, test, run commands)
+    - [x] `.gitignore` (Go best practices)
+  - [x] **Deliverables**: ✅ ALL COMPLETED
+    - ✅ Architecture document (comprehensive design)
+    - ✅ Technology decision (Go-based custom gateway)
+    - ✅ Project initialized and builds successfully
+    - ✅ Ready for Step 4.2 (Authentication Flow)
+
+- [x] **Step 4.2: API Gateway - Authentication Flow Implementation** ✅ **COMPLETED**
+  - [x] **Login Flow (First Request)**:
+    ```go
+    // Client → API Gateway → User Service
+    POST /api/v1/auth/login
+    {
+      "email": "user@example.com",
+      "password": "password123"
+    }
+    
+    // API Gateway workflow:
+    1. Receive login request
+    2. Forward to hub-user-service via gRPC
+    3. Receive JWT token from user service
+    4. Cache token metadata in Redis (optional)
+    5. Return token to client
+    
+    Response:
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "expiresIn": 600,
+      "userId": "user123"
+    }
+    ```
+  - [x] Added dependencies: gorilla/mux v1.8.1, gRPC v1.76.0, Redis client v9.4.0
+  - [x] Created configuration loader (`internal/config/config.go`, 260 lines)
+    - [x] Environment variable-based configuration
+    - [x] Server, Redis, Services, Auth, CORS, Rate Limit configs
+    - [x] Validation and logging with masked secrets
+  - [x] Copied and regenerated proto files from user service
+    - [x] `auth_service.proto` and `common.proto`
+    - [x] Generated Go code compatible with gRPC v1.76.0
+  - [x] Created User Service gRPC client wrapper (`internal/auth/user_client.go`, 111 lines)
+    - [x] Connection management with timeout
+    - [x] `Login()` method - forwards to UserService.Login()
+    - [x] `ValidateToken()` method - forwards to UserService.ValidateToken()
+    - [x] Health check and connection lifecycle
+  - [x] Implemented login handler (`internal/auth/login_handler.go`, 161 lines)
+    - [x] Request validation (email, password required)
+    - [x] JSON request/response handling
+    - [x] Error responses with proper status codes
+    - [x] User info extraction and response formatting
+  - [x] Updated main.go with HTTP server (`cmd/server/main.go`, 120 lines)
+    - [x] Configuration loading on startup
+    - [x] User Service client initialization
+    - [x] Gorilla Mux router setup
+    - [x] Login endpoint: `POST /api/v1/auth/login`
+    - [x] Health check endpoint: `GET /health`
+    - [x] Metrics endpoint: `GET /metrics` (placeholder)
+    - [x] Graceful shutdown with timeout
+  - [x] Created testing documentation
+    - [x] `TESTING.md` - Comprehensive testing guide
+    - [x] `test_login.sh` - Automated test script
+    - [x] Manual testing instructions
+    - [x] Troubleshooting guide
+  - [x] **Deliverables**: ✅ ALL COMPLETED
+    - ✅ Working login endpoint through gateway
+    - ✅ Gateway builds and runs successfully
+    - ✅ Forwards requests to User Service via gRPC
+    - ✅ Returns JWT tokens to clients
+    - ✅ Proper error handling and validation
+    - ✅ Ready for Step 4.3 (Token Validation Middleware)
+
+- [ ] **Step 4.3: API Gateway - Token Validation Middleware**
+  - [ ] **Protected Request Flow (Subsequent Requests)**:
+    ```go
+    // Client → API Gateway → Protected Service
+    GET /api/v1/orders/history
+    Headers: {
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+    
+    // API Gateway workflow:
+    1. Extract JWT token from Authorization header
+    2. Check Redis cache for token validation result (optional)
+    3. If cache miss, call hub-user-service.ValidateToken() via gRPC
+    4. If valid, add user context to request (userId, email)
+    5. Route request to appropriate service (order-service)
+    6. Return service response to client
+    
+    // If token invalid/expired:
+    Response: 401 Unauthorized
+    {
+      "error": "Token expired or invalid",
+      "code": "AUTH_TOKEN_INVALID"
+    }
+    ```
+  - [ ] Create `gateway/internal/middleware/auth_middleware.go`
+  - [ ] Implement JWT token extraction from Authorization header
+  - [ ] Implement gRPC call to `hub-user-service.ValidateToken()`
+  - [ ] Add token validation caching (Redis) to reduce validation calls
+  - [ ] Cache TTL: 5 minutes (balance between performance and security)
+  - [ ] Add user context injection into request headers for downstream services
+  - [ ] **Deliverable**: Reusable authentication middleware
+
+- [ ] **Step 4.4: API Gateway - Request Routing**
+  - [ ] **Route Configuration**:
+    ```yaml
+    # gateway/config/routes.yaml
+    routes:
+      - path: /api/v1/auth/*
+        service: hub-user-service
+        address: localhost:50051
+        protocol: grpc
+        auth_required: false
+      
+      - path: /api/v1/orders/*
+        service: hub-order-service
+        address: localhost:50052
+        protocol: grpc
+        auth_required: true
+      
+      - path: /api/v1/positions/*
+        service: hub-position-service
+        address: localhost:50053
+        protocol: grpc
+        auth_required: true
+      
+      - path: /api/v1/market-data/*
+        service: hub-market-data-service
+        address: localhost:50054
+        protocol: grpc
+        auth_required: false  # Public data
+    ```
+  - [ ] Implement `gateway/internal/router/service_router.go`
+  - [ ] Add route matching and service discovery
+  - [ ] Implement gRPC client pool for service connections
+  - [ ] Add connection health checks and circuit breakers
+  - [ ] Add request/response logging
+  - [ ] **Deliverable**: Dynamic request routing to services
+
+- [ ] **Step 4.5: API Gateway - Core Implementation**
+  - [ ] **Directory Structure**:
+    ```
+    hub-api-gateway/
+    ├── cmd/
+    │   └── server/
+    │       └── main.go                    # Gateway entry point
+    ├── internal/
+    │   ├── auth/
+    │   │   ├── login_handler.go          # Login endpoint handler
+    │   │   └── user_service_client.go    # gRPC client wrapper
+    │   ├── middleware/
+    │   │   ├── auth_middleware.go        # JWT validation middleware
+    │   │   ├── cors_middleware.go        # CORS handling
+    │   │   ├── rate_limit_middleware.go  # Rate limiting
+    │   │   └── logging_middleware.go     # Request/response logging
+    │   ├── router/
+    │   │   ├── service_router.go         # Route matching and forwarding
+    │   │   └── route_config.go           # Route configuration
+    │   └── proxy/
+    │       ├── grpc_proxy.go             # gRPC request proxy
+    │       └── http_proxy.go             # HTTP request proxy (if needed)
+    ├── config/
+    │   ├── config.go                     # Configuration management
+    │   └── routes.yaml                   # Route definitions
+    ├── Dockerfile
+    ├── docker-compose.yml
+    └── README.md
+    ```
+  - [ ] Create project structure
+  - [ ] Implement HTTP server with middleware chain
+  - [ ] Integrate authentication, routing, and proxy components
+  - [ ] Add graceful shutdown
+  - [ ] **Deliverable**: Complete API Gateway application
+
+- [ ] **Step 4.6: API Gateway - Performance Optimization**
+  - [ ] **Token Validation Caching Strategy**:
+    ```go
+    // Cache validated tokens to reduce gRPC calls to user service
+    // Key: "token_valid:{token_hash}"
+    // Value: {"userId": "user123", "email": "user@example.com"}
+    // TTL: 5 minutes (shorter than token expiration)
+    
+    func (m *AuthMiddleware) ValidateToken(token string) (*UserContext, error) {
+        // 1. Check Redis cache
+        if cachedUser := m.cache.Get("token_valid:" + hashToken(token)); cachedUser != nil {
+            return cachedUser, nil
+        }
+        
+        // 2. Call user service for validation
+        userContext, err := m.userServiceClient.ValidateToken(token)
+        if err != nil {
+            return nil, err
+        }
+        
+        // 3. Cache validation result
+        m.cache.Set("token_valid:" + hashToken(token), userContext, 5*time.Minute)
+        
+        return userContext, nil
+    }
+    ```
+  - [ ] Implement Redis caching for token validation
+  - [ ] Add gRPC connection pooling (reuse connections)
+  - [ ] Add request batching for high-volume scenarios (future)
+  - [ ] Implement circuit breaker pattern for service failures
+  - [ ] Add metrics: requests/sec, latency, error rate
+  - [ ] **Performance Targets**:
+    - [ ] <50ms gateway latency (cache hit)
+    - [ ] <100ms gateway latency (cache miss + gRPC call)
+    - [ ] Support 10,000+ concurrent connections
+    - [ ] 99.9% uptime
+  - [ ] **Deliverable**: Optimized, production-ready gateway
+
+- [ ] **Step 4.7: API Gateway - Security Features**
+  - [ ] Implement rate limiting (per user, per IP)
+  - [ ] Add request size limits
+  - [ ] Implement CORS policy
+  - [ ] Add security headers (HSTS, X-Frame-Options, etc.)
+  - [ ] Add request ID generation for tracing
+  - [ ] Implement IP allowlist/blocklist (optional)
+  - [ ] Add DDoS protection (basic)
+  - [ ] **Deliverable**: Secure gateway with production hardening
+
+- [ ] **Step 4.8: API Gateway - Testing**
+  - [ ] **Unit Tests**:
+    - [ ] Test authentication middleware with valid/invalid tokens
+    - [ ] Test route matching and service resolution
+    - [ ] Test token caching logic
+  - [ ] **Integration Tests**:
+    - [ ] Test complete login flow (client → gateway → user service)
+    - [ ] Test protected endpoint flow (token validation + routing)
+    - [ ] Test token expiration handling
+    - [ ] Test service unavailability scenarios
+  - [ ] **Load Tests**:
+    - [ ] 1,000 concurrent users
+    - [ ] 10,000 requests/sec throughput
+    - [ ] Token validation performance
+  - [ ] **Deliverable**: Comprehensive test suite
+
+- [ ] **Step 4.9: API Gateway - Documentation**
+  - [ ] Document authentication flow (login + token validation)
+  - [ ] Document routing configuration
+  - [ ] Document performance characteristics
+  - [ ] Create deployment guide
+  - [ ] Document troubleshooting procedures
+  - [ ] **Deliverable**: Complete API Gateway documentation
+
+### **Deployment Infrastructure (Week 6)**
+
+- [ ] **Step 5.1: Containerization**
   - [ ] Create optimized `Dockerfile`:
     ```dockerfile
     # Multi-stage build for smaller image
@@ -1049,7 +1380,7 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Test container build and startup
   - [ ] **Deliverable**: Docker image
 
-- [ ] **Step 4.2: Local Development Environment**
+- [ ] **Step 5.2: Local Development Environment**
   - [ ] Set up Docker Compose with:
     - User service container
     - PostgreSQL database (shared with monolith)
@@ -1062,14 +1393,14 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Document setup instructions in README
   - [ ] **Deliverable**: Local development setup
 
-- [ ] **Step 4.3: Basic Observability**
+- [ ] **Step 5.3: Basic Observability**
   - [ ] Add structured logging (simple text format is fine)
   - [ ] Add health check endpoint: `/health`
   - [ ] **Deliverable**: Basic observability
 
-### **Integration with Monolith (Week 6)**
+### **Integration with Monolith (Week 7)**
 
-- [ ] **Step 5.1: Deploy Microservice Alongside Monolith**
+- [ ] **Step 6.1: Deploy Microservice Alongside Monolith**
   - [ ] Deploy `hub-user-service` to development environment
   - [ ] Configure to connect to same database as monolith
   - [ ] Ensure JWT secret matches monolith configuration
@@ -1077,7 +1408,7 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Test gRPC connectivity from external client
   - [ ] **Deliverable**: Running microservice in dev environment
 
-- [ ] **Step 5.2: Update Monolith to Use Microservice**
+- [ ] **Step 6.2: Update Monolith to Use Microservice (via API Gateway)**
   - [ ] **Strategy**: Direct cutover (no feature toggle)
   - [ ] Update `main.go` to use gRPC client instead of local auth:
     ```go
@@ -1125,9 +1456,9 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Test monolith with microservice
   - [ ] **Deliverable**: Monolith using microservice for authentication
 
-### **Validation and Monitoring (Weeks 7-8)**
+### **Validation and Monitoring (Weeks 8-9)**
 
-- [ ] **Step 6.1: Functional Validation**
+- [ ] **Step 7.1: Functional Validation**
   - [ ] Test all authentication flows:
     - User login via `/login` endpoint
     - Token validation in all protected endpoints
@@ -1136,7 +1467,7 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Test error scenarios (invalid credentials, expired tokens)
   - [ ] **Deliverable**: All authentication working via microservice
 
-- [ ] **Step 6.2: Performance Validation**
+- [ ] **Step 7.2: Performance Validation**
   - [ ] Monitor latency for 1 week:
     - Login requests
     - Token validation
@@ -1144,23 +1475,23 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Ensure no degradation
   - [ ] **Deliverable**: Performance validation report
 
-- [ ] **Step 6.3: Stability Validation**
+- [ ] **Step 7.3: Stability Validation**
   - [ ] Run microservice for 2 weeks in production
   - [ ] Monitor for errors and crashes
   - [ ] Verify database connection stability
   - [ ] Monitor memory and CPU usage
   - [ ] **Deliverable**: Stability validation report
 
-### **Decommissioning Monolith Auth Module (Week 8+)**
+### **Decommissioning Monolith Auth Module (Week 10+)**
 
-- [ ] **Step 7.1: Validation Period**
+- [ ] **Step 8.1: Validation Period**
   - [ ] Run microservice for 30 days minimum
   - [ ] Zero critical incidents
   - [ ] Performance meets or exceeds monolith
   - [ ] All stakeholders approve migration
   - [ ] **Deliverable**: Approval to decommission monolith module
 
-- [ ] **Step 7.2: Remove Monolith Auth Code**
+- [ ] **Step 8.2: Remove Monolith Auth Code**
   - [ ] Remove `internal/auth/auth_service.go`
   - [ ] Remove `internal/auth/token/token_service.go`
   - [ ] Remove `internal/login/` module entirely
@@ -1168,7 +1499,7 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Keep gRPC adapter in monolith
   - [ ] **Deliverable**: Cleaned up monolith codebase
 
-- [ ] **Step 7.3: Documentation**
+- [ ] **Step 8.3: Documentation**
   - [ ] Document microservice architecture
   - [ ] Document gRPC API contracts
   - [ ] Document deployment procedures
