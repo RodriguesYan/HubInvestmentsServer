@@ -1417,16 +1417,35 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
         - ✅ PositionService (GetPositions, GetPosition, GetPositionsBySymbol)
         - ✅ BalanceService (GetBalance)
       - [x] Generated files: `monolith_services.pb.go` and `monolith_services_grpc.pb.go`
-    - [ ] **Step 4.6.5.2: gRPC Server Handlers**
-      - [ ] Create `shared/grpc/monolith_grpc_server.go` with server implementation
-      - [ ] Implement handler for Portfolio service (wraps existing use case)
-      - [ ] Implement handler for Order service (wraps existing use case)
-      - [ ] Implement handler for Market Data service (wraps existing use case)
-      - [ ] Implement handler for Position service (wraps existing use case)
-      - [ ] Implement handler for Balance service (wraps existing use case)
-      - [ ] Add authentication interceptor (JWT validation via metadata)
-      - [ ] Add user context extraction from gRPC metadata
-      - [ ] Add error handling and gRPC status code mapping
+    - [x] **Step 4.6.5.2: gRPC Server Handlers** ✅ **COMPLETED & REFACTORED**
+      - [x] Create `shared/grpc/monolith_grpc_server.go` with server implementation
+      - [x] Implement handler for Portfolio service (wraps existing use case)
+      - [x] Implement handler for Order service (wraps existing use case)
+      - [x] Implement handler for Market Data service (wraps existing use case)
+      - [x] Implement handler for Position service (wraps existing use case)
+      - [x] Implement handler for Balance service (wraps existing use case)
+      - [ ] Add authentication interceptor (JWT validation via metadata) - **MOVED TO 4.6.5.4**
+      - [ ] Add user context extraction from gRPC metadata - **MOVED TO 4.6.5.4**
+      - [x] Add error handling and gRPC status code mapping
+      - [x] **Result**: Created comprehensive gRPC server with 643 lines:
+        - ✅ 5 services implemented (Portfolio, Order, MarketData, Position, Balance)
+        - ✅ 13 RPC methods
+        - ✅ Full integration with existing use cases via DI container
+        - ✅ Comprehensive input validation and error handling
+        - ✅ Proper data mapping from domain to proto models
+        - ✅ Helper functions for reusability
+        - ✅ Compiles successfully with no errors
+      - [x] Documentation: `docs/STEP_4_6_5_2_SUMMARY.md`
+      - [x] **REFACTORED**: Moved handlers to each feature's `presentation/grpc/` folder:
+        - ✅ `internal/portfolio_summary/presentation/grpc/portfolio_grpc_handler.go`
+        - ✅ `internal/balance/presentation/grpc/balance_grpc_handler.go`
+        - ✅ `internal/market_data/presentation/grpc/market_data_grpc_handler.go`
+        - ✅ `internal/order_mngmt_system/presentation/grpc/order_grpc_handler.go`
+        - ✅ `internal/position/presentation/grpc/position_grpc_handler.go`
+      - [x] Deleted monolithic `shared/grpc/monolith_grpc_server.go`
+      - [x] Handlers are now thin wrappers with NO business logic
+      - [x] Each handler calls existing use cases (same as HTTP handlers)
+      - [x] Documentation: `docs/GRPC_HANDLERS_ARCHITECTURE.md`
     - [ ] **Step 4.6.5.3: Main.go Integration**
       - [ ] Add gRPC server initialization in `main.go`
       - [ ] Configure gRPC server port (e.g., :50060 for monolith)
