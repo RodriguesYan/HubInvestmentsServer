@@ -1446,11 +1446,20 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
       - [x] Handlers are now thin wrappers with NO business logic
       - [x] Each handler calls existing use cases (same as HTTP handlers)
       - [x] Documentation: `docs/GRPC_HANDLERS_ARCHITECTURE.md`
-    - [ ] **Step 4.6.5.3: Main.go Integration**
-      - [ ] Add gRPC server initialization in `main.go`
-      - [ ] Configure gRPC server port (e.g., :50060 for monolith)
-      - [ ] Start gRPC server alongside HTTP server (goroutine)
-      - [ ] Add graceful shutdown for gRPC server
+    - [x] **Step 4.6.5.3: Main.go Integration** ✅ **COMPLETED**
+      - [x] Add gRPC server initialization in `main.go` - Already configured
+      - [x] Configure gRPC server port (:50051 for monolith)
+      - [x] Start gRPC server alongside HTTP server (goroutine) - Already configured
+      - [x] Add graceful shutdown for gRPC server - Already configured
+      - [x] **Result**: Updated `shared/grpc/server.go`:
+        - ✅ Registered 5 new feature-based handlers
+        - ✅ PortfolioService, BalanceService, MarketDataService, OrderService, PositionService
+        - ✅ gRPC server runs on :50051
+        - ✅ HTTP server runs on :8080
+        - ✅ Both servers run concurrently in goroutines
+        - ✅ Graceful shutdown for both servers
+        - ✅ Application builds successfully
+      - [x] Documentation: `docs/STEP_4_6_5_3_SUMMARY.md`
       - [ ] Example code:
         ```go
         // Start gRPC server
