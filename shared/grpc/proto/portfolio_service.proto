@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package hub_investments;
+
+import "common.proto";
+
+option go_package = "./proto";
+
+// ====================================
+// PORTFOLIO SERVICE
+// ====================================
+
+// PortfolioService provides portfolio summary operations
+service PortfolioService {
+  // GetPortfolioSummary retrieves complete portfolio summary for a user
+  rpc GetPortfolioSummary(GetPortfolioSummaryRequest) returns (GetPortfolioSummaryResponse);
+}
+
+// ====================================
+// PORTFOLIO SERVICE MESSAGES
+// ====================================
+
+message GetPortfolioSummaryRequest {
+  string user_id = 1;
+}
+
+message GetPortfolioSummaryResponse {
+  APIResponse api_response = 1;
+  PortfolioSummary portfolio = 2;
+}
+
+message PortfolioSummary {
+  double total_balance = 1;
+  double total_invested = 2;
+  double total_current_value = 3;
+  double total_profit_loss = 4;
+  double total_profit_loss_percentage = 5;
+  repeated PortfolioPosition positions = 6;
+  string last_updated = 7;
+}
+
+message PortfolioPosition {
+  string id = 1;
+  string user_id = 2;
+  string symbol = 3;
+  string company_name = 4;
+  double quantity = 5;
+  double average_price = 6;
+  double current_price = 7;
+  double total_invested = 8;
+  double current_value = 9;
+  double profit_loss = 10;
+  double profit_loss_percentage = 11;
+  string last_updated = 12;
+}
+

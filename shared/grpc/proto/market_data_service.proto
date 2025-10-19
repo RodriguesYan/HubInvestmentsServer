@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package hub_investments;
+
+import "common.proto";
+
+option go_package = "./proto";
+
+// ====================================
+// MARKET DATA SERVICE
+// ====================================
+
+// MarketDataService provides market data operations
+service MarketDataService {
+  // GetMarketData retrieves market data for a specific symbol
+  rpc GetMarketData(GetMarketDataRequest) returns (GetMarketDataResponse);
+  // GetAssetDetails retrieves detailed asset information
+  rpc GetAssetDetails(GetAssetDetailsRequest) returns (GetAssetDetailsResponse);
+  // GetBatchMarketData retrieves market data for multiple symbols
+  rpc GetBatchMarketData(GetBatchMarketDataRequest) returns (GetBatchMarketDataResponse);
+}
+
+// ====================================
+// MARKET DATA SERVICE MESSAGES
+// ====================================
+
+message GetMarketDataRequest {
+  string symbol = 1;
+}
+
+message GetMarketDataResponse {
+  APIResponse api_response = 1;
+  MarketData market_data = 2;
+}
+
+message GetAssetDetailsRequest {
+  string symbol = 1;
+}
+
+message GetAssetDetailsResponse {
+  APIResponse api_response = 1;
+  AssetDetails asset = 2;
+}
+
+message GetBatchMarketDataRequest {
+  repeated string symbols = 1;
+}
+
+message GetBatchMarketDataResponse {
+  APIResponse api_response = 1;
+  repeated MarketData market_data = 2;
+}
+
+message MarketData {
+  string symbol = 1;
+  string company_name = 2;
+  double current_price = 3;
+  double previous_close = 4;
+  double open_price = 5;
+  double high_price = 6;
+  double low_price = 7;
+  double change = 8;
+  double change_percent = 9;
+  int64 volume = 10;
+  string last_updated = 11;
+}
+
+message AssetDetails {
+  string symbol = 1;
+  string company_name = 2;
+  string sector = 3;
+  string industry = 4;
+  string description = 5;
+  double market_cap = 6;
+  double pe_ratio = 7;
+  double dividend_yield = 8;
+  double fifty_two_week_high = 9;
+  double fifty_two_week_low = 10;
+  string currency = 11;
+  string exchange = 12;
+}
+
