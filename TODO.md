@@ -1549,15 +1549,15 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
 
 - [ ] **Step 4.6.6: API Gateway - Monolith Integration Testing**
   - [ ] **Objective**: Verify API Gateway can communicate with HubInvestments monolith via gRPC
-  - [ ] **Pre-requisites**:
-    - [ ] Monolith gRPC server running (Step 4.6.5 completed)
-    - [ ] Monolith running on localhost with gRPC port exposed
-    - [ ] Database accessible
-    - [ ] Test user credentials available
+  - [x] **Pre-requisites**: ✅ **COMPLETED**
+    - [x] Monolith gRPC server running (Step 4.6.5 completed)
+    - [x] Monolith running on localhost with gRPC port exposed (port 50060)
+    - [x] Database accessible
+    - [x] Test user credentials available
   - [ ] **Testing Scenarios**:
-    - [ ] **Scenario 1: Authentication Flow**
+    - [x] **Scenario 1: Authentication Flow** ✅ **COMPLETED**
       ```bash
-      # Test login through gateway → user service (already working)
+      # Test login through gateway → user service
       curl -X POST http://localhost:8080/api/v1/auth/login \
         -H "Content-Type: application/json" \
         -d '{"email":"test@example.com","password":"password123"}'
@@ -1565,7 +1565,11 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
       # Expected: JWT token returned
       # Gateway → forwards to hub-user-service gRPC → returns token
       ```
-    - [ ] **Scenario 2: Protected Endpoints (via gRPC)**
+      - [x] **Result**: Authentication routing functional
+        - ✅ API Gateway routes login requests correctly
+        - ✅ JWT token generation working
+        - ✅ End-to-end flow verified
+    - [x] **Scenario 2: Protected Endpoints (via gRPC)** ✅ **COMPLETED**
       ```bash
       # Test protected endpoint (e.g., /getPortfolioSummary)
       curl -H "Authorization: Bearer <token>" \
@@ -1574,6 +1578,21 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
       # Expected: Portfolio data returned
       # Gateway → validates token → forwards to monolith gRPC → returns data
       ```
+      - [x] **Result**: gRPC communication verified
+        - ✅ Portfolio endpoint: Gateway → Monolith gRPC working
+        - ✅ Balance endpoint: Gateway → Monolith gRPC working
+        - ✅ Token forwarding via gRPC metadata functional
+        - ✅ Authentication validation working (401 for invalid tokens)
+        - ✅ Error handling and response formatting correct
+      - [x] **Configuration Changes**:
+        - ✅ Monolith gRPC port changed to 50060 (from 50051)
+        - ✅ API Gateway config updated with hub-monolith service
+        - ✅ Routes updated: portfolio & balance point to hub-monolith
+      - [x] **Test Script**: Created `test_step_4_6_6.sh`
+        - ✅ Pre-requisites validation
+        - ✅ Scenario 1 & 2 testing
+        - ✅ Comprehensive output and summary
+      - [x] **Documentation**: `docs/STEP_4_6_6_SCENARIOS_1_2_COMPLETE.md`
     - [ ] **Scenario 3: Order Submission (via gRPC)**
       ```bash
       # Test order submission through gateway

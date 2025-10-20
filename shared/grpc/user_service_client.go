@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	pb "HubInvestments/shared/grpc/proto"
 
@@ -24,20 +23,20 @@ func NewUserServiceClient(serviceAddress string) (*UserServiceClient, error) {
 		serviceAddress = "localhost:50052" // Default User Service gRPC port
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	conn, err := grpc.DialContext(
-		ctx,
+	// Create connection without deprecated WithBlock option
+	conn, err := grpc.NewClient(
 		serviceAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to User Service: %w", err)
+		return nil, fmt.Errorf("failed to create User Service client: %w", err)
 	}
 
-	log.Printf("✅ Connected to User Service at %s", serviceAddress)
+	// Initiate connection (non-blocking)
+	conn.Connect()
+	state := conn.GetState()
+
+	log.Printf("✅ User Service client created for %s (state: %v)", serviceAddress, state)
 
 	return &UserServiceClient{
 		client: pb.NewUserServiceClient(conn),
