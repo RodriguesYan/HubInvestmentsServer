@@ -68,8 +68,6 @@ func TestBalanceService_GetBalance(t *testing.T) {
 	defer server.Stop()
 
 	ctx := context.Background()
-	// Note: Using DialContext for testing with bufconn
-	// Production code should use grpc.NewClient instead
 	conn, err := grpc.DialContext(ctx, "bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
