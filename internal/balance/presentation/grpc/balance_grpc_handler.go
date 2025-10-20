@@ -4,14 +4,14 @@ import (
 	"context"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
 
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type BalanceGRPCHandler struct {
-	proto.UnimplementedBalanceServiceServer
+	monolithpb.UnimplementedBalanceServiceServer
 	container di.Container
 }
 
@@ -22,7 +22,7 @@ func NewBalanceGRPCHandler(container di.Container) *BalanceGRPCHandler {
 }
 
 // GetBalance retrieves user balance
-func (h *BalanceGRPCHandler) GetBalance(ctx context.Context, req *proto.GetBalanceRequest) (*proto.GetBalanceResponse, error) {
+func (h *BalanceGRPCHandler) GetBalance(ctx context.Context, req *monolithpb.GetBalanceRequest) (*monolithpb.GetBalanceResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
@@ -34,14 +34,14 @@ func (h *BalanceGRPCHandler) GetBalance(ctx context.Context, req *proto.GetBalan
 	}
 
 	// Map domain model to proto response
-	return &proto.GetBalanceResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetBalanceResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Balance retrieved successfully",
 			Code:      200,
 			Timestamp: 0,
 		},
-		Balance: &proto.Balance{
+		Balance: &monolithpb.Balance{
 			UserId:           req.UserId,
 			AvailableBalance: float64(balance.AvailableBalance),
 			TotalBalance:     float64(balance.AvailableBalance),

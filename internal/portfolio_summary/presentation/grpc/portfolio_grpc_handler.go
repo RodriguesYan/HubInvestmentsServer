@@ -4,14 +4,14 @@ import (
 	"context"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type PortfolioGRPCHandler struct {
-	proto.UnimplementedPortfolioServiceServer
+	monolithpb.UnimplementedPortfolioServiceServer
 	container di.Container
 }
 
@@ -22,7 +22,7 @@ func NewPortfolioGRPCHandler(container di.Container) *PortfolioGRPCHandler {
 }
 
 // GetPortfolioSummary retrieves complete portfolio summary for a user
-func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *proto.GetPortfolioSummaryRequest) (*proto.GetPortfolioSummaryResponse, error) {
+func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *monolithpb.GetPortfolioSummaryRequest) (*monolithpb.GetPortfolioSummaryResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
@@ -34,14 +34,14 @@ func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *pro
 	}
 
 	// Map domain model to proto response
-	return &proto.GetPortfolioSummaryResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetPortfolioSummaryResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Portfolio summary retrieved successfully",
 			Code:      200,
 			Timestamp: 0,
 		},
-		Portfolio: &proto.PortfolioSummary{
+		Portfolio: &monolithpb.PortfolioSummary{
 			TotalBalance:              float64(portfolioSummary.Balance.AvailableBalance),
 			TotalInvested:             float64(portfolioSummary.PositionAggregation.TotalInvested),
 			TotalCurrentValue:         float64(portfolioSummary.PositionAggregation.CurrentTotal),
@@ -54,10 +54,10 @@ func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *pro
 }
 
 // Helper function to map positions
-func mapPositionsToProto(userId string, portfolioSummary interface{}) []*proto.PortfolioPosition {
+func mapPositionsToProto(userId string, portfolioSummary interface{}) []*monolithpb.PortfolioPosition {
 	// This is just a placeholder - the actual mapping should be done by a mapper
 	// For now, return empty to avoid business logic in handler
-	return []*proto.PortfolioPosition{}
+	return []*monolithpb.PortfolioPosition{}
 }
 
 // Helper function for percentage calculation

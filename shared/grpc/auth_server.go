@@ -7,14 +7,14 @@ import (
 	"time"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
 
 	"google.golang.org/grpc/codes"
 )
 
 // AuthServiceServer implements the AuthService gRPC interface
 type AuthServiceServer struct {
-	proto.UnimplementedAuthServiceServer
+	authpb.UnimplementedAuthServiceServer
 	container di.Container
 }
 
@@ -26,10 +26,10 @@ func NewAuthServiceServer(container di.Container) *AuthServiceServer {
 }
 
 // Login authenticates a user and returns a JWT token
-func (s *AuthServiceServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
+func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
-		return &proto.LoginResponse{
-			ApiResponse: &proto.APIResponse{
+		return &authpb.LoginResponse{
+			ApiResponse: &authpb.APIResponse{
 				Success:   false,
 				Message:   "Email and password are required",
 				Code:      int32(codes.InvalidArgument),
@@ -41,8 +41,8 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *proto.LoginRequest) 
 	loginUseCase := s.container.DoLoginUsecase()
 	user, err := loginUseCase.Execute(req.Email, req.Password)
 	if err != nil {
-		return &proto.LoginResponse{
-			ApiResponse: &proto.APIResponse{
+		return &authpb.LoginResponse{
+			ApiResponse: &authpb.APIResponse{
 				Success:   false,
 				Message:   "Invalid credentials",
 				Code:      int32(codes.Unauthenticated),
@@ -54,8 +54,8 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *proto.LoginRequest) 
 	authService := s.container.GetAuthService()
 	token, err := authService.CreateToken(user.Email.Value(), user.ID)
 	if err != nil {
-		return &proto.LoginResponse{
-			ApiResponse: &proto.APIResponse{
+		return &authpb.LoginResponse{
+			ApiResponse: &authpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to generate token",
 				Code:      int32(codes.Internal),
@@ -64,15 +64,15 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *proto.LoginRequest) 
 		}, nil
 	}
 
-	return &proto.LoginResponse{
-		ApiResponse: &proto.APIResponse{
+	return &authpb.LoginResponse{
+		ApiResponse: &authpb.APIResponse{
 			Success:   true,
 			Message:   "Login successful",
 			Code:      int32(codes.OK),
 			Timestamp: time.Now().Unix(),
 		},
 		Token: token,
-		UserInfo: &proto.UserInfo{
+		UserInfo: &authpb.UserInfo{
 			UserId:    user.ID,
 			Email:     user.Email.Value(),
 			FirstName: "",
@@ -82,10 +82,10 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *proto.LoginRequest) 
 }
 
 // ValidateToken validates a JWT token and returns user info
-func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *proto.ValidateTokenRequest) (*proto.ValidateTokenResponse, error) {
+func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *authpb.ValidateTokenRequest) (*authpb.ValidateTokenResponse, error) {
 	if req.Token == "" {
-		return &proto.ValidateTokenResponse{
-			ApiResponse: &proto.APIResponse{
+		return &authpb.ValidateTokenResponse{
+			ApiResponse: &authpb.APIResponse{
 				Success:   false,
 				Message:   "Token is required",
 				Code:      int32(codes.InvalidArgument),
@@ -97,8 +97,8 @@ func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *proto.Valida
 
 	userID, err := s.validateTokenForGRPC(req.Token)
 	if err != nil {
-		return &proto.ValidateTokenResponse{
-			ApiResponse: &proto.APIResponse{
+		return &authpb.ValidateTokenResponse{
+			ApiResponse: &authpb.APIResponse{
 				Success:   false,
 				Message:   "Invalid token",
 				Code:      int32(codes.Unauthenticated),
@@ -108,15 +108,15 @@ func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *proto.Valida
 		}, nil
 	}
 
-	return &proto.ValidateTokenResponse{
-		ApiResponse: &proto.APIResponse{
+	return &authpb.ValidateTokenResponse{
+		ApiResponse: &authpb.APIResponse{
 			Success:   true,
 			Message:   "Token is valid",
 			Code:      int32(codes.OK),
 			Timestamp: time.Now().Unix(),
 		},
 		IsValid: true,
-		UserInfo: &proto.UserInfo{
+		UserInfo: &authpb.UserInfo{
 			UserId: userID,
 			Email:  "",
 		},

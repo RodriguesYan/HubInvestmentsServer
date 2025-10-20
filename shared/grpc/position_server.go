@@ -6,7 +6,7 @@ import (
 	"time"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -14,7 +14,7 @@ import (
 
 // PositionServiceServer implements the PositionService gRPC interface
 type PositionServiceServer struct {
-	proto.UnimplementedPositionServiceServer
+	monolithpb.UnimplementedPositionServiceServer
 	container di.Container
 }
 
@@ -26,7 +26,7 @@ func NewPositionServiceServer(container di.Container) *PositionServiceServer {
 }
 
 // GetPositions retrieves all positions for a user
-func (s *PositionServiceServer) GetPositions(ctx context.Context, req *proto.GetPositionsRequest) (*proto.GetPositionsResponse, error) {
+func (s *PositionServiceServer) GetPositions(ctx context.Context, req *monolithpb.GetPositionsRequest) (*monolithpb.GetPositionsResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
@@ -39,8 +39,8 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *proto.Get
 	positionAggregationUseCase := s.container.GetPositionAggregationUseCase()
 	aggregation, err := positionAggregationUseCase.Execute(userID)
 	if err != nil {
-		return &proto.GetPositionsResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetPositionsResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve positions: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -49,10 +49,10 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *proto.Get
 		}, nil
 	}
 
-	var protoPositions []*proto.Position
+	var protoPositions []*monolithpb.Position
 	for _, posAggregation := range aggregation.PositionAggregation {
 		for _, asset := range posAggregation.Assets {
-			protoPos := &proto.Position{
+			protoPos := &monolithpb.Position{
 				PositionId:       "pos-" + asset.Symbol,
 				UserId:           userID,
 				Symbol:           asset.Symbol,
@@ -72,8 +72,8 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *proto.Get
 		}
 	}
 
-	return &proto.GetPositionsResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetPositionsResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   fmt.Sprintf("Retrieved %d positions", len(protoPositions)),
 			Code:      int32(codes.OK),
@@ -84,7 +84,7 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *proto.Get
 }
 
 // GetPositionAggregation retrieves aggregated position data for a user
-func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req *proto.GetPositionAggregationRequest) (*proto.GetPositionAggregationResponse, error) {
+func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req *monolithpb.GetPositionAggregationRequest) (*monolithpb.GetPositionAggregationResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
@@ -97,8 +97,8 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 	positionAggregationUseCase := s.container.GetPositionAggregationUseCase()
 	aggregation, err := positionAggregationUseCase.Execute(userID)
 	if err != nil {
-		return &proto.GetPositionAggregationResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetPositionAggregationResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve position aggregation: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -107,12 +107,12 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 		}, nil
 	}
 
-	var protoCategories []*proto.CategoryAggregation
-	var protoPositions []*proto.Position
+	var protoCategories []*monolithpb.CategoryAggregation
+	var protoPositions []*monolithpb.Position
 	var totalPositions int32 = 0
 
 	for _, posAggregation := range aggregation.PositionAggregation {
-		protoCategories = append(protoCategories, &proto.CategoryAggregation{
+		protoCategories = append(protoCategories, &monolithpb.CategoryAggregation{
 			CategoryId:         int32(posAggregation.Category),
 			CategoryName:       fmt.Sprintf("Category %d", posAggregation.Category),
 			TotalInvested:      float64(posAggregation.TotalInvested),
@@ -124,7 +124,7 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 		})
 
 		for _, asset := range posAggregation.Assets {
-			protoPos := &proto.Position{
+			protoPos := &monolithpb.Position{
 				PositionId:       "pos-" + asset.Symbol,
 				UserId:           userID,
 				Symbol:           asset.Symbol,
@@ -145,7 +145,7 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 		}
 	}
 
-	protoAggregation := &proto.PositionAggregation{
+	protoAggregation := &monolithpb.PositionAggregation{
 		TotalInvested:         float64(aggregation.TotalInvested),
 		TotalCurrentValue:     float64(aggregation.CurrentTotal),
 		TotalUnrealizedPnl:    float64(aggregation.CurrentTotal - aggregation.TotalInvested),
@@ -156,8 +156,8 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 		Positions:             protoPositions,
 	}
 
-	return &proto.GetPositionAggregationResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetPositionAggregationResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Position aggregation retrieved successfully",
 			Code:      int32(codes.OK),
@@ -168,9 +168,9 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 }
 
 // CreatePosition creates a new position (for internal use)
-func (s *PositionServiceServer) CreatePosition(ctx context.Context, req *proto.CreatePositionRequest) (*proto.CreatePositionResponse, error) {
-	return &proto.CreatePositionResponse{
-		ApiResponse: &proto.APIResponse{
+func (s *PositionServiceServer) CreatePosition(ctx context.Context, req *monolithpb.CreatePositionRequest) (*monolithpb.CreatePositionResponse, error) {
+	return &monolithpb.CreatePositionResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   false,
 			Message:   "CreatePosition is not implemented yet",
 			Code:      int32(codes.Unimplemented),
@@ -180,9 +180,9 @@ func (s *PositionServiceServer) CreatePosition(ctx context.Context, req *proto.C
 }
 
 // UpdatePosition updates an existing position (for internal use)
-func (s *PositionServiceServer) UpdatePosition(ctx context.Context, req *proto.UpdatePositionRequest) (*proto.UpdatePositionResponse, error) {
-	return &proto.UpdatePositionResponse{
-		ApiResponse: &proto.APIResponse{
+func (s *PositionServiceServer) UpdatePosition(ctx context.Context, req *monolithpb.UpdatePositionRequest) (*monolithpb.UpdatePositionResponse, error) {
+	return &monolithpb.UpdatePositionResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   false,
 			Message:   "UpdatePosition is not implemented yet",
 			Code:      int32(codes.Unimplemented),

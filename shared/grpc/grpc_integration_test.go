@@ -11,7 +11,8 @@ import (
 	portfolioGrpc "HubInvestments/internal/portfolio_summary/presentation/grpc"
 	positionGrpc "HubInvestments/internal/position/presentation/grpc"
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -47,11 +48,11 @@ func setupTestServer(t *testing.T) (*grpc.Server, di.Container) {
 	orderHandler := orderGrpc.NewOrderGRPCHandler(container)
 	positionHandler := positionGrpc.NewPositionGRPCHandler(container)
 
-	proto.RegisterPortfolioServiceServer(server, portfolioHandler)
-	proto.RegisterBalanceServiceServer(server, balanceHandler)
-	proto.RegisterMarketDataServiceServer(server, marketDataHandler)
-	proto.RegisterOrderServiceServer(server, orderHandler)
-	proto.RegisterPositionServiceServer(server, positionHandler)
+	monolithpb.RegisterPortfolioServiceServer(server, portfolioHandler)
+	monolithpb.RegisterBalanceServiceServer(server, balanceHandler)
+	monolithpb.RegisterMarketDataServiceServer(server, marketDataHandler)
+	monolithpb.RegisterOrderServiceServer(server, orderHandler)
+	monolithpb.RegisterPositionServiceServer(server, positionHandler)
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
@@ -76,7 +77,7 @@ func TestBalanceService_GetBalance(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewBalanceServiceClient(conn)
+	client := monolithpb.NewBalanceServiceClient(conn)
 
 	tests := []struct {
 		name    string
@@ -97,7 +98,7 @@ func TestBalanceService_GetBalance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.GetBalance(ctx, &proto.GetBalanceRequest{
+			resp, err := client.GetBalance(ctx, &monolithpb.GetBalanceRequest{
 				UserId: tt.userID,
 			})
 
@@ -143,7 +144,7 @@ func TestMarketDataService_GetMarketData(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewMarketDataServiceClient(conn)
+	client := monolithpb.NewMarketDataServiceClient(conn)
 
 	tests := []struct {
 		name    string
@@ -164,7 +165,7 @@ func TestMarketDataService_GetMarketData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.GetMarketData(ctx, &proto.GetMarketDataRequest{
+			resp, err := client.GetMarketData(ctx, &monolithpb.GetMarketDataRequest{
 				Symbol: tt.symbol,
 			})
 
@@ -206,7 +207,7 @@ func TestAuthenticationFlow(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewBalanceServiceClient(conn)
+	client := monolithpb.NewBalanceServiceClient(conn)
 
 	tests := []struct {
 		name      string
@@ -237,7 +238,7 @@ func TestAuthenticationFlow(t *testing.T) {
 				ctx = metadata.NewOutgoingContext(ctx, md)
 			}
 
-			_, err := client.GetBalance(ctx, &proto.GetBalanceRequest{
+			_, err := client.GetBalance(ctx, &monolithpb.GetBalanceRequest{
 				UserId: "1",
 			})
 
@@ -264,7 +265,7 @@ func TestConcurrentRequests(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewBalanceServiceClient(conn)
+	client := monolithpb.NewBalanceServiceClient(conn)
 
 	// Run 10 concurrent requests
 	concurrency := 10
@@ -273,7 +274,7 @@ func TestConcurrentRequests(t *testing.T) {
 
 	for i := 0; i < concurrency; i++ {
 		go func(id int) {
-			_, err := client.GetBalance(ctx, &proto.GetBalanceRequest{
+			_, err := client.GetBalance(ctx, &monolithpb.GetBalanceRequest{
 				UserId: "1",
 			})
 			if err != nil {
@@ -314,7 +315,7 @@ func TestPortfolioService_GetPortfolioSummary(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewPortfolioServiceClient(conn)
+	client := monolithpb.NewPortfolioServiceClient(conn)
 
 	tests := []struct {
 		name    string
@@ -335,7 +336,7 @@ func TestPortfolioService_GetPortfolioSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.GetPortfolioSummary(ctx, &proto.GetPortfolioSummaryRequest{
+			resp, err := client.GetPortfolioSummary(ctx, &monolithpb.GetPortfolioSummaryRequest{
 				UserId: tt.userID,
 			})
 
@@ -377,7 +378,7 @@ func TestPositionService_GetPositions(t *testing.T) {
 	}
 	defer conn.Close()
 
-	client := proto.NewPositionServiceClient(conn)
+	client := monolithpb.NewPositionServiceClient(conn)
 
 	tests := []struct {
 		name    string
@@ -398,7 +399,7 @@ func TestPositionService_GetPositions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.GetPositions(ctx, &proto.GetPositionsRequest{
+			resp, err := client.GetPositions(ctx, &monolithpb.GetPositionsRequest{
 				UserId: tt.userID,
 			})
 

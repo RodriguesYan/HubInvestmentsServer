@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -12,7 +12,7 @@ import (
 
 type PositionClient struct {
 	conn   *grpc.ClientConn
-	client proto.PositionServiceClient
+	client monolithpb.PositionServiceClient
 	config *ClientConfig
 }
 
@@ -33,7 +33,7 @@ func (c *PositionClient) connect() error {
 	}
 
 	c.conn = conn
-	c.client = proto.NewPositionServiceClient(conn)
+	c.client = monolithpb.NewPositionServiceClient(conn)
 	return nil
 }
 
@@ -52,7 +52,7 @@ func (c *PositionClient) withAuth(token string) (context.Context, context.Cancel
 	return ctx, cancel
 }
 
-func (c *PositionClient) GetPositions(token, userID string) (*proto.GetPositionsResponse, error) {
+func (c *PositionClient) GetPositions(token, userID string) (*monolithpb.GetPositionsResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (c *PositionClient) GetPositions(token, userID string) (*proto.GetPositions
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.GetPositionsRequest{
+	req := &monolithpb.GetPositionsRequest{
 		UserId: userID,
 	}
 
@@ -72,7 +72,7 @@ func (c *PositionClient) GetPositions(token, userID string) (*proto.GetPositions
 	return resp, nil
 }
 
-func (c *PositionClient) GetAggregation(token, userID string) (*proto.GetPositionAggregationResponse, error) {
+func (c *PositionClient) GetAggregation(token, userID string) (*monolithpb.GetPositionAggregationResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (c *PositionClient) GetAggregation(token, userID string) (*proto.GetPositio
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.GetPositionAggregationRequest{
+	req := &monolithpb.GetPositionAggregationRequest{
 		UserId: userID,
 	}
 
@@ -93,7 +93,7 @@ func (c *PositionClient) GetAggregation(token, userID string) (*proto.GetPositio
 }
 
 // Internal use for position updates
-func (c *PositionClient) Create(token string, req *proto.CreatePositionRequest) (*proto.CreatePositionResponse, error) {
+func (c *PositionClient) Create(token string, req *monolithpb.CreatePositionRequest) (*monolithpb.CreatePositionResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (c *PositionClient) Create(token string, req *proto.CreatePositionRequest) 
 }
 
 // Internal use for position updates
-func (c *PositionClient) Update(token string, req *proto.UpdatePositionRequest) (*proto.UpdatePositionResponse, error) {
+func (c *PositionClient) Update(token string, req *monolithpb.UpdatePositionRequest) (*monolithpb.UpdatePositionResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}

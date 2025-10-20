@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -12,7 +12,7 @@ import (
 
 type OrderClient struct {
 	conn   *grpc.ClientConn
-	client proto.OrderServiceClient
+	client monolithpb.OrderServiceClient
 	config *ClientConfig
 }
 
@@ -33,7 +33,7 @@ func (c *OrderClient) connect() error {
 	}
 
 	c.conn = conn
-	c.client = proto.NewOrderServiceClient(conn)
+	c.client = monolithpb.NewOrderServiceClient(conn)
 	return nil
 }
 
@@ -52,7 +52,7 @@ func (c *OrderClient) withAuth(token string) (context.Context, context.CancelFun
 	return ctx, cancel
 }
 
-func (c *OrderClient) Submit(token, userID, symbol, orderType, orderSide string, quantity float64, price *float64) (*proto.SubmitOrderResponse, error) {
+func (c *OrderClient) Submit(token, userID, symbol, orderType, orderSide string, quantity float64, price *float64) (*monolithpb.SubmitOrderResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (c *OrderClient) Submit(token, userID, symbol, orderType, orderSide string,
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.SubmitOrderRequest{
+	req := &monolithpb.SubmitOrderRequest{
 		UserId:    userID,
 		Symbol:    symbol,
 		OrderType: orderType,
@@ -80,7 +80,7 @@ func (c *OrderClient) Submit(token, userID, symbol, orderType, orderSide string,
 	return resp, nil
 }
 
-func (c *OrderClient) GetStatus(token, orderID, userID string) (*proto.GetOrderStatusResponse, error) {
+func (c *OrderClient) GetStatus(token, orderID, userID string) (*monolithpb.GetOrderStatusResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (c *OrderClient) GetStatus(token, orderID, userID string) (*proto.GetOrderS
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.GetOrderStatusRequest{
+	req := &monolithpb.GetOrderStatusRequest{
 		OrderId: orderID,
 		UserId:  userID,
 	}
@@ -101,7 +101,7 @@ func (c *OrderClient) GetStatus(token, orderID, userID string) (*proto.GetOrderS
 	return resp, nil
 }
 
-func (c *OrderClient) GetDetails(token, orderID, userID string) (*proto.GetOrderDetailsResponse, error) {
+func (c *OrderClient) GetDetails(token, orderID, userID string) (*monolithpb.GetOrderDetailsResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (c *OrderClient) GetDetails(token, orderID, userID string) (*proto.GetOrder
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.GetOrderDetailsRequest{
+	req := &monolithpb.GetOrderDetailsRequest{
 		OrderId: orderID,
 		UserId:  userID,
 	}
@@ -122,7 +122,7 @@ func (c *OrderClient) GetDetails(token, orderID, userID string) (*proto.GetOrder
 	return resp, nil
 }
 
-func (c *OrderClient) Cancel(token, orderID, userID string) (*proto.CancelOrderResponse, error) {
+func (c *OrderClient) Cancel(token, orderID, userID string) (*monolithpb.CancelOrderResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func (c *OrderClient) Cancel(token, orderID, userID string) (*proto.CancelOrderR
 	ctx, cancel := c.withAuth(token)
 	defer cancel()
 
-	req := &proto.CancelOrderRequest{
+	req := &monolithpb.CancelOrderRequest{
 		OrderId: orderID,
 		UserId:  userID,
 	}

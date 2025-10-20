@@ -11,8 +11,9 @@ import (
 	portfolioGrpc "HubInvestments/internal/portfolio_summary/presentation/grpc"
 	positionGrpc "HubInvestments/internal/position/presentation/grpc"
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
 
+	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 	"google.golang.org/grpc"
 )
 
@@ -31,7 +32,7 @@ func NewGRPCServer(container di.Container, port string) (*grpc.Server, net.Liste
 
 	// Register Auth Service (existing)
 	authServer := NewAuthServiceServer(container)
-	proto.RegisterAuthServiceServer(server, authServer)
+	authpb.RegisterAuthServiceServer(server, authServer)
 
 	// Register new feature-based handlers
 	portfolioHandler := portfolioGrpc.NewPortfolioGRPCHandler(container)
@@ -40,11 +41,11 @@ func NewGRPCServer(container di.Container, port string) (*grpc.Server, net.Liste
 	orderHandler := orderGrpc.NewOrderGRPCHandler(container)
 	positionHandler := positionGrpc.NewPositionGRPCHandler(container)
 
-	proto.RegisterPortfolioServiceServer(server, portfolioHandler)
-	proto.RegisterBalanceServiceServer(server, balanceHandler)
-	proto.RegisterMarketDataServiceServer(server, marketDataHandler)
-	proto.RegisterOrderServiceServer(server, orderHandler)
-	proto.RegisterPositionServiceServer(server, positionHandler)
+	monolithpb.RegisterPortfolioServiceServer(server, portfolioHandler)
+	monolithpb.RegisterBalanceServiceServer(server, balanceHandler)
+	monolithpb.RegisterMarketDataServiceServer(server, marketDataHandler)
+	monolithpb.RegisterOrderServiceServer(server, orderHandler)
+	monolithpb.RegisterPositionServiceServer(server, positionHandler)
 
 	return server, lis, nil
 }

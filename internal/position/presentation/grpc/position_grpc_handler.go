@@ -4,14 +4,14 @@ import (
 	"context"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type PositionGRPCHandler struct {
-	proto.UnimplementedPositionServiceServer
+	monolithpb.UnimplementedPositionServiceServer
 	container di.Container
 }
 
@@ -22,7 +22,7 @@ func NewPositionGRPCHandler(container di.Container) *PositionGRPCHandler {
 }
 
 // GetPositions retrieves all positions for a user
-func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *proto.GetPositionsRequest) (*proto.GetPositionsResponse, error) {
+func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *monolithpb.GetPositionsRequest) (*monolithpb.GetPositionsResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
@@ -34,7 +34,7 @@ func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *proto.GetPo
 	}
 
 	// Map domain model to proto response
-	var positions []*proto.Position
+	var positions []*monolithpb.Position
 	for _, category := range portfolioSummary.PositionAggregation.PositionAggregation {
 		for _, asset := range category.Assets {
 			currentValue := float64(asset.Quantity * asset.LastPrice)
@@ -42,7 +42,7 @@ func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *proto.GetPo
 			profitLoss := currentValue - totalInvested
 			profitLossPercentage := calculateProfitLossPercentage(currentValue, totalInvested)
 
-			positions = append(positions, &proto.Position{
+			positions = append(positions, &monolithpb.Position{
 				PositionId:       "",
 				UserId:           req.UserId,
 				Symbol:           asset.Symbol,
@@ -61,8 +61,8 @@ func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *proto.GetPo
 		}
 	}
 
-	return &proto.GetPositionsResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetPositionsResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Positions retrieved successfully",
 			Code:      200,
@@ -73,7 +73,7 @@ func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *proto.GetPo
 }
 
 // GetPositionAggregation retrieves aggregated position data for a user
-func (h *PositionGRPCHandler) GetPositionAggregation(ctx context.Context, req *proto.GetPositionAggregationRequest) (*proto.GetPositionAggregationResponse, error) {
+func (h *PositionGRPCHandler) GetPositionAggregation(ctx context.Context, req *monolithpb.GetPositionAggregationRequest) (*monolithpb.GetPositionAggregationResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
@@ -85,14 +85,14 @@ func (h *PositionGRPCHandler) GetPositionAggregation(ctx context.Context, req *p
 	}
 
 	// Map domain model to proto response
-	return &proto.GetPositionAggregationResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetPositionAggregationResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Position aggregation retrieved successfully",
 			Code:      200,
 			Timestamp: 0,
 		},
-		Aggregation: &proto.PositionAggregation{
+		Aggregation: &monolithpb.PositionAggregation{
 			TotalInvested:         float64(aggregation.TotalInvested),
 			TotalCurrentValue:     float64(aggregation.CurrentTotal),
 			TotalUnrealizedPnl:    float64(aggregation.CurrentTotal - aggregation.TotalInvested),
@@ -103,12 +103,12 @@ func (h *PositionGRPCHandler) GetPositionAggregation(ctx context.Context, req *p
 }
 
 // CreatePosition creates a new position (for internal use)
-func (h *PositionGRPCHandler) CreatePosition(ctx context.Context, req *proto.CreatePositionRequest) (*proto.CreatePositionResponse, error) {
+func (h *PositionGRPCHandler) CreatePosition(ctx context.Context, req *monolithpb.CreatePositionRequest) (*monolithpb.CreatePositionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "CreatePosition is for internal use only")
 }
 
 // UpdatePosition updates an existing position (for internal use)
-func (h *PositionGRPCHandler) UpdatePosition(ctx context.Context, req *proto.UpdatePositionRequest) (*proto.UpdatePositionResponse, error) {
+func (h *PositionGRPCHandler) UpdatePosition(ctx context.Context, req *monolithpb.UpdatePositionRequest) (*monolithpb.UpdatePositionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "UpdatePosition is for internal use only")
 }
 

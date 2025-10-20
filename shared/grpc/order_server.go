@@ -8,7 +8,7 @@ import (
 
 	"HubInvestments/internal/order_mngmt_system/application/command"
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,7 +16,7 @@ import (
 
 // OrderServiceServer implements the OrderService gRPC interface
 type OrderServiceServer struct {
-	proto.UnimplementedOrderServiceServer
+	monolithpb.UnimplementedOrderServiceServer
 	container di.Container
 }
 
@@ -28,15 +28,15 @@ func NewOrderServiceServer(container di.Container) *OrderServiceServer {
 }
 
 // SubmitOrder submits a new trading order
-func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *proto.SubmitOrderRequest) (*proto.SubmitOrderResponse, error) {
+func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *monolithpb.SubmitOrderRequest) (*monolithpb.SubmitOrderResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
 	}
 
 	if req.Symbol == "" || req.Quantity <= 0 {
-		return &proto.SubmitOrderResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.SubmitOrderResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Symbol and positive quantity are required",
 				Code:      int32(codes.InvalidArgument),
@@ -60,8 +60,8 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *proto.SubmitO
 	submitOrderUseCase := s.container.GetSubmitOrderUseCase()
 	result, err := submitOrderUseCase.Execute(ctx, cmd)
 	if err != nil {
-		return &proto.SubmitOrderResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.SubmitOrderResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Order submission failed: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -70,8 +70,8 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *proto.SubmitO
 		}, nil
 	}
 
-	response := &proto.SubmitOrderResponse{
-		ApiResponse: &proto.APIResponse{
+	response := &monolithpb.SubmitOrderResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   result.Message,
 			Code:      int32(codes.OK),
@@ -93,15 +93,15 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *proto.SubmitO
 }
 
 // GetOrderDetails retrieves detailed information about a specific order
-func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *proto.GetOrderDetailsRequest) (*proto.GetOrderDetailsResponse, error) {
+func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *monolithpb.GetOrderDetailsRequest) (*monolithpb.GetOrderDetailsResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
 	}
 
 	if req.OrderId == "" {
-		return &proto.GetOrderDetailsResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetOrderDetailsResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -117,8 +117,8 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *proto.Get
 	getOrderStatusUseCase := s.container.GetGetOrderStatusUseCase()
 	orderStatus, err := getOrderStatusUseCase.Execute(ctx, req.OrderId, userID)
 	if err != nil {
-		return &proto.GetOrderDetailsResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetOrderDetailsResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve order details: " + err.Error(),
 				Code:      int32(codes.NotFound),
@@ -127,7 +127,7 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *proto.Get
 		}, nil
 	}
 
-	orderDetails := &proto.OrderDetails{
+	orderDetails := &monolithpb.OrderDetails{
 		OrderId:        req.OrderId,
 		UserId:         userID,
 		Status:         orderStatus.Status,
@@ -136,8 +136,8 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *proto.Get
 		EstimatedValue: 0,
 	}
 
-	return &proto.GetOrderDetailsResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetOrderDetailsResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order details retrieved successfully",
 			Code:      int32(codes.OK),
@@ -148,15 +148,15 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *proto.Get
 }
 
 // GetOrderStatus retrieves the status of a specific order
-func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *proto.GetOrderStatusRequest) (*proto.GetOrderStatusResponse, error) {
+func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *monolithpb.GetOrderStatusRequest) (*monolithpb.GetOrderStatusResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
 	}
 
 	if req.OrderId == "" {
-		return &proto.GetOrderStatusResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetOrderStatusResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -172,8 +172,8 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *proto.GetO
 	getOrderStatusUseCase := s.container.GetGetOrderStatusUseCase()
 	orderStatus, err := getOrderStatusUseCase.Execute(ctx, req.OrderId, userID)
 	if err != nil {
-		return &proto.GetOrderStatusResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.GetOrderStatusResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve order status: " + err.Error(),
 				Code:      int32(codes.NotFound),
@@ -182,8 +182,8 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *proto.GetO
 		}, nil
 	}
 
-	return &proto.GetOrderStatusResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetOrderStatusResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order status retrieved successfully",
 			Code:      int32(codes.OK),
@@ -197,15 +197,15 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *proto.GetO
 }
 
 // CancelOrder cancels a pending order
-func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *proto.CancelOrderRequest) (*proto.CancelOrderResponse, error) {
+func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *monolithpb.CancelOrderRequest) (*monolithpb.CancelOrderResponse, error) {
 	userID, ok := ctx.Value("userId").(string)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "user not authenticated")
 	}
 
 	if req.OrderId == "" {
-		return &proto.CancelOrderResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.CancelOrderResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -227,8 +227,8 @@ func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *proto.CancelO
 	cancelOrderUseCase := s.container.GetCancelOrderUseCase()
 	_, err := cancelOrderUseCase.Execute(ctx, cmd)
 	if err != nil {
-		return &proto.CancelOrderResponse{
-			ApiResponse: &proto.APIResponse{
+		return &monolithpb.CancelOrderResponse{
+			ApiResponse: &monolithpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to cancel order: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -237,8 +237,8 @@ func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *proto.CancelO
 		}, nil
 	}
 
-	return &proto.CancelOrderResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.CancelOrderResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order cancelled successfully",
 			Code:      int32(codes.OK),

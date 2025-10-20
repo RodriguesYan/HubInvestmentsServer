@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log"
 
-	pb "HubInvestments/shared/grpc/proto"
-
+	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // UserServiceClient wraps the gRPC client for User Management Service
 type UserServiceClient struct {
-	client pb.UserServiceClient
+	client authpb.UserServiceClient
 	conn   *grpc.ClientConn
 }
 
@@ -39,7 +38,7 @@ func NewUserServiceClient(serviceAddress string) (*UserServiceClient, error) {
 	log.Printf("✅ User Service client created for %s (state: %v)", serviceAddress, state)
 
 	return &UserServiceClient{
-		client: pb.NewUserServiceClient(conn),
+		client: authpb.NewUserServiceClient(conn),
 		conn:   conn,
 	}, nil
 }
@@ -50,7 +49,7 @@ func (c *UserServiceClient) ValidateToken(ctx context.Context, token string) (bo
 		return false, "", "", fmt.Errorf("token cannot be empty")
 	}
 
-	resp, err := c.client.UserValidateToken(ctx, &pb.UserValidateTokenRequest{
+	resp, err := c.client.UserValidateToken(ctx, &authpb.UserValidateTokenRequest{
 		Token: token,
 	})
 	if err != nil {
@@ -70,7 +69,7 @@ func (c *UserServiceClient) Login(ctx context.Context, email, password string) (
 		return "", "", "", fmt.Errorf("email and password are required")
 	}
 
-	resp, err := c.client.UserLogin(ctx, &pb.UserLoginRequest{
+	resp, err := c.client.UserLogin(ctx, &authpb.UserLoginRequest{
 		Email:    email,
 		Password: password,
 	})
@@ -91,7 +90,7 @@ func (c *UserServiceClient) RegisterUser(ctx context.Context, email, password, f
 		return "", fmt.Errorf("all fields are required")
 	}
 
-	resp, err := c.client.RegisterUser(ctx, &pb.RegisterUserRequest{
+	resp, err := c.client.RegisterUser(ctx, &authpb.RegisterUserRequest{
 		Email:     email,
 		Password:  password,
 		FirstName: firstName,
@@ -114,7 +113,7 @@ func (c *UserServiceClient) GetUserProfile(ctx context.Context, userID string) (
 		return nil, fmt.Errorf("user ID is required")
 	}
 
-	resp, err := c.client.GetUserProfile(ctx, &pb.GetUserProfileRequest{
+	resp, err := c.client.GetUserProfile(ctx, &authpb.GetUserProfileRequest{
 		UserId: userID,
 	})
 	if err != nil {
@@ -137,7 +136,7 @@ func (c *UserServiceClient) GetUserProfile(ctx context.Context, userID string) (
 
 // HealthCheck checks if User Service is healthy
 func (c *UserServiceClient) HealthCheck(ctx context.Context) (bool, string, error) {
-	resp, err := c.client.HealthCheck(ctx, &pb.HealthCheckRequest{})
+	resp, err := c.client.HealthCheck(ctx, &authpb.HealthCheckRequest{})
 	if err != nil {
 		return false, "", fmt.Errorf("health check failed: %w", err)
 	}

@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"HubInvestments/shared/grpc/proto"
-
+	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
 	"google.golang.org/grpc"
 )
 
 type AuthClient struct {
 	conn   *grpc.ClientConn
-	client proto.AuthServiceClient
+	client authpb.AuthServiceClient
 	config *ClientConfig
 }
 
@@ -32,7 +31,7 @@ func (c *AuthClient) connect() error {
 	}
 
 	c.conn = conn
-	c.client = proto.NewAuthServiceClient(conn)
+	c.client = authpb.NewAuthServiceClient(conn)
 	return nil
 }
 
@@ -43,7 +42,7 @@ func (c *AuthClient) Close() error {
 	return nil
 }
 
-func (c *AuthClient) Login(email, password string) (*proto.LoginResponse, error) {
+func (c *AuthClient) Login(email, password string) (*authpb.LoginResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -51,7 +50,7 @@ func (c *AuthClient) Login(email, password string) (*proto.LoginResponse, error)
 	ctx, cancel := context.WithTimeout(context.Background(), c.config.Timeout)
 	defer cancel()
 
-	req := &proto.LoginRequest{
+	req := &authpb.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
@@ -64,7 +63,7 @@ func (c *AuthClient) Login(email, password string) (*proto.LoginResponse, error)
 	return resp, nil
 }
 
-func (c *AuthClient) ValidateToken(token string) (*proto.ValidateTokenResponse, error) {
+func (c *AuthClient) ValidateToken(token string) (*authpb.ValidateTokenResponse, error) {
 	if err := c.connect(); err != nil {
 		return nil, err
 	}
@@ -72,7 +71,7 @@ func (c *AuthClient) ValidateToken(token string) (*proto.ValidateTokenResponse, 
 	ctx, cancel := context.WithTimeout(context.Background(), c.config.Timeout)
 	defer cancel()
 
-	req := &proto.ValidateTokenRequest{
+	req := &authpb.ValidateTokenRequest{
 		Token: token,
 	}
 

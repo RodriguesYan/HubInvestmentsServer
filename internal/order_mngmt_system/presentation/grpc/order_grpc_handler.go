@@ -5,14 +5,14 @@ import (
 
 	orderCommand "HubInvestments/internal/order_mngmt_system/application/command"
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type OrderGRPCHandler struct {
-	proto.UnimplementedOrderServiceServer
+	monolithpb.UnimplementedOrderServiceServer
 	container di.Container
 }
 
@@ -23,7 +23,7 @@ func NewOrderGRPCHandler(container di.Container) *OrderGRPCHandler {
 }
 
 // SubmitOrder submits a new trading order
-func (h *OrderGRPCHandler) SubmitOrder(ctx context.Context, req *proto.SubmitOrderRequest) (*proto.SubmitOrderResponse, error) {
+func (h *OrderGRPCHandler) SubmitOrder(ctx context.Context, req *monolithpb.SubmitOrderRequest) (*monolithpb.SubmitOrderResponse, error) {
 	if req.UserId == "" {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
@@ -56,8 +56,8 @@ func (h *OrderGRPCHandler) SubmitOrder(ctx context.Context, req *proto.SubmitOrd
 	}
 
 	// Map result to proto response
-	response := &proto.SubmitOrderResponse{
-		ApiResponse: &proto.APIResponse{
+	response := &monolithpb.SubmitOrderResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   result.Message,
 			Code:      202,
@@ -78,7 +78,7 @@ func (h *OrderGRPCHandler) SubmitOrder(ctx context.Context, req *proto.SubmitOrd
 }
 
 // GetOrderDetails retrieves detailed information about a specific order
-func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *proto.GetOrderDetailsRequest) (*proto.GetOrderDetailsResponse, error) {
+func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *monolithpb.GetOrderDetailsRequest) (*monolithpb.GetOrderDetailsResponse, error) {
 	if req.OrderId == "" {
 		return nil, status.Error(codes.InvalidArgument, "order_id is required")
 	}
@@ -96,7 +96,7 @@ func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *proto.GetOr
 	}
 
 	// Map result to proto response
-	orderDetails := &proto.OrderDetails{
+	orderDetails := &monolithpb.OrderDetails{
 		OrderId:                 result.OrderID,
 		UserId:                  result.UserID,
 		Symbol:                  result.Symbol,
@@ -125,8 +125,8 @@ func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *proto.GetOr
 		orderDetails.EstimatedValue = *result.EstimatedValue
 	}
 
-	return &proto.GetOrderDetailsResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetOrderDetailsResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order details retrieved successfully",
 			Code:      200,
@@ -137,7 +137,7 @@ func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *proto.GetOr
 }
 
 // GetOrderStatus retrieves the status of a specific order
-func (h *OrderGRPCHandler) GetOrderStatus(ctx context.Context, req *proto.GetOrderStatusRequest) (*proto.GetOrderStatusResponse, error) {
+func (h *OrderGRPCHandler) GetOrderStatus(ctx context.Context, req *monolithpb.GetOrderStatusRequest) (*monolithpb.GetOrderStatusResponse, error) {
 	if req.OrderId == "" {
 		return nil, status.Error(codes.InvalidArgument, "order_id is required")
 	}
@@ -155,8 +155,8 @@ func (h *OrderGRPCHandler) GetOrderStatus(ctx context.Context, req *proto.GetOrd
 	}
 
 	// Map result to proto response
-	return &proto.GetOrderStatusResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetOrderStatusResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order status retrieved successfully",
 			Code:      200,
@@ -170,7 +170,7 @@ func (h *OrderGRPCHandler) GetOrderStatus(ctx context.Context, req *proto.GetOrd
 }
 
 // CancelOrder cancels a pending order
-func (h *OrderGRPCHandler) CancelOrder(ctx context.Context, req *proto.CancelOrderRequest) (*proto.CancelOrderResponse, error) {
+func (h *OrderGRPCHandler) CancelOrder(ctx context.Context, req *monolithpb.CancelOrderRequest) (*monolithpb.CancelOrderResponse, error) {
 	if req.OrderId == "" {
 		return nil, status.Error(codes.InvalidArgument, "order_id is required")
 	}
@@ -197,8 +197,8 @@ func (h *OrderGRPCHandler) CancelOrder(ctx context.Context, req *proto.CancelOrd
 	}
 
 	// Map result to proto response
-	return &proto.CancelOrderResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.CancelOrderResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Order cancelled successfully",
 			Code:      200,

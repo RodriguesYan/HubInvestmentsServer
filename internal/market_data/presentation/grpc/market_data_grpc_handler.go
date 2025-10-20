@@ -4,14 +4,14 @@ import (
 	"context"
 
 	di "HubInvestments/pck"
-	"HubInvestments/shared/grpc/proto"
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type MarketDataGRPCHandler struct {
-	proto.UnimplementedMarketDataServiceServer
+	monolithpb.UnimplementedMarketDataServiceServer
 	container di.Container
 }
 
@@ -22,7 +22,7 @@ func NewMarketDataGRPCHandler(container di.Container) *MarketDataGRPCHandler {
 }
 
 // GetMarketData retrieves market data for a specific symbol
-func (h *MarketDataGRPCHandler) GetMarketData(ctx context.Context, req *proto.GetMarketDataRequest) (*proto.GetMarketDataResponse, error) {
+func (h *MarketDataGRPCHandler) GetMarketData(ctx context.Context, req *monolithpb.GetMarketDataRequest) (*monolithpb.GetMarketDataResponse, error) {
 	if req.Symbol == "" {
 		return nil, status.Error(codes.InvalidArgument, "symbol is required")
 	}
@@ -40,14 +40,14 @@ func (h *MarketDataGRPCHandler) GetMarketData(ctx context.Context, req *proto.Ge
 	marketData := marketDataList[0]
 
 	// Map domain model to proto response
-	return &proto.GetMarketDataResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetMarketDataResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Market data retrieved successfully",
 			Code:      200,
 			Timestamp: 0,
 		},
-		MarketData: &proto.MarketData{
+		MarketData: &monolithpb.MarketData{
 			Symbol:        marketData.Symbol,
 			CompanyName:   marketData.Name,
 			CurrentPrice:  float64(marketData.LastQuote),
@@ -64,7 +64,7 @@ func (h *MarketDataGRPCHandler) GetMarketData(ctx context.Context, req *proto.Ge
 }
 
 // GetAssetDetails retrieves detailed asset information
-func (h *MarketDataGRPCHandler) GetAssetDetails(ctx context.Context, req *proto.GetAssetDetailsRequest) (*proto.GetAssetDetailsResponse, error) {
+func (h *MarketDataGRPCHandler) GetAssetDetails(ctx context.Context, req *monolithpb.GetAssetDetailsRequest) (*monolithpb.GetAssetDetailsResponse, error) {
 	if req.Symbol == "" {
 		return nil, status.Error(codes.InvalidArgument, "symbol is required")
 	}
@@ -82,14 +82,14 @@ func (h *MarketDataGRPCHandler) GetAssetDetails(ctx context.Context, req *proto.
 	marketData := marketDataList[0]
 
 	// Map domain model to proto response
-	return &proto.GetAssetDetailsResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetAssetDetailsResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Asset details retrieved successfully",
 			Code:      200,
 			Timestamp: 0,
 		},
-		Asset: &proto.AssetDetails{
+		Asset: &monolithpb.AssetDetails{
 			Symbol:           marketData.Symbol,
 			CompanyName:      marketData.Name,
 			Sector:           "",
@@ -107,7 +107,7 @@ func (h *MarketDataGRPCHandler) GetAssetDetails(ctx context.Context, req *proto.
 }
 
 // GetBatchMarketData retrieves market data for multiple symbols
-func (h *MarketDataGRPCHandler) GetBatchMarketData(ctx context.Context, req *proto.GetBatchMarketDataRequest) (*proto.GetBatchMarketDataResponse, error) {
+func (h *MarketDataGRPCHandler) GetBatchMarketData(ctx context.Context, req *monolithpb.GetBatchMarketDataRequest) (*monolithpb.GetBatchMarketDataResponse, error) {
 	if len(req.Symbols) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "at least one symbol is required")
 	}
@@ -119,9 +119,9 @@ func (h *MarketDataGRPCHandler) GetBatchMarketData(ctx context.Context, req *pro
 	}
 
 	// Map domain models to proto response
-	protoMarketData := make([]*proto.MarketData, len(marketDataList))
+	protoMarketData := make([]*monolithpb.MarketData, len(marketDataList))
 	for i, md := range marketDataList {
-		protoMarketData[i] = &proto.MarketData{
+		protoMarketData[i] = &monolithpb.MarketData{
 			Symbol:        md.Symbol,
 			CompanyName:   md.Name,
 			CurrentPrice:  float64(md.LastQuote),
@@ -136,8 +136,8 @@ func (h *MarketDataGRPCHandler) GetBatchMarketData(ctx context.Context, req *pro
 		}
 	}
 
-	return &proto.GetBatchMarketDataResponse{
-		ApiResponse: &proto.APIResponse{
+	return &monolithpb.GetBatchMarketDataResponse{
+		ApiResponse: &monolithpb.APIResponse{
 			Success:   true,
 			Message:   "Batch market data retrieved successfully",
 			Code:      200,
