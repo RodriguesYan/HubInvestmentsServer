@@ -11,7 +11,7 @@ import (
 	portfolioGrpc "HubInvestments/internal/portfolio_summary/presentation/grpc"
 	positionGrpc "HubInvestments/internal/position/presentation/grpc"
 	di "HubInvestments/pck"
-	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
+
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc"
