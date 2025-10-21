@@ -6,6 +6,8 @@ import (
 	"time"
 
 	di "HubInvestments/pck"
+
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
@@ -40,7 +42,7 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *monolithp
 	aggregation, err := positionAggregationUseCase.Execute(userID)
 	if err != nil {
 		return &monolithpb.GetPositionsResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve positions: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -73,7 +75,7 @@ func (s *PositionServiceServer) GetPositions(ctx context.Context, req *monolithp
 	}
 
 	return &monolithpb.GetPositionsResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   fmt.Sprintf("Retrieved %d positions", len(protoPositions)),
 			Code:      int32(codes.OK),
@@ -98,7 +100,7 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 	aggregation, err := positionAggregationUseCase.Execute(userID)
 	if err != nil {
 		return &monolithpb.GetPositionAggregationResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve position aggregation: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -157,7 +159,7 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 	}
 
 	return &monolithpb.GetPositionAggregationResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Position aggregation retrieved successfully",
 			Code:      int32(codes.OK),
@@ -170,7 +172,7 @@ func (s *PositionServiceServer) GetPositionAggregation(ctx context.Context, req 
 // CreatePosition creates a new position (for internal use)
 func (s *PositionServiceServer) CreatePosition(ctx context.Context, req *monolithpb.CreatePositionRequest) (*monolithpb.CreatePositionResponse, error) {
 	return &monolithpb.CreatePositionResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   false,
 			Message:   "CreatePosition is not implemented yet",
 			Code:      int32(codes.Unimplemented),
@@ -182,7 +184,7 @@ func (s *PositionServiceServer) CreatePosition(ctx context.Context, req *monolit
 // UpdatePosition updates an existing position (for internal use)
 func (s *PositionServiceServer) UpdatePosition(ctx context.Context, req *monolithpb.UpdatePositionRequest) (*monolithpb.UpdatePositionResponse, error) {
 	return &monolithpb.UpdatePositionResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   false,
 			Message:   "UpdatePosition is not implemented yet",
 			Code:      int32(codes.Unimplemented),

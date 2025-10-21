@@ -5,6 +5,7 @@ import (
 
 	di "HubInvestments/pck"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
+commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -41,7 +42,7 @@ func (h *MarketDataGRPCHandler) GetMarketData(ctx context.Context, req *monolith
 
 	// Map domain model to proto response
 	return &monolithpb.GetMarketDataResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Market data retrieved successfully",
 			Code:      200,
@@ -83,7 +84,7 @@ func (h *MarketDataGRPCHandler) GetAssetDetails(ctx context.Context, req *monoli
 
 	// Map domain model to proto response
 	return &monolithpb.GetAssetDetailsResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Asset details retrieved successfully",
 			Code:      200,
@@ -137,7 +138,7 @@ func (h *MarketDataGRPCHandler) GetBatchMarketData(ctx context.Context, req *mon
 	}
 
 	return &monolithpb.GetBatchMarketDataResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Batch market data retrieved successfully",
 			Code:      200,

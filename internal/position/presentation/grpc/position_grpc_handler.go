@@ -5,6 +5,7 @@ import (
 
 	di "HubInvestments/pck"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
+commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -62,7 +63,7 @@ func (h *PositionGRPCHandler) GetPositions(ctx context.Context, req *monolithpb.
 	}
 
 	return &monolithpb.GetPositionsResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Positions retrieved successfully",
 			Code:      200,
@@ -86,7 +87,7 @@ func (h *PositionGRPCHandler) GetPositionAggregation(ctx context.Context, req *m
 
 	// Map domain model to proto response
 	return &monolithpb.GetPositionAggregationResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Position aggregation retrieved successfully",
 			Code:      200,

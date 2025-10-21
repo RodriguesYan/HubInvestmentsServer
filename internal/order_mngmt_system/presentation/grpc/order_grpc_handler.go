@@ -5,6 +5,8 @@ import (
 
 	orderCommand "HubInvestments/internal/order_mngmt_system/application/command"
 	di "HubInvestments/pck"
+
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
@@ -57,7 +59,7 @@ func (h *OrderGRPCHandler) SubmitOrder(ctx context.Context, req *monolithpb.Subm
 
 	// Map result to proto response
 	response := &monolithpb.SubmitOrderResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   result.Message,
 			Code:      202,
@@ -126,7 +128,7 @@ func (h *OrderGRPCHandler) GetOrderDetails(ctx context.Context, req *monolithpb.
 	}
 
 	return &monolithpb.GetOrderDetailsResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order details retrieved successfully",
 			Code:      200,
@@ -156,7 +158,7 @@ func (h *OrderGRPCHandler) GetOrderStatus(ctx context.Context, req *monolithpb.G
 
 	// Map result to proto response
 	return &monolithpb.GetOrderStatusResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order status retrieved successfully",
 			Code:      200,
@@ -198,7 +200,7 @@ func (h *OrderGRPCHandler) CancelOrder(ctx context.Context, req *monolithpb.Canc
 
 	// Map result to proto response
 	return &monolithpb.CancelOrderResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order cancelled successfully",
 			Code:      200,

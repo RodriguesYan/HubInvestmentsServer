@@ -8,6 +8,8 @@ import (
 
 	"HubInvestments/internal/order_mngmt_system/application/command"
 	di "HubInvestments/pck"
+
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc/codes"
@@ -36,7 +38,7 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *monolithpb.Su
 
 	if req.Symbol == "" || req.Quantity <= 0 {
 		return &monolithpb.SubmitOrderResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Symbol and positive quantity are required",
 				Code:      int32(codes.InvalidArgument),
@@ -61,7 +63,7 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *monolithpb.Su
 	result, err := submitOrderUseCase.Execute(ctx, cmd)
 	if err != nil {
 		return &monolithpb.SubmitOrderResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Order submission failed: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -71,7 +73,7 @@ func (s *OrderServiceServer) SubmitOrder(ctx context.Context, req *monolithpb.Su
 	}
 
 	response := &monolithpb.SubmitOrderResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   result.Message,
 			Code:      int32(codes.OK),
@@ -101,7 +103,7 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *monolithp
 
 	if req.OrderId == "" {
 		return &monolithpb.GetOrderDetailsResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -118,7 +120,7 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *monolithp
 	orderStatus, err := getOrderStatusUseCase.Execute(ctx, req.OrderId, userID)
 	if err != nil {
 		return &monolithpb.GetOrderDetailsResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve order details: " + err.Error(),
 				Code:      int32(codes.NotFound),
@@ -137,7 +139,7 @@ func (s *OrderServiceServer) GetOrderDetails(ctx context.Context, req *monolithp
 	}
 
 	return &monolithpb.GetOrderDetailsResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order details retrieved successfully",
 			Code:      int32(codes.OK),
@@ -156,7 +158,7 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *monolithpb
 
 	if req.OrderId == "" {
 		return &monolithpb.GetOrderStatusResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -173,7 +175,7 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *monolithpb
 	orderStatus, err := getOrderStatusUseCase.Execute(ctx, req.OrderId, userID)
 	if err != nil {
 		return &monolithpb.GetOrderStatusResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to retrieve order status: " + err.Error(),
 				Code:      int32(codes.NotFound),
@@ -183,7 +185,7 @@ func (s *OrderServiceServer) GetOrderStatus(ctx context.Context, req *monolithpb
 	}
 
 	return &monolithpb.GetOrderStatusResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order status retrieved successfully",
 			Code:      int32(codes.OK),
@@ -205,7 +207,7 @@ func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *monolithpb.Ca
 
 	if req.OrderId == "" {
 		return &monolithpb.CancelOrderResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Order ID is required",
 				Code:      int32(codes.InvalidArgument),
@@ -228,7 +230,7 @@ func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *monolithpb.Ca
 	_, err := cancelOrderUseCase.Execute(ctx, cmd)
 	if err != nil {
 		return &monolithpb.CancelOrderResponse{
-			ApiResponse: &monolithpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to cancel order: " + err.Error(),
 				Code:      int32(codes.Internal),
@@ -238,7 +240,7 @@ func (s *OrderServiceServer) CancelOrder(ctx context.Context, req *monolithpb.Ca
 	}
 
 	return &monolithpb.CancelOrderResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Order cancelled successfully",
 			Code:      int32(codes.OK),

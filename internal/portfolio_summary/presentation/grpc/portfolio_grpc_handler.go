@@ -5,6 +5,7 @@ import (
 
 	di "HubInvestments/pck"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
+commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,7 +36,7 @@ func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *mon
 
 	// Map domain model to proto response
 	return &monolithpb.GetPortfolioSummaryResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Portfolio summary retrieved successfully",
 			Code:      200,

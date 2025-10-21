@@ -5,6 +5,7 @@ import (
 
 	di "HubInvestments/pck"
 
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,7 +36,7 @@ func (h *BalanceGRPCHandler) GetBalance(ctx context.Context, req *monolithpb.Get
 
 	// Map domain model to proto response
 	return &monolithpb.GetBalanceResponse{
-		ApiResponse: &monolithpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Balance retrieved successfully",
 			Code:      200,

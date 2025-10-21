@@ -7,7 +7,9 @@ import (
 	"time"
 
 	di "HubInvestments/pck"
+
 	authpb "github.com/RodriguesYan/hub-proto-contracts/auth"
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 )
@@ -29,7 +31,7 @@ func NewAuthServiceServer(container di.Container) *AuthServiceServer {
 func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginResponse, error) {
 	if req.Email == "" || req.Password == "" {
 		return &authpb.LoginResponse{
-			ApiResponse: &authpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Email and password are required",
 				Code:      int32(codes.InvalidArgument),
@@ -42,7 +44,7 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest)
 	user, err := loginUseCase.Execute(req.Email, req.Password)
 	if err != nil {
 		return &authpb.LoginResponse{
-			ApiResponse: &authpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Invalid credentials",
 				Code:      int32(codes.Unauthenticated),
@@ -55,7 +57,7 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest)
 	token, err := authService.CreateToken(user.Email.Value(), user.ID)
 	if err != nil {
 		return &authpb.LoginResponse{
-			ApiResponse: &authpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Failed to generate token",
 				Code:      int32(codes.Internal),
@@ -65,14 +67,14 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest)
 	}
 
 	return &authpb.LoginResponse{
-		ApiResponse: &authpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Login successful",
 			Code:      int32(codes.OK),
 			Timestamp: time.Now().Unix(),
 		},
 		Token: token,
-		UserInfo: &authpb.UserInfo{
+		UserInfo: &commonpb.UserInfo{
 			UserId:    user.ID,
 			Email:     user.Email.Value(),
 			FirstName: "",
@@ -85,7 +87,7 @@ func (s *AuthServiceServer) Login(ctx context.Context, req *authpb.LoginRequest)
 func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *authpb.ValidateTokenRequest) (*authpb.ValidateTokenResponse, error) {
 	if req.Token == "" {
 		return &authpb.ValidateTokenResponse{
-			ApiResponse: &authpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Token is required",
 				Code:      int32(codes.InvalidArgument),
@@ -98,7 +100,7 @@ func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *authpb.Valid
 	userID, err := s.validateTokenForGRPC(req.Token)
 	if err != nil {
 		return &authpb.ValidateTokenResponse{
-			ApiResponse: &authpb.APIResponse{
+			ApiResponse: &commonpb.APIResponse{
 				Success:   false,
 				Message:   "Invalid token",
 				Code:      int32(codes.Unauthenticated),
@@ -109,14 +111,14 @@ func (s *AuthServiceServer) ValidateToken(ctx context.Context, req *authpb.Valid
 	}
 
 	return &authpb.ValidateTokenResponse{
-		ApiResponse: &authpb.APIResponse{
+		ApiResponse: &commonpb.APIResponse{
 			Success:   true,
 			Message:   "Token is valid",
 			Code:      int32(codes.OK),
 			Timestamp: time.Now().Unix(),
 		},
 		IsValid: true,
-		UserInfo: &authpb.UserInfo{
+		UserInfo: &commonpb.UserInfo{
 			UserId: userID,
 			Email:  "",
 		},
