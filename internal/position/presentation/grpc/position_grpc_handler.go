@@ -4,8 +4,9 @@ import (
 	"context"
 
 	di "HubInvestments/pck"
+
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
-commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

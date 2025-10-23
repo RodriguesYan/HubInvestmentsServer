@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"HubInvestments/internal/market_data/domain/model"
-	pb "HubInvestments/internal/market_data/presentation/grpc/proto"
+
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,7 +22,7 @@ type IMarketDataGRPCClient interface {
 // MarketDataGRPCClient implements the gRPC client for market data service
 type MarketDataGRPCClient struct {
 	conn   *grpc.ClientConn
-	client pb.MarketDataServiceClient
+	client monolithpb.MarketDataServiceClient
 }
 
 // MarketDataGRPCClientConfig holds configuration for the gRPC client
@@ -52,7 +53,7 @@ func NewMarketDataGRPCClient(config MarketDataGRPCClientConfig) (IMarketDataGRPC
 	}
 
 	// Create the gRPC client
-	client := pb.NewMarketDataServiceClient(conn)
+	client := monolithpb.NewMarketDataServiceClient(conn)
 
 	return &MarketDataGRPCClient{
 		conn:   conn,
@@ -62,13 +63,13 @@ func NewMarketDataGRPCClient(config MarketDataGRPCClientConfig) (IMarketDataGRPC
 
 // GetMarketData retrieves market data for the given symbols via gRPC
 func (c *MarketDataGRPCClient) GetMarketData(ctx context.Context, symbols []string) ([]model.MarketDataModel, error) {
-	// Create request
-	req := &pb.GetMarketDataRequest{
+	// Create request using GetBatchMarketData for multiple symbols
+	req := &monolithpb.GetBatchMarketDataRequest{
 		Symbols: symbols,
 	}
 
 	// Make gRPC call
-	resp, err := c.client.GetMarketData(ctx, req)
+	resp, err := c.client.GetBatchMarketData(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get market data via gRPC: %w", err)
 	}
@@ -78,8 +79,8 @@ func (c *MarketDataGRPCClient) GetMarketData(ctx context.Context, symbols []stri
 	for i, data := range resp.MarketData {
 		result[i] = model.MarketDataModel{
 			Symbol:    data.Symbol,
-			Name:      data.Name,
-			LastQuote: data.LastQuote,
+			Name:      data.CompanyName,
+			LastQuote: float32(data.CurrentPrice),
 			Category:  int(data.Category),
 		}
 	}
