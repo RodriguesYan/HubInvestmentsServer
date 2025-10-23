@@ -3,9 +3,11 @@ package grpc
 import (
 	"context"
 
+	"HubInvestments/internal/portfolio_summary/domain/model"
 	di "HubInvestments/pck"
+
+	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
-commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,17 +50,37 @@ func (h *PortfolioGRPCHandler) GetPortfolioSummary(ctx context.Context, req *mon
 			TotalCurrentValue:         float64(portfolioSummary.PositionAggregation.CurrentTotal),
 			TotalProfitLoss:           float64(portfolioSummary.PositionAggregation.CurrentTotal - portfolioSummary.PositionAggregation.TotalInvested),
 			TotalProfitLossPercentage: calculateProfitLossPercentage(float64(portfolioSummary.PositionAggregation.CurrentTotal), float64(portfolioSummary.PositionAggregation.TotalInvested)),
-			Positions:                 mapPositionsToProto(req.UserId, portfolioSummary),
+			Positions:                 mapPositionsToProto(portfolioSummary),
 			LastUpdated:               portfolioSummary.LastUpdatedDate,
 		},
 	}, nil
 }
 
 // Helper function to map positions
-func mapPositionsToProto(userId string, portfolioSummary interface{}) []*monolithpb.PortfolioPosition {
-	// This is just a placeholder - the actual mapping should be done by a mapper
-	// For now, return empty to avoid business logic in handler
-	return []*monolithpb.PortfolioPosition{}
+func mapPositionsToProto(portfolioSummary model.PortfolioSummaryModel) []*monolithpb.PortfolioPosition {
+	var positions []*monolithpb.PortfolioPosition
+
+	for _, category := range portfolioSummary.PositionAggregation.PositionAggregation {
+		for _, asset := range category.Assets {
+			currentValue := float64(asset.Quantity * asset.LastPrice)
+			totalInvested := float64(asset.Quantity * asset.AveragePrice)
+			profitLoss := currentValue - totalInvested
+			profitLossPercentage := calculateProfitLossPercentage(currentValue, totalInvested)
+
+			positions = append(positions, &monolithpb.PortfolioPosition{
+				Symbol:               asset.Symbol,
+				Quantity:             float64(asset.Quantity),
+				AveragePrice:         float64(asset.AveragePrice),
+				CurrentPrice:         float64(asset.LastPrice),
+				TotalInvested:        totalInvested,
+				CurrentValue:         currentValue,
+				ProfitLoss:           profitLoss,
+				ProfitLossPercentage: profitLossPercentage,
+			})
+		}
+	}
+
+	return positions
 }
 
 // Helper function for percentage calculation
