@@ -4,6 +4,7 @@ import (
 	"context"
 
 	orderCommand "HubInvestments/internal/order_mngmt_system/application/command"
+	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	di "HubInvestments/pck"
 
 	commonpb "github.com/RodriguesYan/hub-proto-contracts/common"
@@ -209,6 +210,91 @@ func (h *OrderGRPCHandler) CancelOrder(ctx context.Context, req *monolithpb.Canc
 		OrderId:     result.OrderID,
 		Status:      result.Status,
 		CancelledAt: result.Timestamp,
+	}, nil
+}
+
+func (h *OrderGRPCHandler) GetOrderHistory(ctx context.Context, req *monolithpb.GetOrderHistoryRequest) (*monolithpb.GetOrderHistoryResponse, error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	// Set defaults for pagination
+	limit := int32(50)
+	if req.Limit != nil && *req.Limit > 0 {
+		limit = *req.Limit
+		if limit > 100 {
+			limit = 100
+		}
+	}
+
+	offset := int32(0)
+	if req.Offset != nil && *req.Offset >= 0 {
+		offset = *req.Offset
+	}
+
+	options := &orderUsecase.OrderHistoryOptions{
+		Limit:     int(limit),
+		Offset:    int(offset),
+		SortBy:    "created_at",
+		SortOrder: "desc",
+	}
+
+	result, err := h.container.GetGetOrderStatusUseCase().GetOrderHistory(ctx, req.UserId, options)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get order history: %v", err)
+	}
+
+	// Map orders to proto response
+	orderDetails := make([]*monolithpb.OrderDetails, 0, len(result.Orders))
+	for _, orderResult := range result.Orders {
+		details := &monolithpb.OrderDetails{
+			OrderId:   orderResult.OrderID,
+			UserId:    orderResult.UserID,
+			Symbol:    orderResult.Symbol,
+			OrderType: orderResult.OrderType,
+			OrderSide: orderResult.OrderSide,
+			Quantity:  orderResult.Quantity,
+			Status:    orderResult.Status,
+			CreatedAt: orderResult.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt: orderResult.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+
+		// Add optional fields
+		if orderResult.Price != nil {
+			details.Price = orderResult.Price
+		}
+		if orderResult.ExecutionPrice != nil {
+			details.ExecutionPrice = orderResult.ExecutionPrice
+		}
+		if orderResult.MarketPriceAtSubmission != nil {
+			details.MarketPriceAtSubmission = orderResult.MarketPriceAtSubmission
+		}
+		if orderResult.ExecutedAt != nil {
+			executedAt := orderResult.ExecutedAt.Format("2006-01-02T15:04:05Z07:00")
+			details.ExecutedAt = &executedAt
+		}
+		if orderResult.MarketDataTimestamp != nil {
+			timestamp := orderResult.MarketDataTimestamp.Format("2006-01-02T15:04:05Z07:00")
+			details.MarketDataTimestamp = &timestamp
+		}
+		if orderResult.EstimatedValue != nil {
+			details.EstimatedValue = *orderResult.EstimatedValue
+		}
+
+		orderDetails = append(orderDetails, details)
+	}
+
+	return &monolithpb.GetOrderHistoryResponse{
+		ApiResponse: &commonpb.APIResponse{
+			Success:   true,
+			Message:   "Order history retrieved successfully",
+			Code:      200,
+			Timestamp: 0,
+		},
+		Orders:     orderDetails,
+		TotalCount: int32(result.TotalCount),
+		Limit:      limit,
+		Offset:     offset,
 	}, nil
 }
 
