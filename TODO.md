@@ -1725,39 +1725,7 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
       - ✅ Health check verified: `curl http://localhost:8080/health`
       - ✅ Market data routing verified (expected marshaling error)
 
-- [ ] **Step 4.7: API Gateway - Security Features**
-  - [ ] Implement rate limiting (per user, per IP)
-  - [ ] Add request size limits
-  - [ ] Implement CORS policy
-  - [ ] Add security headers (HSTS, X-Frame-Options, etc.)
-  - [ ] Add request ID generation for tracing
-  - [ ] Implement IP allowlist/blocklist (optional)
-  - [ ] Add DDoS protection (basic)
-  - [ ] **Deliverable**: Secure gateway with production hardening
 
-- [ ] **Step 4.8: API Gateway - Testing**
-  - [ ] **Unit Tests**:
-    - [ ] Test authentication middleware with valid/invalid tokens
-    - [ ] Test route matching and service resolution
-    - [ ] Test token caching logic
-  - [ ] **Integration Tests**:
-    - [ ] Test complete login flow (client → gateway → user service)
-    - [ ] Test protected endpoint flow (token validation + routing)
-    - [ ] Test token expiration handling
-    - [ ] Test service unavailability scenarios
-  - [ ] **Load Tests**:
-    - [ ] 1,000 concurrent users
-    - [ ] 10,000 requests/sec throughput
-    - [ ] Token validation performance
-  - [ ] **Deliverable**: Comprehensive test suite
-
-- [ ] **Step 4.9: API Gateway - Documentation**
-  - [ ] Document authentication flow (login + token validation)
-  - [ ] Document routing configuration
-  - [ ] Document performance characteristics
-  - [ ] Create deployment guide
-  - [ ] Document troubleshooting procedures
-  - [ ] **Deliverable**: Complete API Gateway documentation
 
 ### **Deployment Infrastructure (Week 6)**
 
@@ -1961,6 +1929,41 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
 - Extract `internal/order_mngmt_system/`
 - Requires saga pattern for distributed transactions
 - Estimated: 14 weeks
+
+## **Api gateway improvements**  ##
+- [ ] **Step 4.7: API Gateway - Security Features**
+  - [ ] Implement rate limiting (per user, per IP)
+  - [ ] Add request size limits
+  - [ ] Implement CORS policy
+  - [ ] Add security headers (HSTS, X-Frame-Options, etc.)
+  - [ ] Add request ID generation for tracing
+  - [ ] Implement IP allowlist/blocklist (optional)
+  - [ ] Add DDoS protection (basic)
+  - [ ] **Deliverable**: Secure gateway with production hardening
+
+- [ ] **Step 4.8: API Gateway - Testing**
+  - [ ] **Unit Tests**:
+    - [ ] Test authentication middleware with valid/invalid tokens
+    - [ ] Test route matching and service resolution
+    - [ ] Test token caching logic
+  - [ ] **Integration Tests**:
+    - [ ] Test complete login flow (client → gateway → user service)
+    - [ ] Test protected endpoint flow (token validation + routing)
+    - [ ] Test token expiration handling
+    - [ ] Test service unavailability scenarios
+  - [ ] **Load Tests**:
+    - [ ] 1,000 concurrent users
+    - [ ] 10,000 requests/sec throughput
+    - [ ] Token validation performance
+  - [ ] **Deliverable**: Comprehensive test suite
+
+- [ ] **Step 4.9: API Gateway - Documentation**
+  - [ ] Document authentication flow (login + token validation)
+  - [ ] Document routing configuration
+  - [ ] Document performance characteristics
+  - [ ] Create deployment guide
+  - [ ] Document troubleshooting procedures
+  - [ ] **Deliverable**: Complete API Gateway documentation
 
 ---
 

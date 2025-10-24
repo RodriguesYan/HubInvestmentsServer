@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"HubInvestments/internal/market_data/domain/model"
-	"HubInvestments/internal/market_data/presentation/grpc/proto"
 
+	monolithpb "github.com/RodriguesYan/hub-proto-contracts/monolith"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -16,17 +16,17 @@ import (
 
 // mockMarketDataServer implements the gRPC server for testing
 type mockMarketDataServer struct {
-	proto.UnimplementedMarketDataServiceServer
-	marketData []*proto.MarketData
+	monolithpb.UnimplementedMarketDataServiceServer
+	marketData []*monolithpb.MarketData
 	shouldFail bool
 }
 
-func (m *mockMarketDataServer) GetMarketData(ctx context.Context, req *proto.GetMarketDataRequest) (*proto.GetMarketDataResponse, error) {
+func (m *mockMarketDataServer) GetBatchMarketData(ctx context.Context, req *monolithpb.GetBatchMarketDataRequest) (*monolithpb.GetBatchMarketDataResponse, error) {
 	if m.shouldFail {
 		return nil, grpc.ErrServerStopped
 	}
 
-	return &proto.GetMarketDataResponse{
+	return &monolithpb.GetBatchMarketDataResponse{
 		MarketData: m.marketData,
 	}, nil
 }
@@ -36,7 +36,7 @@ func setupTestServer(t *testing.T, mockServer *mockMarketDataServer) (*grpc.Clie
 	lis := bufconn.Listen(buffer)
 
 	server := grpc.NewServer()
-	proto.RegisterMarketDataServiceServer(server, mockServer)
+	monolithpb.RegisterMarketDataServiceServer(server, mockServer)
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
@@ -65,18 +65,18 @@ func setupTestServer(t *testing.T, mockServer *mockMarketDataServer) (*grpc.Clie
 
 func TestMarketDataGRPCClient_GetMarketData_Success(t *testing.T) {
 	// Arrange
-	mockData := []*proto.MarketData{
+	mockData := []*monolithpb.MarketData{
 		{
-			Symbol:    "AAPL",
-			Name:      "Apple Inc.",
-			LastQuote: 150.25,
-			Category:  1,
+			Symbol:       "AAPL",
+			CompanyName:  "Apple Inc.",
+			CurrentPrice: 150.25,
+			Category:     1,
 		},
 		{
-			Symbol:    "GOOGL",
-			Name:      "Alphabet Inc.",
-			LastQuote: 2750.50,
-			Category:  1,
+			Symbol:       "GOOGL",
+			CompanyName:  "Alphabet Inc.",
+			CurrentPrice: 2750.50,
+			Category:     1,
 		},
 	}
 
@@ -90,7 +90,7 @@ func TestMarketDataGRPCClient_GetMarketData_Success(t *testing.T) {
 
 	client := &MarketDataGRPCClient{
 		conn:   conn,
-		client: proto.NewMarketDataServiceClient(conn),
+		client: monolithpb.NewMarketDataServiceClient(conn),
 	}
 
 	// Act
@@ -149,7 +149,7 @@ func TestMarketDataGRPCClient_GetMarketData_Error(t *testing.T) {
 
 	client := &MarketDataGRPCClient{
 		conn:   conn,
-		client: proto.NewMarketDataServiceClient(conn),
+		client: monolithpb.NewMarketDataServiceClient(conn),
 	}
 
 	// Act
@@ -175,7 +175,7 @@ func TestMarketDataGRPCClient_Close(t *testing.T) {
 
 	client := &MarketDataGRPCClient{
 		conn:   conn,
-		client: proto.NewMarketDataServiceClient(conn),
+		client: monolithpb.NewMarketDataServiceClient(conn),
 	}
 
 	// Act & Assert
