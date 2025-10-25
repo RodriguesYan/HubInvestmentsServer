@@ -295,7 +295,23 @@ func (c *containerImpl) Close() error {
 
 func NewContainer() (Container, error) {
 	// Create database connection using the abstraction layer
-	db, err := database.CreateDatabaseConnection()
+	// Read database configuration from environment variables
+	dbConfig := database.ConnectionConfig{
+		Driver:   "postgres",
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		Database: os.Getenv("DB_NAME"),
+		Username: os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		SSLMode:  getEnvWithDefault("DB_SSLMODE", "disable"),
+	}
+
+	// Use default config if environment variables are not set
+	if dbConfig.Host == "" {
+		dbConfig = database.DefaultConfig()
+	}
+
+	db, err := database.CreateDatabaseConnectionWithConfig(dbConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -321,10 +337,17 @@ func NewContainer() (Container, error) {
 	//====== Market data begin============
 	marketDataDbRepo := mktPersistence.NewMarketDataRepository(db)
 
+	// Read Redis configuration from environment variables
+	redisHost := getEnvWithDefault("REDIS_HOST", "localhost")
+	redisPort := getEnvWithDefault("REDIS_PORT", "6379")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisDB, _ := strconv.Atoi(getEnvWithDefault("REDIS_DB", "0"))
+
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       redisDB,
 	})
 	cacheHandler := cache.NewRedisCacheHandler(redisClient)
 
@@ -519,4 +542,12 @@ func NewContainer() (Container, error) {
 		RealtimeQuotesWebSocketHandler: realtimeQuotesWebSocketHandler,
 		QuotesHandler:                  quotesHandler,
 	}, nil
+}
+
+// getEnvWithDefault gets an environment variable with a fallback default value
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

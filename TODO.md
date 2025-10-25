@@ -1941,6 +1941,250 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Add DDoS protection (basic)
   - [ ] **Deliverable**: Secure gateway with production hardening
 
+- [ ] **Step 4.10: Service-to-Service Security (Prevent External Access to Backend Services)**
+  - [ ] **Objective**: Ensure ONLY API Gateway can communicate with backend services (User Service, Monolith)
+  - [ ] **Problem**: Backend services no longer validate JWT tokens, so they trust all incoming requests
+  - [ ] **Risk**: If backend services are exposed to the internet, attackers can bypass authentication
+  - [ ] **Solutions** (Choose based on deployment environment):
+  
+  - [ ] **Solution 1: Network Isolation (Docker/Kubernetes) - RECOMMENDED for Development**
+    - [ ] Configure Docker Compose / Kubernetes network policies
+    - [ ] Backend services (User Service, Monolith) on private network ONLY
+    - [ ] API Gateway has access to both public internet AND private network
+    - [ ] Implementation:
+      ```yaml
+      # docker-compose.yml
+      services:
+        hub-api-gateway:
+          networks:
+            - public
+            - private
+          ports:
+            - "8080:8080"  # Exposed to internet
+        
+        hub-user-service:
+          networks:
+            - private  # NOT exposed to internet
+          # NO ports mapping to host
+        
+        hub-monolith:
+          networks:
+            - private  # NOT exposed to internet
+          # NO ports mapping to host
+      
+      networks:
+        public:
+          driver: bridge
+        private:
+          driver: bridge
+          internal: true  # No external access
+      ```
+    - [ ] Verify with: `docker network inspect private` (should show internal: true)
+    - [ ] Test: Try to access `http://localhost:50051` (User Service) - should fail
+    - [ ] Test: Try to access `http://localhost:50060` (Monolith) - should fail
+    - [ ] **Deliverable**: Backend services unreachable from outside Docker network
+  
+  - [ ] **Solution 2: Mutual TLS (mTLS) - RECOMMENDED for Production**
+    - [ ] Generate certificates for API Gateway and backend services
+    - [ ] API Gateway presents client certificate when calling backend services
+    - [ ] Backend services validate client certificate (only accept gateway's cert)
+    - [ ] Implementation:
+      ```go
+      // Backend service (User Service, Monolith)
+      // internal/grpc/server.go
+      
+      // Load server certificate and CA certificate
+      cert, err := tls.LoadX509KeyPair("server.crt", "server.key")
+      caCert, err := ioutil.ReadFile("ca.crt")
+      caCertPool := x509.NewCertPool()
+      caCertPool.AppendCertsFromPEM(caCert)
+      
+      // Configure TLS to require and verify client certificates
+      tlsConfig := &tls.Config{
+          Certificates: []tls.Certificate{cert},
+          ClientAuth:   tls.RequireAndVerifyClientCert,
+          ClientCAs:    caCertPool,
+      }
+      
+      // Create gRPC server with TLS
+      creds := credentials.NewTLS(tlsConfig)
+      server := grpc.NewServer(grpc.Creds(creds))
+      ```
+      ```go
+      // API Gateway
+      // internal/proxy/service_registry.go
+      
+      // Load client certificate
+      cert, err := tls.LoadX509KeyPair("gateway.crt", "gateway.key")
+      caCert, err := ioutil.ReadFile("ca.crt")
+      caCertPool := x509.NewCertPool()
+      caCertPool.AppendCertsFromPEM(caCert)
+      
+      // Configure TLS for client
+      tlsConfig := &tls.Config{
+          Certificates: []tls.Certificate{cert},
+          RootCAs:      caCertPool,
+      }
+      
+      // Create gRPC connection with TLS
+      creds := credentials.NewTLS(tlsConfig)
+      conn, err := grpc.Dial(address, grpc.WithTransportCredentials(creds))
+      ```
+    - [ ] Certificate generation script:
+      ```bash
+      # scripts/generate_mtls_certs.sh
+      
+      # Generate CA
+      openssl genrsa -out ca.key 4096
+      openssl req -new -x509 -days 365 -key ca.key -out ca.crt
+      
+      # Generate Gateway certificate
+      openssl genrsa -out gateway.key 4096
+      openssl req -new -key gateway.key -out gateway.csr
+      openssl x509 -req -days 365 -in gateway.csr -CA ca.crt -CAkey ca.key -set_serial 01 -out gateway.crt
+      
+      # Generate User Service certificate
+      openssl genrsa -out user-service.key 4096
+      openssl req -new -key user-service.key -out user-service.csr
+      openssl x509 -req -days 365 -in user-service.csr -CA ca.crt -CAkey ca.key -set_serial 02 -out user-service.crt
+      
+      # Generate Monolith certificate
+      openssl genrsa -out monolith.key 4096
+      openssl req -new -key monolith.key -out monolith.csr
+      openssl x509 -req -days 365 -in monolith.csr -CA ca.crt -CAkey ca.key -set_serial 03 -out monolith.crt
+      ```
+    - [ ] **Deliverable**: Only API Gateway can connect to backend services (certificate-based)
+  
+  - [ ] **Solution 3: API Keys / Shared Secrets - SIMPLE but LESS SECURE**
+    - [ ] Generate a shared secret between Gateway and backend services
+    - [ ] Gateway includes secret in gRPC metadata (`x-internal-api-key`)
+    - [ ] Backend services validate the secret in interceptor
+    - [ ] Implementation:
+      ```go
+      // Backend service interceptor
+      // internal/grpc/interceptors/api_key_interceptor.go
+      
+      func (i *APIKeyInterceptor) UnaryInterceptor(
+          ctx context.Context,
+          req interface{},
+          info *grpc.UnaryServerInfo,
+          handler grpc.UnaryHandler,
+      ) (interface{}, error) {
+          md, ok := metadata.FromIncomingContext(ctx)
+          if !ok {
+              return nil, status.Error(codes.Unauthenticated, "missing metadata")
+          }
+          
+          apiKeys := md.Get("x-internal-api-key")
+          if len(apiKeys) == 0 {
+              return nil, status.Error(codes.Unauthenticated, "missing API key")
+          }
+          
+          expectedKey := os.Getenv("INTERNAL_API_KEY")
+          if apiKeys[0] != expectedKey {
+              return nil, status.Error(codes.Unauthenticated, "invalid API key")
+          }
+          
+          return handler(ctx, req)
+      }
+      ```
+      ```go
+      // API Gateway
+      // internal/proxy/proxy_handler.go (line ~93)
+      
+      md := metadata.New(map[string]string{
+          "x-forwarded-method": r.Method,
+          "x-forwarded-path":   r.URL.Path,
+          "x-internal-api-key": os.Getenv("INTERNAL_API_KEY"), // Add shared secret
+      })
+      ```
+    - [ ] Store secret in environment variables (NEVER in code)
+    - [ ] Rotate secret regularly (every 90 days)
+    - [ ] **Deliverable**: Backend services reject requests without valid API key
+  
+  - [ ] **Solution 4: IP Allowlisting (Firewall Rules) - INFRASTRUCTURE LEVEL**
+    - [ ] Configure firewall rules to only allow Gateway IP to access backend services
+    - [ ] Implementation (AWS Security Groups example):
+      ```yaml
+      # Backend Service Security Group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 50051
+          ToPort: 50060
+          SourceSecurityGroupId: !Ref GatewaySecurityGroup  # Only Gateway
+      ```
+    - [ ] Implementation (Docker iptables):
+      ```bash
+      # Allow only Gateway container to access User Service
+      iptables -A INPUT -p tcp --dport 50051 -s <gateway-ip> -j ACCEPT
+      iptables -A INPUT -p tcp --dport 50051 -j DROP
+      ```
+    - [ ] **Deliverable**: Firewall blocks all non-Gateway traffic to backend services
+  
+  - [ ] **Solution 5: Service Mesh (Istio/Linkerd) - ADVANCED**
+    - [ ] Deploy Istio/Linkerd service mesh
+    - [ ] Configure AuthorizationPolicy to restrict service-to-service communication
+    - [ ] Implementation (Istio example):
+      ```yaml
+      apiVersion: security.istio.io/v1beta1
+      kind: AuthorizationPolicy
+      metadata:
+        name: user-service-authz
+        namespace: default
+      spec:
+        selector:
+          matchLabels:
+            app: hub-user-service
+        action: ALLOW
+        rules:
+        - from:
+          - source:
+              principals: ["cluster.local/ns/default/sa/hub-api-gateway"]
+      ```
+    - [ ] **Deliverable**: Service mesh enforces service-to-service access control
+  
+  - [ ] **Recommended Approach (Multi-Layer Defense)**:
+    - [ ] **Layer 1**: Network Isolation (Docker/Kubernetes) - Prevent external access
+    - [ ] **Layer 2**: mTLS (Production) - Verify service identity
+    - [ ] **Layer 3**: API Key (Backup) - Additional validation layer
+    - [ ] **Layer 4**: Monitoring & Alerting - Detect suspicious access patterns
+  
+  - [ ] **Testing & Validation**:
+    - [ ] Test 1: Try to call User Service directly (should fail)
+      ```bash
+      # Should fail (connection refused or unauthorized)
+      grpcurl -plaintext localhost:50051 hub_investments.AuthService/ValidateToken
+      ```
+    - [ ] Test 2: Try to call Monolith directly (should fail)
+      ```bash
+      # Should fail (connection refused or unauthorized)
+      grpcurl -plaintext localhost:50060 hub_investments.OrderService/SubmitOrder
+      ```
+    - [ ] Test 3: Call via API Gateway (should succeed)
+      ```bash
+      # Should succeed
+      curl -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/orders
+      ```
+    - [ ] Test 4: Monitor logs for unauthorized access attempts
+    - [ ] Test 5: Penetration testing to verify security
+  
+  - [ ] **Documentation**:
+    - [ ] Document chosen security strategy in ARCHITECTURE.md
+    - [ ] Document certificate management procedures (if using mTLS)
+    - [ ] Document secret rotation procedures (if using API keys)
+    - [ ] Document network topology and firewall rules
+    - [ ] Create incident response playbook for unauthorized access
+  
+  - [ ] **Monitoring & Alerting**:
+    - [ ] Alert on failed authentication attempts to backend services
+    - [ ] Alert on direct access attempts (bypassing gateway)
+    - [ ] Monitor certificate expiration (if using mTLS)
+    - [ ] Track service-to-service communication patterns
+  
+  - [ ] **Priority**: **CRITICAL** - Must be implemented before production deployment
+  - [ ] **Estimated Time**: 1-2 weeks (depending on chosen solution)
+  - [ ] **Risk**: **HIGH** - Without this, backend services are vulnerable to direct attacks
+
 - [ ] **Step 4.8: API Gateway - Testing**
   - [ ] **Unit Tests**:
     - [ ] Test authentication middleware with valid/invalid tokens
