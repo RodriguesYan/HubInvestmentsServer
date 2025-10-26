@@ -1903,32 +1903,1359 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
 
 ## **📋 FUTURE PHASES (After User Service Success)**
 
-### **Phase 10.2: Market Data Service** (Weeks 9-16)
-- Follow same strangler fig pattern
-- Extract `internal/market_data/` and `internal/realtime_quotes/`
-- More complex due to WebSocket connections and caching
-- Estimated: 8 weeks
+---
 
-### **Phase 10.3: Watchlist Service** (Weeks 17-22)
-- Simpler service with fewer dependencies
-- Extract `internal/watchlist/`
-- Estimated: 6 weeks
+## **🚀 PHASE 10.2: Market Data Service Migration** (Weeks 9-16)
 
-### **Phase 10.4: Account Management Service** (Weeks 23-30)
-- Critical financial service requiring extra validation
-- Extract `internal/balance/`
-- Estimated: 8 weeks
+**Objective**: Extract Market Data and Real-time Quotes into independent microservice following strangler fig pattern.
 
-### **Phase 10.5: Position & Portfolio Service** (Weeks 31-40)
-- Complex aggregation logic
-- Extract `internal/position/` and `internal/portfolio_summary/`
-- Estimated: 10 weeks
+**Target Modules:**
+- `internal/market_data/` - Market data queries and caching
+- `internal/realtime_quotes/` - WebSocket real-time quotes
 
-### **Phase 10.6: Order Management Service** (Weeks 41-54)
-- Most complex service with many dependencies
-- Extract `internal/order_mngmt_system/`
-- Requires saga pattern for distributed transactions
-- Estimated: 14 weeks
+**Service Name**: `hub-market-data-service`
+
+**Complexity**: **HIGH** - WebSocket connections, Redis caching, high throughput
+
+**Estimated Duration**: 8 weeks
+
+---
+
+### **Pre-Migration Analysis (Week 9)**
+
+- [ ] **Step 1.1: Deep Code Analysis**
+
+- [ ] **Step 1.1: Define Search Domain Interface**
+  - [ ] Create `internal/market_data/domain/service/instrument_search_service.go`
+  - [ ] Define `IInstrumentSearchService` interface:
+    ```go
+    type IInstrumentSearchService interface {
+        // Search instruments with ranking and filtering
+        Search(ctx context.Context, query SearchQuery) (*SearchResult, error)
+        
+        // Autocomplete for search bar
+        Autocomplete(ctx context.Context, prefix string, limit int) ([]InstrumentSuggestion, error)
+        
+        // Index new instrument
+        IndexInstrument(ctx context.Context, instrument *Instrument) error
+        
+        // Bulk index instruments (for initial load)
+        BulkIndexInstruments(ctx context.Context, instruments []*Instrument) error
+        
+        // Update instrument in index
+        UpdateInstrument(ctx context.Context, instrumentID string, updates map[string]interface{}) error
+        
+        // Delete instrument from index
+        DeleteInstrument(ctx context.Context, instrumentID string) error
+        
+        // Get search suggestions based on user history
+        GetPersonalizedSuggestions(ctx context.Context, userID string, limit int) ([]InstrumentSuggestion, error)
+    }
+    ```
+  - [ ] Create domain models:
+    ```go
+    type SearchQuery struct {
+        Query          string
+        UserID         string // For personalized ranking
+        Filters        SearchFilters
+        Limit          int
+        Offset         int
+        IncludeScores  bool
+    }
+    
+    type SearchFilters struct {
+        Categories     []InstrumentCategory // STOCK, ETF, CRYPTO, etc.
+        MinPrice       *float64
+        MaxPrice       *float64
+        MinVolume      *int64
+        Exchanges      []string
+        Countries      []string
+    }
+    
+    type SearchResult struct {
+        Instruments    []InstrumentSearchResult
+        TotalHits      int64
+        MaxScore       float64
+        SearchTime     time.Duration
+    }
+    
+    type InstrumentSearchResult struct {
+        Instrument     *Instrument
+        Score          float64
+        Highlights     map[string][]string // Highlighted matching text
+        Explanation    string // Why this result was ranked this way
+    }
+    
+    type InstrumentSuggestion struct {
+        Symbol         string
+        Name           string
+        Category       InstrumentCategory
+        Exchange       string
+        RelevanceScore float64
+    }
+    ```
+  - [ ] **Deliverable**: Domain interface with no infrastructure dependencies
+
+- [ ] **Step 1.2: Create Search Use Cases**
+  - [ ] Create `internal/market_data/application/usecase/search_instruments_usecase.go`
+  - [ ] Implement `SearchInstrumentsUseCase`:
+    ```go
+    type SearchInstrumentsUseCase struct {
+        searchService service.IInstrumentSearchService
+        userPrefsRepo repository.IUserPreferencesRepository // For personalization
+        analyticsRepo repository.ISearchAnalyticsRepository // Track searches
+    }
+    
+    func (uc *SearchInstrumentsUseCase) Execute(ctx context.Context, query SearchQuery) (*SearchResult, error) {
+        // 1. Validate query
+        // 2. Get user preferences for ranking boost
+        // 3. Call search service
+        // 4. Track search analytics (async)
+        // 5. Return results
+    }
+    ```
+  - [ ] Create `AutocompleteUseCase` for search bar
+  - [ ] **Deliverable**: Use cases that orchestrate search logic
+
+---
+
+### **Step 2: Elasticsearch Adapter Implementation** (Week 2)
+
+- [ ] **Step 2.1: Elasticsearch Infrastructure Setup**
+  - [ ] Add Elasticsearch dependency: `go get github.com/elastic/go-elasticsearch/v8`
+  - [ ] Create `shared/infra/search/` directory structure
+  - [ ] Create `search_handler.go` interface (similar to `cache_handler.go`):
+    ```go
+    // Generic search handler interface
+    type ISearchHandler interface {
+        Search(ctx context.Context, index string, query interface{}) (interface{}, error)
+        Index(ctx context.Context, index string, id string, document interface{}) error
+        BulkIndex(ctx context.Context, index string, documents []BulkDocument) error
+        Update(ctx context.Context, index string, id string, updates interface{}) error
+        Delete(ctx context.Context, index string, id string) error
+        CreateIndex(ctx context.Context, index string, mapping interface{}) error
+        DeleteIndex(ctx context.Context, index string) error
+    }
+    ```
+  - [ ] Create `elasticsearch_handler.go` implementing `ISearchHandler`
+  - [ ] Add connection management, retry logic, and health checks
+  - [ ] Create comprehensive README.md in `shared/infra/search/`
+  - [ ] **Deliverable**: Generic search infrastructure (reusable for other indices)
+
+- [ ] **Step 2.2: Instrument Search Adapter**
+  - [ ] Create `internal/market_data/infra/search/elasticsearch_instrument_search_adapter.go`
+  - [ ] Implement `IInstrumentSearchService` interface using Elasticsearch:
+    ```go
+    type ElasticsearchInstrumentSearchAdapter struct {
+        searchHandler search.ISearchHandler
+        indexName     string
+        logger        logger.ILogger
+    }
+    
+    func (a *ElasticsearchInstrumentSearchAdapter) Search(ctx context.Context, query SearchQuery) (*SearchResult, error) {
+        // Build Elasticsearch query with:
+        // - Multi-match query (symbol, name, description)
+        // - Function score for personalized ranking
+        // - Filters (category, price, volume)
+        // - Highlighting for matched terms
+        
+        esQuery := map[string]interface{}{
+            "query": map[string]interface{}{
+                "function_score": map[string]interface{}{
+                    "query": map[string]interface{}{
+                        "bool": map[string]interface{}{
+                            "should": []map[string]interface{}{
+                                {"match": map[string]interface{}{"symbol": map[string]interface{}{"query": query.Query, "boost": 3.0}}},
+                                {"match": map[string]interface{}{"name": map[string]interface{}{"query": query.Query, "boost": 2.0}}},
+                                {"match": map[string]interface{}{"description": map[string]interface{}{"query": query.Query, "boost": 1.0}}},
+                            },
+                            "filter": buildFilters(query.Filters),
+                        },
+                    },
+                    "functions": buildRankingFunctions(query.UserID),
+                },
+            },
+            "highlight": map[string]interface{}{
+                "fields": map[string]interface{}{
+                    "symbol": {},
+                    "name":   {},
+                },
+            },
+        }
+        
+        // Execute search via searchHandler
+        result, err := a.searchHandler.Search(ctx, a.indexName, esQuery)
+        // Map Elasticsearch response to domain SearchResult
+        return mapToSearchResult(result), nil
+    }
+    ```
+  - [ ] Implement ranking functions:
+    - User portfolio boost (instruments user owns)
+    - Trading volume boost (popular instruments)
+    - Recent search history boost
+    - Decay function for outdated data
+  - [ ] **Deliverable**: Elasticsearch adapter implementing domain interface
+
+- [ ] **Step 2.3: Index Mapping and Configuration**
+  - [ ] Define Elasticsearch index mapping for instruments:
+    ```json
+    {
+      "mappings": {
+        "properties": {
+          "symbol": {
+            "type": "text",
+            "fields": {
+              "keyword": {"type": "keyword"},
+              "suggest": {"type": "completion"}
+            }
+          },
+          "name": {
+            "type": "text",
+            "fields": {
+              "keyword": {"type": "keyword"},
+              "suggest": {"type": "completion"}
+            }
+          },
+          "description": {"type": "text"},
+          "category": {"type": "keyword"},
+          "exchange": {"type": "keyword"},
+          "country": {"type": "keyword"},
+          "last_price": {"type": "double"},
+          "market_cap": {"type": "long"},
+          "volume": {"type": "long"},
+          "trading_volume_rank": {"type": "integer"},
+          "created_at": {"type": "date"},
+          "updated_at": {"type": "date"}
+        }
+      },
+      "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 1,
+        "analysis": {
+          "analyzer": {
+            "autocomplete": {
+              "tokenizer": "autocomplete_tokenizer",
+              "filter": ["lowercase"]
+            }
+          },
+          "tokenizer": {
+            "autocomplete_tokenizer": {
+              "type": "edge_ngram",
+              "min_gram": 2,
+              "max_gram": 10,
+              "token_chars": ["letter", "digit"]
+            }
+          }
+        }
+      }
+    }
+    ```
+  - [ ] Create index initialization script
+  - [ ] Add index versioning and migration strategy
+  - [ ] **Deliverable**: Production-ready index configuration
+
+---
+
+### **Step 3: Personalization and Ranking** (Week 3)
+
+- [ ] **Step 3.1: User Search History Tracking**
+  - [ ] Create `internal/market_data/domain/model/search_history.go`
+  - [ ] Create `internal/market_data/domain/repository/search_history_repository.go`
+  - [ ] Implement PostgreSQL repository for search history
+  - [ ] Track user searches asynchronously (don't block search requests)
+  - [ ] Aggregate search history for ranking (most searched symbols per user)
+  - [ ] **Deliverable**: Search history tracking system
+
+- [ ] **Step 3.2: Personalized Ranking Implementation**
+  - [ ] Implement ranking boost based on:
+    - User's portfolio holdings (3x boost)
+    - User's watchlist instruments (2x boost)
+    - User's recent searches (1.5x boost with decay)
+    - User's recent trades (2x boost)
+  - [ ] Create `RankingService` in domain layer:
+    ```go
+    type RankingService struct {
+        positionRepo  repository.IPositionRepository
+        watchlistRepo repository.IWatchlistRepository
+        searchHistory repository.ISearchHistoryRepository
+        orderRepo     repository.IOrderRepository
+    }
+    
+    func (s *RankingService) GetUserRankingFactors(ctx context.Context, userID string) (*RankingFactors, error) {
+        // Fetch user's portfolio, watchlist, search history, recent orders
+        // Return ranking factors to boost Elasticsearch scores
+    }
+    ```
+  - [ ] Integrate ranking service with search adapter
+  - [ ] **Deliverable**: Personalized search ranking
+
+- [ ] **Step 3.3: Search Analytics**
+  - [ ] Track search metrics:
+    - Search query
+    - Number of results
+    - User clicked results (click-through rate)
+    - Search latency
+    - Zero-result searches (for improvement)
+  - [ ] Create analytics dashboard queries
+  - [ ] Implement A/B testing framework for ranking algorithms
+  - [ ] **Deliverable**: Search analytics and optimization data
+
+---
+
+### **Step 4: Integration and Testing** (Week 4)
+
+- [ ] **Step 4.1: Dependency Injection Integration**
+  - [ ] Update `pck/container.go`:
+    ```go
+    type Container interface {
+        // ... existing methods
+        GetSearchHandler() search.ISearchHandler
+        GetInstrumentSearchService() service.IInstrumentSearchService
+        GetSearchInstrumentsUseCase() usecase.ISearchInstrumentsUseCase
+    }
+    
+    func NewContainer() Container {
+        // Initialize Elasticsearch client
+        esClient := elasticsearch.NewClient(config.ElasticsearchURL)
+        searchHandler := search.NewElasticsearchHandler(esClient)
+        
+        // Create search adapter
+        instrumentSearchService := elasticsearch_adapter.NewElasticsearchInstrumentSearchAdapter(
+            searchHandler,
+            "instruments", // index name
+            logger,
+        )
+        
+        // Create use case
+        searchUseCase := usecase.NewSearchInstrumentsUseCase(
+            instrumentSearchService,
+            userPrefsRepo,
+            searchHistoryRepo,
+        )
+        
+        return &containerImpl{
+            searchHandler:            searchHandler,
+            instrumentSearchService:  instrumentSearchService,
+            searchInstrumentsUseCase: searchUseCase,
+        }
+    }
+    ```
+  - [ ] **Deliverable**: Elasticsearch integrated into DI container
+
+- [ ] **Step 4.2: HTTP Endpoints**
+  - [ ] Create `internal/market_data/presentation/http/search_handler.go`:
+    ```go
+    // GET /api/v1/market-data/search?q=AAPL&limit=10
+    func SearchInstrumentsHandler(w http.ResponseWriter, r *http.Request) {
+        query := r.URL.Query().Get("q")
+        limit := getIntParam(r, "limit", 10)
+        
+        searchQuery := domain.SearchQuery{
+            Query:  query,
+            UserID: getUserIDFromContext(r.Context()),
+            Limit:  limit,
+        }
+        
+        result, err := searchUseCase.Execute(r.Context(), searchQuery)
+        // Return JSON response
+    }
+    
+    // GET /api/v1/market-data/autocomplete?q=AA&limit=5
+    func AutocompleteHandler(w http.ResponseWriter, r *http.Request) {
+        prefix := r.URL.Query().Get("q")
+        suggestions, err := searchUseCase.Autocomplete(r.Context(), prefix, 5)
+        // Return JSON response
+    }
+    ```
+  - [ ] Add routes to main.go
+  - [ ] **Deliverable**: Search API endpoints
+
+- [ ] **Step 4.3: gRPC Endpoints (for microservices)**
+  - [ ] Add search methods to `market_data.proto`:
+    ```proto
+    service MarketDataService {
+        rpc SearchInstruments(SearchInstrumentsRequest) returns (SearchInstrumentsResponse);
+        rpc AutocompleteInstruments(AutocompleteRequest) returns (AutocompleteResponse);
+    }
+    ```
+  - [ ] Implement gRPC handlers
+  - [ ] **Deliverable**: gRPC search endpoints
+
+- [ ] **Step 4.4: Initial Data Indexing**
+  - [ ] Create migration script to index existing instruments:
+    ```bash
+    # scripts/index_instruments.sh
+    go run cmd/indexer/main.go --mode=full --batch-size=1000
+    ```
+  - [ ] Implement incremental indexing (index new instruments on creation)
+  - [ ] Add real-time index updates when instrument data changes
+  - [ ] **Deliverable**: Fully indexed instrument database
+
+- [ ] **Step 4.5: Testing**
+  - [ ] **Unit Tests**:
+    - [ ] Mock `IInstrumentSearchService` for use case tests
+    - [ ] Test search query building logic
+    - [ ] Test ranking functions
+    - [ ] Test autocomplete logic
+  - [ ] **Integration Tests**:
+    - [ ] Test Elasticsearch adapter with real Elasticsearch instance (Testcontainers)
+    - [ ] Test search with various queries and filters
+    - [ ] Test personalized ranking with user data
+    - [ ] Test index updates and deletions
+  - [ ] **Performance Tests**:
+    - [ ] Test search latency (<100ms target)
+    - [ ] Test autocomplete latency (<50ms target)
+    - [ ] Test concurrent searches (1000+ req/sec)
+    - [ ] Test large result sets (10,000+ instruments)
+  - [ ] **Deliverable**: Comprehensive test suite
+
+---
+
+### **Step 5: Production Readiness** (Week 5)
+
+- [ ] **Step 5.1: Docker and Infrastructure**
+  - [ ] Add Elasticsearch to `docker-compose.yml`:
+    ```yaml
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+      environment:
+        - discovery.type=single-node
+        - xpack.security.enabled=false
+        - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      ports:
+        - "9200:9200"
+      volumes:
+        - elasticsearch_data:/usr/share/elasticsearch/data
+      networks:
+        - hub-network
+    
+    volumes:
+      elasticsearch_data:
+    ```
+  - [ ] Add Kibana for monitoring (optional):
+    ```yaml
+    kibana:
+      image: docker.elastic.co/kibana/kibana:8.11.0
+      ports:
+        - "5601:5601"
+      environment:
+        - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      depends_on:
+        - elasticsearch
+    ```
+  - [ ] **Deliverable**: Elasticsearch containerized
+
+- [ ] **Step 5.2: Monitoring and Alerting**
+  - [ ] Add Elasticsearch health checks
+  - [ ] Monitor index size and query performance
+  - [ ] Alert on search failures or high latency
+  - [ ] Track zero-result searches for improvement
+  - [ ] **Deliverable**: Search monitoring dashboard
+
+- [ ] **Step 5.3: Documentation**
+  - [ ] Document search API endpoints
+  - [ ] Document ranking algorithm and personalization
+  - [ ] Document index mapping and configuration
+  - [ ] Create troubleshooting guide
+  - [ ] Document how to add new ranking factors
+  - [ ] **Deliverable**: Complete search documentation
+
+- [ ] **Step 5.4: Future Enhancements**
+  - [ ] Machine learning-based ranking (learn from user behavior)
+  - [ ] Multi-language support (translate instrument names)
+  - [ ] Voice search support
+  - [ ] Image search (search by company logo)
+  - [ ] Related instruments suggestions
+  - [ ] Trending instruments (what's being searched now)
+
+---
+
+### **Success Criteria**
+
+**Technical Metrics:**
+- [ ] Search latency <100ms (p95)
+- [ ] Autocomplete latency <50ms (p95)
+- [ ] Support 1000+ concurrent searches
+- [ ] 99.9% search availability
+- [ ] Zero-result rate <5%
+
+**Business Metrics:**
+- [ ] Click-through rate >30% (users click on search results)
+- [ ] Search-to-trade conversion >10%
+- [ ] User satisfaction score >4.5/5
+- [ ] Personalized results improve engagement by 20%
+
+**Architecture Quality:**
+- [ ] ✅ Search logic isolated via adapter pattern
+- [ ] ✅ Easy to swap Elasticsearch for another search engine
+- [ ] ✅ Domain layer has no infrastructure dependencies
+- [ ] ✅ Comprehensive test coverage (>90%)
+- [ ] ✅ Production-ready monitoring and alerting
+
+**Priority**: **HIGH** - Critical for user experience and discoverability
+
+**Estimated Duration**: 5 weeks
+
+**Dependencies**: Market data service, user preferences, Elasticsearch infrastructure
+
+---
+
+## **🚀 PHASE 10.2: Market Data Service Migration** (Weeks 9-16)
+
+**Objective**: Extract Market Data and Real-time Quotes into independent microservice following strangler fig pattern.
+
+**Target Modules:**
+- `internal/market_data/` - Market data queries and caching
+- `internal/realtime_quotes/` - WebSocket real-time quotes
+
+**Service Name**: `hub-market-data-service`
+
+**Complexity**: **HIGH** - WebSocket connections, Redis caching, high throughput
+
+**Estimated Duration**: 8 weeks
+
+---
+
+### **Pre-Migration Analysis (Week 9)**
+
+**⚠️ IMPORTANT NOTE**: The market data code in the monolith (`internal/market_data/`, `internal/realtime_quotes/`) will **remain in place** after the microservice is created. The monolith will continue to have this code until manual removal is performed after full validation. This allows for easy rollback and gradual traffic migration.
+
+- [x] **Step 1.1: Deep Code Analysis** ✅ **COMPLETED**
+  - [x] Audit `internal/market_data/` module (use cases, repositories, handlers)
+  - [x] Audit `internal/realtime_quotes/` WebSocket implementation
+  - [x] Identify dependencies on other services (none expected - market data is leaf service)
+  - [x] Document gRPC service interface (already exists: `MarketDataService`)
+  - [x] Document HTTP REST endpoints
+  - [x] Document WebSocket protocol and message formats
+  - [x] **Deliverable**: Complete code inventory document (`PHASE_10_2_MARKET_DATA_CODE_ANALYSIS.md`)
+
+- [x] **Step 1.2: Database Schema Analysis** ✅ **COMPLETED**
+  - [x] Review `market_data` table schema
+  - [x] Identify foreign key relationships (none - market data is reference data)
+  - [x] Plan for separate database vs shared database
+  - [x] **Decision**: Separate database recommended (market data is high-read, low-write)
+  - [x] **Deliverable**: Database migration strategy (`PHASE_10_2_DATABASE_SCHEMA_ANALYSIS.md`)
+
+- [x] **Step 1.3: Caching Strategy Analysis** ✅ **COMPLETED**
+  - [x] Document current Redis caching implementation
+  - [x] Analyze cache hit rates and TTL settings (>95% expected, 5-minute TTL)
+  - [x] Plan for dedicated Redis instance vs shared Redis
+  - [x] **Decision**: Dedicated Redis recommended (market data cache is high-volume)
+  - [x] **Deliverable**: Caching architecture document (`PHASE_10_2_CACHING_STRATEGY_ANALYSIS.md`)
+
+- [x] **Step 1.4: WebSocket Architecture Analysis** ✅ **COMPLETED**
+  - [x] Document WebSocket connection management (connection pooling, 10,000 max)
+  - [x] Analyze connection pooling and scaling strategy (horizontal scaling with Redis Pub/Sub)
+  - [x] Document message broadcasting and pub/sub patterns (JSON Patch RFC 6902)
+  - [x] Identify performance bottlenecks (10,000+ concurrent connections supported)
+  - [x] **Deliverable**: WebSocket architecture document (`PHASE_10_2_WEBSOCKET_ARCHITECTURE_ANALYSIS.md`)
+
+- [x] **Step 1.5: Integration Point Mapping** ✅ **COMPLETED**
+  - [x] Identify all services calling Market Data Service:
+    - Order Management (symbol validation, price fetching) - gRPC client
+    - Watchlist Service (instrument details) - Direct use case (needs migration)
+    - Portfolio Service (current prices for positions) - gRPC client
+    - Realtime Quotes Service (initial prices) - Direct use case (needs migration)
+    - Frontend HTTP REST (via API Gateway)
+    - Frontend WebSocket (direct connection)
+  - [x] Document gRPC method calls and HTTP endpoints
+  - [x] **Deliverable**: Integration dependency map (`PHASE_10_2_INTEGRATION_POINT_MAPPING.md`)
+
+---
+
+### **Microservice Development (Weeks 10-12)**
+
+- [x] **Step 2.1: Repository and Project Setup** ✅ **COMPLETED**
+  - [x] Create `hub-market-data-service` repository
+  - [x] Initialize Go module (`go mod init`)
+  - [x] Set up project structure (cmd, internal, config, migrations, pkg, scripts, deployments, docs)
+  - [x] Create Dockerfile (multi-stage build) and docker-compose.yml (PostgreSQL, Redis, service)
+  - [x] Create Makefile with 30+ build/test/docker/db commands
+  - [x] Create README.md (500+ lines), .gitignore, .env.example
+  - [x] **Deliverable**: Initialized repository (`PHASE_10_2_STEP_2_1_COMPLETE.md`)
+
+- [ ] **Step 2.2: Copy Core Market Data Logic (AS-IS)**
+  - [ ] Copy `internal/market_data/` module (domain, use cases, repositories)
+  - [ ] Copy `internal/realtime_quotes/` WebSocket implementation
+  - [ ] Copy Redis caching infrastructure
+  - [ ] Update import paths
+  - [ ] **Deliverable**: Core logic copied
+
+- [ ] **Step 2.3: Implement gRPC Service**
+  - [ ] Copy proto files from monolith
+  - [ ] Generate gRPC stubs
+  - [ ] Implement gRPC server handlers (wrap existing use cases)
+  - [ ] Add authentication interceptor
+  - [ ] **Deliverable**: gRPC service implementation
+
+- [ ] **Step 2.4: Implement HTTP REST API**
+  - [ ] Copy HTTP handlers from monolith
+  - [ ] Update routes and middleware
+  - [ ] **Deliverable**: REST API implementation
+
+- [ ] **Step 2.5: Implement WebSocket Server**
+  - [ ] Copy WebSocket handlers and connection management
+  - [ ] Implement pub/sub for real-time quotes
+  - [ ] Add connection scaling and load balancing
+  - [ ] **Deliverable**: WebSocket server implementation
+
+- [ ] **Step 2.6: Configuration Management**
+  - [ ] Create config.yaml and config.env
+  - [ ] Add database, Redis, gRPC, HTTP, WebSocket configurations
+  - [ ] **Deliverable**: Configuration management
+
+- [ ] **Step 2.7: Database Setup**
+  - [ ] Create separate `hub_market_data_service` database
+  - [ ] Copy migration files
+  - [ ] Create data migration script from monolith
+  - [ ] **Deliverable**: Independent database
+
+---
+
+### **Testing and Validation (Week 13)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests**
+  - [ ] Copy all market data tests from monolith
+  - [ ] Update import paths
+  - [ ] Run tests and verify 100% pass rate
+  - [ ] **Deliverable**: Complete test suite
+
+- [ ] **Step 3.2: gRPC Integration Testing**
+  - [ ] Test all gRPC methods
+  - [ ] Test authentication flow
+  - [ ] Test error handling
+  - [ ] **Deliverable**: gRPC test suite
+
+- [ ] **Step 3.3: WebSocket Integration Testing**
+  - [ ] Test WebSocket connection establishment
+  - [ ] Test real-time quote broadcasting
+  - [ ] Test connection scaling (1000+ concurrent connections)
+  - [ ] Test graceful disconnection and reconnection
+  - [ ] **Deliverable**: WebSocket test suite
+
+- [ ] **Step 3.4: Performance Testing**
+  - [ ] Load test gRPC endpoints (10,000+ req/sec)
+  - [ ] Load test WebSocket connections (10,000+ concurrent)
+  - [ ] Measure cache hit rates (target: 95%+)
+  - [ ] Measure latency (target: <50ms with cache, <200ms without)
+  - [ ] **Deliverable**: Performance benchmark report
+
+---
+
+### **API Gateway Integration (Week 14)**
+
+- [ ] **Step 4.1: Update API Gateway Routes**
+  - [ ] Add routes for market data service:
+    ```yaml
+    - path: /api/v1/market-data/*
+      service: hub-market-data-service
+      address: localhost:50054
+      protocol: grpc
+      auth_required: false  # Public data
+    ```
+  - [ ] Add WebSocket proxy support (if needed)
+  - [ ] **Deliverable**: Gateway routes configured
+
+- [ ] **Step 4.2: Update Monolith to Use Microservice**
+  - [ ] Create gRPC client adapter in monolith
+  - [ ] Update Order Service to call Market Data Service via gRPC
+  - [ ] Update Portfolio Service to call Market Data Service via gRPC
+  - [ ] **Deliverable**: Monolith using microservice
+
+- [ ] **Step 4.3: Gradual Traffic Shift**
+  - [ ] Week 1: 10% traffic to microservice, 90% to monolith
+  - [ ] Week 2: 50% traffic to microservice, 50% to monolith
+  - [ ] Week 3: 100% traffic to microservice
+  - [ ] **Deliverable**: Full traffic migration
+
+---
+
+### **Deployment and Monitoring (Weeks 15-16)**
+
+- [ ] **Step 5.1: Containerization**
+  - [ ] Build Docker image
+  - [ ] Deploy to development environment
+  - [ ] Deploy to staging environment
+  - [ ] **Deliverable**: Deployed microservice
+
+- [ ] **Step 5.2: Monitoring and Alerting**
+  - [ ] Add Prometheus metrics
+  - [ ] Add Grafana dashboards
+  - [ ] Configure alerts for high latency, errors, connection issues
+  - [ ] **Deliverable**: Monitoring setup
+
+- [ ] **Step 5.3: Validation Period**
+  - [ ] Run for 2 weeks in production
+  - [ ] Monitor performance and stability
+  - [ ] Verify zero regressions
+  - [ ] **Deliverable**: Stability validation report
+
+- [ ] **Step 5.4: Decommission Monolith Module**
+  - [ ] Remove `internal/market_data/` from monolith
+  - [ ] Remove `internal/realtime_quotes/` from monolith
+  - [ ] Keep gRPC client adapter
+  - [ ] **Deliverable**: Cleaned up monolith
+
+---
+
+## **🚀 PHASE 10.3: Watchlist Service Migration** (Weeks 17-22)
+
+**Objective**: Extract Watchlist functionality into independent microservice.
+
+**Target Modules:**
+- `internal/watchlist/` - User watchlists and instrument tracking
+
+**Service Name**: `hub-watchlist-service`
+
+**Complexity**: **LOW** - Simple CRUD operations, minimal dependencies
+
+**Estimated Duration**: 6 weeks
+
+---
+
+### **Pre-Migration Analysis (Week 17)**
+
+- [ ] **Step 1.1: Deep Code Analysis**
+  - [ ] Audit `internal/watchlist/` module
+  - [ ] Document dependencies on Market Data Service (instrument details)
+  - [ ] Document dependencies on User Service (user authentication)
+  - [ ] **Deliverable**: Code inventory document
+
+- [ ] **Step 1.2: Database Schema Analysis**
+  - [ ] Review `watchlist` and `watchlist_items` tables
+  - [ ] Identify foreign key relationships (users, instruments)
+  - [ ] Plan for separate database
+  - [ ] **Deliverable**: Database migration strategy
+
+- [ ] **Step 1.3: Integration Point Mapping**
+  - [ ] Identify all services calling Watchlist Service (Frontend only)
+  - [ ] Document HTTP REST endpoints
+  - [ ] **Deliverable**: Integration dependency map
+
+---
+
+### **Microservice Development (Weeks 18-19)**
+
+- [ ] **Step 2.1: Repository and Project Setup**
+  - [ ] Create `hub-watchlist-service` repository
+  - [ ] Initialize Go module and project structure
+  - [ ] **Deliverable**: Initialized repository
+
+- [ ] **Step 2.2: Copy Core Watchlist Logic**
+  - [ ] Copy `internal/watchlist/` module
+  - [ ] Update import paths
+  - [ ] **Deliverable**: Core logic copied
+
+- [ ] **Step 2.3: Implement gRPC Service**
+  - [ ] Define `watchlist_service.proto`:
+    ```proto
+    service WatchlistService {
+        rpc CreateWatchlist(CreateWatchlistRequest) returns (CreateWatchlistResponse);
+        rpc GetWatchlists(GetWatchlistsRequest) returns (GetWatchlistsResponse);
+        rpc AddInstrument(AddInstrumentRequest) returns (AddInstrumentResponse);
+        rpc RemoveInstrument(RemoveInstrumentRequest) returns (RemoveInstrumentResponse);
+        rpc GetWatchlistDetails(GetWatchlistDetailsRequest) returns (GetWatchlistDetailsResponse);
+    }
+    ```
+  - [ ] Implement gRPC server handlers
+  - [ ] **Deliverable**: gRPC service implementation
+
+- [ ] **Step 2.4: Implement HTTP REST API**
+  - [ ] Copy HTTP handlers from monolith
+  - [ ] **Deliverable**: REST API implementation
+
+- [ ] **Step 2.5: Integrate with Market Data Service**
+  - [ ] Create gRPC client for Market Data Service
+  - [ ] Fetch instrument details when returning watchlist
+  - [ ] **Deliverable**: Market Data integration
+
+- [ ] **Step 2.6: Database Setup**
+  - [ ] Create separate `hub_watchlist_service` database
+  - [ ] Copy migration files
+  - [ ] Migrate data from monolith
+  - [ ] **Deliverable**: Independent database
+
+---
+
+### **Testing and Validation (Week 20)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests**
+  - [ ] Copy all watchlist tests from monolith
+  - [ ] Run tests and verify pass rate
+  - [ ] **Deliverable**: Complete test suite
+
+- [ ] **Step 3.2: Integration Testing**
+  - [ ] Test gRPC methods
+  - [ ] Test Market Data Service integration
+  - [ ] Test authentication flow
+  - [ ] **Deliverable**: Integration test suite
+
+---
+
+### **API Gateway Integration (Week 21)**
+
+- [ ] **Step 4.1: Update API Gateway Routes**
+  - [ ] Add routes for watchlist service
+  - [ ] **Deliverable**: Gateway routes configured
+
+- [ ] **Step 4.2: Gradual Traffic Shift**
+  - [ ] Week 1: 50% traffic to microservice
+  - [ ] Week 2: 100% traffic to microservice
+  - [ ] **Deliverable**: Full traffic migration
+
+---
+
+### **Deployment and Monitoring (Week 22)**
+
+- [ ] **Step 5.1: Deployment**
+  - [ ] Deploy to development and staging
+  - [ ] **Deliverable**: Deployed microservice
+
+- [ ] **Step 5.2: Validation Period**
+  - [ ] Run for 1 week in production
+  - [ ] **Deliverable**: Stability validation
+
+- [ ] **Step 5.3: Decommission Monolith Module**
+  - [ ] Remove `internal/watchlist/` from monolith
+  - [ ] **Deliverable**: Cleaned up monolith
+
+---
+
+## **🚀 PHASE 10.4: Account Management (Balance) Service Migration** (Weeks 23-30)
+
+**Objective**: Extract Balance/Account management into independent microservice.
+
+**Target Modules:**
+- `internal/balance/` - User account balances and transactions
+
+**Service Name**: `hub-account-service` (or `hub-balance-service`)
+
+**Complexity**: **HIGH** - Critical financial service, requires ACID transactions
+
+**Estimated Duration**: 8 weeks
+
+---
+
+### **Pre-Migration Analysis (Week 23)**
+
+- [ ] **Step 1.1: Deep Code Analysis**
+  - [ ] Audit `internal/balance/` module
+  - [ ] Document balance update logic and transaction handling
+  - [ ] Identify dependencies on Order Service (balance reservations)
+  - [ ] Identify dependencies on Position Service (realized P&L)
+  - [ ] **Deliverable**: Code inventory document
+
+- [ ] **Step 1.2: Database Schema Analysis**
+  - [ ] Review `balances` table schema
+  - [ ] Review transaction history (if exists)
+  - [ ] Plan for separate database with strong consistency
+  - [ ] **Deliverable**: Database migration strategy
+
+- [ ] **Step 1.3: Transaction Safety Analysis**
+  - [ ] Document current transaction patterns
+  - [ ] Identify distributed transaction requirements
+  - [ ] Plan for saga pattern or two-phase commit
+  - [ ] **Deliverable**: Transaction safety strategy
+
+- [ ] **Step 1.4: Integration Point Mapping**
+  - [ ] Identify all services calling Balance Service:
+    - Order Service (balance checks, reservations)
+    - Position Service (realized P&L updates)
+    - Frontend (balance display)
+  - [ ] **Deliverable**: Integration dependency map
+
+---
+
+### **Microservice Development (Weeks 24-26)**
+
+- [ ] **Step 2.1: Repository and Project Setup**
+  - [ ] Create `hub-account-service` repository
+  - [ ] Initialize Go module and project structure
+  - [ ] **Deliverable**: Initialized repository
+
+- [ ] **Step 2.2: Copy Core Balance Logic**
+  - [ ] Copy `internal/balance/` module
+  - [ ] Update import paths
+  - [ ] **Deliverable**: Core logic copied
+
+- [ ] **Step 2.3: Implement gRPC Service**
+  - [ ] Define `account_service.proto`:
+    ```proto
+    service AccountService {
+        rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+        rpc ReserveBalance(ReserveBalanceRequest) returns (ReserveBalanceResponse);
+        rpc ReleaseBalance(ReleaseBalanceRequest) returns (ReleaseBalanceResponse);
+        rpc UpdateBalance(UpdateBalanceRequest) returns (UpdateBalanceResponse);
+        rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse);
+    }
+    ```
+  - [ ] Implement gRPC server handlers with transaction safety
+  - [ ] **Deliverable**: gRPC service implementation
+
+- [ ] **Step 2.4: Implement Saga Pattern for Distributed Transactions**
+  - [ ] Create saga orchestrator for order placement:
+    ```
+    1. Reserve balance (Account Service)
+    2. Submit order (Order Service)
+    3. If order fails: Release balance (compensating transaction)
+    ```
+  - [ ] Implement compensating transactions
+  - [ ] Add idempotency for saga steps
+  - [ ] **Deliverable**: Saga pattern implementation
+
+- [ ] **Step 2.5: Database Setup**
+  - [ ] Create separate `hub_account_service` database
+  - [ ] Add transaction history table
+  - [ ] Migrate data from monolith
+  - [ ] **Deliverable**: Independent database
+
+---
+
+### **Testing and Validation (Week 27)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests**
+  - [ ] Copy all balance tests from monolith
+  - [ ] Add saga pattern tests
+  - [ ] **Deliverable**: Complete test suite
+
+- [ ] **Step 3.2: Transaction Safety Testing**
+  - [ ] Test balance reservation and release
+  - [ ] Test saga rollback scenarios
+  - [ ] Test concurrent balance updates
+  - [ ] Test idempotency
+  - [ ] **Deliverable**: Transaction safety validation
+
+- [ ] **Step 3.3: Integration Testing**
+  - [ ] Test Order Service integration
+  - [ ] Test Position Service integration
+  - [ ] **Deliverable**: Integration test suite
+
+---
+
+### **API Gateway Integration (Week 28)**
+
+- [ ] **Step 4.1: Update API Gateway Routes**
+  - [ ] Add routes for account service
+  - [ ] **Deliverable**: Gateway routes configured
+
+- [ ] **Step 4.2: Update Order Service to Use Account Service**
+  - [ ] Create gRPC client adapter in Order Service
+  - [ ] Implement saga orchestration
+  - [ ] **Deliverable**: Order Service using Account Service
+
+- [ ] **Step 4.3: Gradual Traffic Shift**
+  - [ ] Week 1: 10% traffic to microservice
+  - [ ] Week 2: 50% traffic to microservice
+  - [ ] Week 3: 100% traffic to microservice
+  - [ ] **Deliverable**: Full traffic migration
+
+---
+
+### **Deployment and Monitoring (Weeks 29-30)**
+
+- [ ] **Step 5.1: Deployment**
+  - [ ] Deploy to development and staging
+  - [ ] **Deliverable**: Deployed microservice
+
+- [ ] **Step 5.2: Financial Reconciliation**
+  - [ ] Verify all balances match between monolith and microservice
+  - [ ] Audit transaction history
+  - [ ] **Deliverable**: Financial reconciliation report
+
+- [ ] **Step 5.3: Validation Period**
+  - [ ] Run for 2 weeks in production
+  - [ ] Monitor for any balance discrepancies
+  - [ ] **Deliverable**: Stability validation
+
+- [ ] **Step 5.4: Decommission Monolith Module**
+  - [ ] Remove `internal/balance/` from monolith
+  - [ ] **Deliverable**: Cleaned up monolith
+
+---
+
+## **🚀 PHASE 10.5: Position & Portfolio Service Migration** (Weeks 31-40)
+
+**Objective**: Extract Position and Portfolio Summary into independent microservice.
+
+**Target Modules:**
+- `internal/position/` - User positions and position updates
+- `internal/portfolio_summary/` - Portfolio aggregation and summary
+
+**Service Name**: `hub-portfolio-service`
+
+**Complexity**: **HIGH** - Complex aggregation logic, event-driven updates
+
+**Estimated Duration**: 10 weeks
+
+---
+
+### **Pre-Migration Analysis (Week 31-32)**
+
+- [ ] **Step 1.1: Deep Code Analysis**
+  - [ ] Audit `internal/position/` module (domain, use cases, workers)
+  - [ ] Audit `internal/portfolio_summary/` module
+  - [ ] Document position update event flow (OrderExecutedEvent → Position Update)
+  - [ ] Document RabbitMQ queue integration
+  - [ ] **Deliverable**: Code inventory document
+
+- [ ] **Step 1.2: Database Schema Analysis**
+  - [ ] Review `positions_v2` table schema
+  - [ ] Review position history (if exists)
+  - [ ] Plan for separate database
+  - [ ] **Deliverable**: Database migration strategy
+
+- [ ] **Step 1.3: Event-Driven Architecture Analysis**
+  - [ ] Document current RabbitMQ integration
+  - [ ] Document position update worker
+  - [ ] Plan for event publishing from Order Service to Position Service
+  - [ ] **Deliverable**: Event architecture document
+
+- [ ] **Step 1.4: Integration Point Mapping**
+  - [ ] Identify all services calling Position Service:
+    - Portfolio Service (position aggregation)
+    - Order Service (position updates via events)
+    - Frontend (position display)
+  - [ ] **Deliverable**: Integration dependency map
+
+---
+
+### **Microservice Development (Weeks 33-36)**
+
+- [ ] **Step 2.1: Repository and Project Setup**
+  - [ ] Create `hub-portfolio-service` repository
+  - [ ] Initialize Go module and project structure
+  - [ ] **Deliverable**: Initialized repository
+
+- [ ] **Step 2.2: Copy Core Position Logic**
+  - [ ] Copy `internal/position/` module (domain, use cases, repositories)
+  - [ ] Copy `internal/portfolio_summary/` module
+  - [ ] Copy position update worker
+  - [ ] Update import paths
+  - [ ] **Deliverable**: Core logic copied
+
+- [ ] **Step 2.3: Implement gRPC Service**
+  - [ ] Define `portfolio_service.proto`:
+    ```proto
+    service PortfolioService {
+        rpc GetPositions(GetPositionsRequest) returns (GetPositionsResponse);
+        rpc GetPosition(GetPositionRequest) returns (GetPositionResponse);
+        rpc GetPortfolioSummary(GetPortfolioSummaryRequest) returns (GetPortfolioSummaryResponse);
+        rpc UpdatePosition(UpdatePositionRequest) returns (UpdatePositionResponse); // Internal only
+    }
+    ```
+  - [ ] Implement gRPC server handlers
+  - [ ] **Deliverable**: gRPC service implementation
+
+- [ ] **Step 2.4: Implement Event Consumer**
+  - [ ] Set up RabbitMQ consumer for `positions.updates` queue
+  - [ ] Implement position update worker
+  - [ ] Handle OrderExecutedEvent
+  - [ ] **Deliverable**: Event-driven position updates
+
+- [ ] **Step 2.5: Integrate with Market Data Service**
+  - [ ] Create gRPC client for Market Data Service
+  - [ ] Fetch current prices for position valuation
+  - [ ] Calculate unrealized P&L
+  - [ ] **Deliverable**: Market Data integration
+
+- [ ] **Step 2.6: Integrate with Account Service**
+  - [ ] Create gRPC client for Account Service
+  - [ ] Fetch balance for portfolio summary
+  - [ ] **Deliverable**: Account Service integration
+
+- [ ] **Step 2.7: Database Setup**
+  - [ ] Create separate `hub_portfolio_service` database
+  - [ ] Copy migration files
+  - [ ] Migrate data from monolith
+  - [ ] **Deliverable**: Independent database
+
+---
+
+### **Testing and Validation (Week 37)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests**
+  - [ ] Copy all position tests from monolith
+  - [ ] Copy all portfolio tests from monolith
+  - [ ] Run tests and verify pass rate
+  - [ ] **Deliverable**: Complete test suite
+
+- [ ] **Step 3.2: Event-Driven Testing**
+  - [ ] Test position update worker with mock events
+  - [ ] Test event processing and retries
+  - [ ] Test DLQ handling
+  - [ ] **Deliverable**: Event-driven test suite
+
+- [ ] **Step 3.3: Integration Testing**
+  - [ ] Test Order Service → Position Service event flow
+  - [ ] Test Market Data Service integration
+  - [ ] Test Account Service integration
+  - [ ] **Deliverable**: Integration test suite
+
+---
+
+### **API Gateway Integration (Week 38)**
+
+- [ ] **Step 4.1: Update API Gateway Routes**
+  - [ ] Add routes for portfolio service
+  - [ ] **Deliverable**: Gateway routes configured
+
+- [ ] **Step 4.2: Update Order Service to Publish Events**
+  - [ ] Ensure Order Service publishes OrderExecutedEvent to RabbitMQ
+  - [ ] Verify Position Service consumes events
+  - [ ] **Deliverable**: Event publishing configured
+
+- [ ] **Step 4.3: Gradual Traffic Shift**
+  - [ ] Week 1: 10% traffic to microservice
+  - [ ] Week 2: 50% traffic to microservice
+  - [ ] Week 3: 100% traffic to microservice
+  - [ ] **Deliverable**: Full traffic migration
+
+---
+
+### **Deployment and Monitoring (Weeks 39-40)**
+
+- [ ] **Step 5.1: Deployment**
+  - [ ] Deploy to development and staging
+  - [ ] **Deliverable**: Deployed microservice
+
+- [ ] **Step 5.2: Position Reconciliation**
+  - [ ] Verify all positions match between monolith and microservice
+  - [ ] Audit position history
+  - [ ] **Deliverable**: Position reconciliation report
+
+- [ ] **Step 5.3: Validation Period**
+  - [ ] Run for 2 weeks in production
+  - [ ] Monitor position updates and event processing
+  - [ ] **Deliverable**: Stability validation
+
+- [ ] **Step 5.4: Decommission Monolith Module**
+  - [ ] Remove `internal/position/` from monolith
+  - [ ] Remove `internal/portfolio_summary/` from monolith
+  - [ ] **Deliverable**: Cleaned up monolith
+
+---
+
+## **🚀 PHASE 10.6: Order Management Service Migration** (Weeks 41-54)
+
+**Objective**: Extract Order Management System into independent microservice.
+
+**Target Modules:**
+- `internal/order_mngmt_system/` - Order submission, processing, and management
+
+**Service Name**: `hub-order-service`
+
+**Complexity**: **VERY HIGH** - Most complex service with many dependencies
+
+**Estimated Duration**: 14 weeks
+
+---
+
+### **Pre-Migration Analysis (Weeks 41-42)**
+
+- [ ] **Step 1.1: Deep Code Analysis**
+  - [ ] Audit `internal/order_mngmt_system/` module (domain, use cases, workers)
+  - [ ] Document order lifecycle and state machine
+  - [ ] Document RabbitMQ queue integration (orders.submit, orders.processing, orders.dlq)
+  - [ ] Document order worker and async processing
+  - [ ] **Deliverable**: Code inventory document (expect 200+ pages)
+
+- [ ] **Step 1.2: Database Schema Analysis**
+  - [ ] Review `orders` table schema
+  - [ ] Review order history and audit tables
+  - [ ] Plan for separate database
+  - [ ] **Deliverable**: Database migration strategy
+
+- [ ] **Step 1.3: Dependency Analysis**
+  - [ ] Document dependencies:
+    - Market Data Service (symbol validation, price fetching)
+    - Account Service (balance checks, reservations)
+    - Position Service (position updates via events)
+    - User Service (authentication)
+  - [ ] **Deliverable**: Comprehensive dependency map
+
+- [ ] **Step 1.4: Saga Pattern Design**
+  - [ ] Design saga orchestration for order placement:
+    ```
+    1. Validate symbol (Market Data Service)
+    2. Reserve balance (Account Service)
+    3. Submit order (Order Service)
+    4. Process order (Order Worker)
+    5. Update position (Position Service via event)
+    6. Release/deduct balance (Account Service)
+    ```
+  - [ ] Design compensating transactions for each step
+  - [ ] **Deliverable**: Saga pattern design document
+
+- [ ] **Step 1.5: Integration Point Mapping**
+  - [ ] Identify all services calling Order Service (Frontend only)
+  - [ ] Identify all services Order Service calls (Market Data, Account)
+  - [ ] Identify all events Order Service publishes (OrderExecutedEvent)
+  - [ ] **Deliverable**: Integration dependency map
+
+---
+
+### **Microservice Development (Weeks 43-48)**
+
+- [ ] **Step 2.1: Repository and Project Setup**
+  - [ ] Create `hub-order-service` repository
+  - [ ] Initialize Go module and project structure
+  - [ ] **Deliverable**: Initialized repository
+
+- [ ] **Step 2.2: Copy Core Order Logic**
+  - [ ] Copy `internal/order_mngmt_system/` module (all submodules)
+  - [ ] Update import paths
+  - [ ] **Deliverable**: Core logic copied
+
+- [ ] **Step 2.3: Implement gRPC Service**
+  - [ ] Define `order_service.proto`:
+    ```proto
+    service OrderService {
+        rpc SubmitOrder(SubmitOrderRequest) returns (SubmitOrderResponse);
+        rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+        rpc GetOrderStatus(GetOrderStatusRequest) returns (GetOrderStatusResponse);
+        rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+        rpc GetOrderHistory(GetOrderHistoryRequest) returns (GetOrderHistoryResponse);
+    }
+    ```
+  - [ ] Implement gRPC server handlers
+  - [ ] **Deliverable**: gRPC service implementation
+
+- [ ] **Step 2.4: Implement Saga Orchestration**
+  - [ ] Create saga orchestrator for order placement
+  - [ ] Implement compensating transactions
+  - [ ] Add idempotency for saga steps
+  - [ ] Add saga state persistence (for recovery)
+  - [ ] **Deliverable**: Saga orchestration implementation
+
+- [ ] **Step 2.5: Integrate with Market Data Service**
+  - [ ] Create gRPC client for Market Data Service
+  - [ ] Implement symbol validation
+  - [ ] Implement price fetching
+  - [ ] **Deliverable**: Market Data integration
+
+- [ ] **Step 2.6: Integrate with Account Service**
+  - [ ] Create gRPC client for Account Service
+  - [ ] Implement balance reservation
+  - [ ] Implement balance release/deduction
+  - [ ] **Deliverable**: Account Service integration
+
+- [ ] **Step 2.7: Implement Event Publishing**
+  - [ ] Set up RabbitMQ producer for OrderExecutedEvent
+  - [ ] Publish events to `positions.updates` queue
+  - [ ] **Deliverable**: Event publishing implementation
+
+- [ ] **Step 2.8: Implement Order Worker**
+  - [ ] Copy order worker from monolith
+  - [ ] Integrate with saga orchestrator
+  - [ ] **Deliverable**: Order worker implementation
+
+- [ ] **Step 2.9: Database Setup**
+  - [ ] Create separate `hub_order_service` database
+  - [ ] Copy migration files
+  - [ ] Migrate data from monolith
+  - [ ] **Deliverable**: Independent database
+
+---
+
+### **Testing and Validation (Weeks 49-50)**
+
+- [ ] **Step 3.1: Copy Existing Unit Tests**
+  - [ ] Copy all order tests from monolith
+  - [ ] Add saga pattern tests
+  - [ ] Run tests and verify pass rate
+  - [ ] **Deliverable**: Complete test suite
+
+- [ ] **Step 3.2: Saga Testing**
+  - [ ] Test happy path (successful order)
+  - [ ] Test compensation (order failure scenarios)
+  - [ ] Test partial failures (e.g., balance reserved but order fails)
+  - [ ] Test idempotency
+  - [ ] **Deliverable**: Saga test suite
+
+- [ ] **Step 3.3: Integration Testing**
+  - [ ] Test end-to-end order flow across all services
+  - [ ] Test Market Data Service integration
+  - [ ] Test Account Service integration
+  - [ ] Test Position Service event publishing
+  - [ ] **Deliverable**: Integration test suite
+
+- [ ] **Step 3.4: Chaos Engineering**
+  - [ ] Test service failures (Market Data down, Account Service down)
+  - [ ] Test network failures
+  - [ ] Test database failures
+  - [ ] Test RabbitMQ failures
+  - [ ] **Deliverable**: Chaos engineering report
+
+---
+
+### **API Gateway Integration (Week 51)**
+
+- [ ] **Step 4.1: Update API Gateway Routes**
+  - [ ] Add routes for order service
+  - [ ] **Deliverable**: Gateway routes configured
+
+- [ ] **Step 4.2: Gradual Traffic Shift**
+  - [ ] Week 1: 5% traffic to microservice (shadow mode)
+  - [ ] Week 2: 10% traffic to microservice
+  - [ ] Week 3: 25% traffic to microservice
+  - [ ] Week 4: 50% traffic to microservice
+  - [ ] Week 5: 100% traffic to microservice
+  - [ ] **Deliverable**: Full traffic migration
+
+---
+
+### **Deployment and Monitoring (Weeks 52-54)**
+
+- [ ] **Step 5.1: Deployment**
+  - [ ] Deploy to development and staging
+  - [ ] **Deliverable**: Deployed microservice
+
+- [ ] **Step 5.2: Order Reconciliation**
+  - [ ] Verify all orders match between monolith and microservice
+  - [ ] Audit order history
+  - [ ] **Deliverable**: Order reconciliation report
+
+- [ ] **Step 5.3: Financial Audit**
+  - [ ] Verify all financial transactions (balance reservations, deductions)
+  - [ ] Audit position updates
+  - [ ] **Deliverable**: Financial audit report
+
+- [ ] **Step 5.4: Validation Period**
+  - [ ] Run for 4 weeks in production
+  - [ ] Monitor order processing and saga execution
+  - [ ] Monitor event publishing and position updates
+  - [ ] **Deliverable**: Stability validation
+
+- [ ] **Step 5.5: Decommission Monolith Module**
+  - [ ] Remove `internal/order_mngmt_system/` from monolith
+  - [ ] **Deliverable**: Cleaned up monolith
+
+- [ ] **Step 5.6: Celebrate!** 🎉
+  - [ ] All microservices successfully extracted
+  - [ ] Monolith reduced to minimal infrastructure code
+  - [ ] Team has full microservices expertise
+  - [ ] **Deliverable**: Microservices architecture complete!
+
+---
+
+## **📊 Microservices Migration Summary**
+
+| Phase | Service | Complexity | Duration | Dependencies |
+|-------|---------|------------|----------|--------------|
+| 10.1 | User Service | LOW | 8 weeks | None (leaf service) |
+| 10.1.5 | Elasticsearch Integration | MEDIUM | 5 weeks | Market Data |
+| 10.2 | Market Data Service | HIGH | 8 weeks | None (leaf service) |
+| 10.3 | Watchlist Service | LOW | 6 weeks | Market Data, User |
+| 10.4 | Account Service | HIGH | 8 weeks | Order, Position |
+| 10.5 | Portfolio Service | HIGH | 10 weeks | Position, Market Data, Account |
+| 10.6 | Order Service | VERY HIGH | 14 weeks | Market Data, Account, Position |
+| **TOTAL** | **6 Microservices** | - | **59 weeks** | - |
+
+**Timeline**: ~14 months for complete migration
+
+**Team Requirements**: 3-4 senior engineers + 1 DevOps engineer + 1 architect
+
+**Success Criteria**: All services independent, zero downtime, no regressions, improved performance
 
 ## **Api gateway improvements**  ##
 - [ ] **Step 4.7: API Gateway - Security Features**
