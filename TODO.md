@@ -3880,6 +3880,343 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
 - [ ] **Input Validation Inconsistency**: Need standardized input validation across all endpoints and use cases
 - [ ] **Security Headers Missing**: HTTP responses lack security headers (CSRF, XSS protection, etc.)
 - [ ] **Password Security**: Need to implement proper password complexity requirements and secure hashing
+
+---
+
+## **🔧 CRITICAL: Shared Infrastructure Abstractions** (HIGH PRIORITY)
+
+### **Problem Statement**
+Currently, microservices have **direct dependencies** on infrastructure implementations:
+- `hub-market-data-service` → directly imports `github.com/redis/go-redis/v9`
+- `HubInvestmentsServer` → directly imports `github.com/rabbitmq/amqp091-go`
+
+**Issues:**
+- ❌ **Tight Coupling**: Services coupled to specific Redis/RabbitMQ implementations
+- ❌ **Code Duplication**: Each microservice duplicates client code
+- ❌ **Hard to Test**: Difficult to mock infrastructure in tests
+- ❌ **Hard to Swap**: Can't easily switch Redis → DragonflyDB or RabbitMQ → Kafka
+- ❌ **Inconsistent Patterns**: Different services implement caching/messaging differently
+- ❌ **Maintenance Nightmare**: Bug fixes require updating every microservice
+
+### **Solution: Create `hub-investments-common` Monorepo**
+
+Instead of creating separate repositories for each infrastructure tool, we'll create a **single shared library** containing all infrastructure abstractions. This is simpler to maintain and follows industry best practices (Google, Uber, Netflix).
+
+- [ ] **Phase 1: Create `hub-investments-common` Repository** (Week 1-3)
+  - [ ] **Step 1.1: Repository Setup**
+    - [ ] Create new GitHub repository: `hub-investments-common`
+    - [ ] Initialize Go module: `github.com/RodriguesYan/hub-investments-common`
+    - [ ] Set up project structure:
+      ```
+      hub-investments-common/
+      ├── cache/
+      │   ├── cache.go              # CacheHandler interface
+      │   ├── redis/
+      │   │   ├── redis_cache.go    # Redis implementation
+      │   │   ├── redis_cache_test.go
+      │   │   └── config.go
+      │   ├── memory/
+      │   │   ├── memory_cache.go   # In-memory (testing)
+      │   │   └── memory_cache_test.go
+      │   ├── mock/
+      │   │   └── mock_cache.go
+      │   └── README.md
+      ├── messaging/
+      │   ├── messaging.go          # MessageHandler interface
+      │   ├── rabbitmq/
+      │   │   ├── rabbitmq.go       # RabbitMQ implementation
+      │   │   ├── rabbitmq_test.go
+      │   │   ├── connection.go
+      │   │   ├── producer.go
+      │   │   ├── consumer.go
+      │   │   └── config.go
+      │   ├── kafka/
+      │   │   └── kafka.go          # Kafka (future)
+      │   ├── mock/
+      │   │   └── mock_messaging.go
+      │   └── README.md
+      ├── database/
+      │   ├── database.go           # Database interface
+      │   ├── postgres/
+      │   │   ├── postgres.go       # PostgreSQL implementation
+      │   │   ├── postgres_test.go
+      │   │   ├── connection.go
+      │   │   └── config.go
+      │   ├── migration/
+      │   │   ├── migrator.go       # Migration utilities
+      │   │   └── migrator_test.go
+      │   ├── mock/
+      │   │   └── mock_database.go
+      │   └── README.md
+      ├── search/
+      │   ├── search.go             # SearchHandler interface
+      │   ├── elasticsearch/
+      │   │   ├── elasticsearch.go  # Elasticsearch implementation
+      │   │   ├── elasticsearch_test.go
+      │   │   └── config.go
+      │   ├── mock/
+      │   │   └── mock_search.go
+      │   └── README.md
+      ├── logger/
+      │   ├── logger.go             # Logger interface
+      │   ├── zap/
+      │   │   └── zap_logger.go     # Zap implementation
+      │   └── README.md
+      ├── config/
+      │   ├── loader.go             # Config loading utilities
+      │   └── validator.go          # Config validation
+      ├── errors/
+      │   ├── errors.go             # Common error types
+      │   └── codes.go              # Error codes
+      ├── observability/
+      │   ├── metrics/
+      │   │   ├── metrics.go        # Prometheus metrics
+      │   │   └── collector.go
+      │   ├── tracing/
+      │   │   ├── tracer.go         # OpenTelemetry tracing
+      │   │   └── span.go
+      │   └── README.md
+      ├── examples/
+      │   ├── cache_example.go
+      │   ├── messaging_example.go
+      │   ├── database_example.go
+      │   └── search_example.go
+      ├── go.mod
+      ├── go.sum
+      ├── README.md                 # Comprehensive documentation
+      ├── CHANGELOG.md
+      └── LICENSE
+      ```
+  - [ ] **Step 1.2: Define Core Interfaces**
+    - [ ] **Cache Interface**:
+      ```go
+      package cache
+      
+      type CacheHandler interface {
+          Get(ctx context.Context, key string) (string, error)
+          Set(ctx context.Context, key string, value string, ttl time.Duration) error
+          Delete(ctx context.Context, key string) error
+          Exists(ctx context.Context, key string) (bool, error)
+          Expire(ctx context.Context, key string, ttl time.Duration) error
+          GetWithTTL(ctx context.Context, key string) (string, time.Duration, error)
+          MGet(ctx context.Context, keys []string) (map[string]string, error)
+          MSet(ctx context.Context, items map[string]string, ttl time.Duration) error
+          Flush(ctx context.Context) error
+          Ping(ctx context.Context) error
+          Close() error
+      }
+      ```
+    - [ ] **Messaging Interface**:
+      ```go
+      package messaging
+      
+      type MessageHandler interface {
+          Publish(ctx context.Context, exchange, routingKey string, message []byte) error
+          PublishWithConfirm(ctx context.Context, exchange, routingKey string, message []byte) error
+          Consume(ctx context.Context, queue string, handler MessageCallback) error
+          DeclareQueue(ctx context.Context, config QueueConfig) error
+          DeclareExchange(ctx context.Context, config ExchangeConfig) error
+          BindQueue(ctx context.Context, queue, exchange, routingKey string) error
+          Ack(ctx context.Context, deliveryTag uint64) error
+          Nack(ctx context.Context, deliveryTag uint64, requeue bool) error
+          Close() error
+          HealthCheck(ctx context.Context) error
+      }
+      
+      type MessageCallback func(ctx context.Context, message Message) error
+      ```
+    - [ ] **Database Interface**:
+      ```go
+      package database
+      
+      type Database interface {
+          Query(ctx context.Context, query string, args ...interface{}) (Rows, error)
+          QueryRow(ctx context.Context, query string, args ...interface{}) Row
+          Exec(ctx context.Context, query string, args ...interface{}) (Result, error)
+          Begin(ctx context.Context) (Tx, error)
+          Ping(ctx context.Context) error
+          Close() error
+      }
+      ```
+    - [ ] **Search Interface**:
+      ```go
+      package search
+      
+      type SearchHandler interface {
+          Search(ctx context.Context, index string, query interface{}) (interface{}, error)
+          Index(ctx context.Context, index string, id string, document interface{}) error
+          BulkIndex(ctx context.Context, index string, documents []BulkDocument) error
+          Update(ctx context.Context, index string, id string, updates interface{}) error
+          Delete(ctx context.Context, index string, id string) error
+          CreateIndex(ctx context.Context, index string, mapping interface{}) error
+          DeleteIndex(ctx context.Context, index string) error
+      }
+      ```
+    - [ ] Define common error types for all packages
+  - [ ] **Step 1.3: Implement Adapters**
+    - [ ] **Cache Adapters**:
+      - [ ] Copy Redis implementation from monolith
+      - [ ] Create in-memory cache for testing
+      - [ ] Add connection pooling and health checks
+      - [ ] Add retry logic with exponential backoff
+    - [ ] **Messaging Adapters**:
+      - [ ] Copy RabbitMQ implementation from monolith
+      - [ ] Add connection pooling and reconnection logic
+      - [ ] Add publisher confirms and DLQ support
+    - [ ] **Database Adapters**:
+      - [ ] Copy PostgreSQL implementation from monolith
+      - [ ] Add connection pooling and migration utilities
+      - [ ] Add transaction management
+    - [ ] **Search Adapters**:
+      - [ ] Create Elasticsearch implementation
+      - [ ] Add index management utilities
+  - [ ] **Step 1.4: Create Mock Implementations**
+    - [ ] Generate mocks for all interfaces using `mockgen`
+    - [ ] Add helper methods for test assertions
+  - [ ] **Step 1.5: Testing and Documentation**
+    - [ ] Write comprehensive unit tests (>90% coverage)
+    - [ ] Write integration tests with real infrastructure (Testcontainers)
+    - [ ] Write performance benchmarks
+    - [ ] Create comprehensive README for each package
+    - [ ] Document patterns and best practices
+  - [ ] **Step 1.6: Versioning and Release**
+    - [ ] Tag v1.0.0 release
+    - [ ] Publish to GitHub with semantic versioning
+    - [ ] Create CHANGELOG.md
+  - [ ] **Deliverable**: Production-ready `hub-investments-common` library
+
+- [ ] **Phase 2: Migrate Existing Services** (Week 4-5)
+  - [ ] **Step 2.1: Migrate `hub-market-data-service`**
+    - [ ] Update `go.mod` to use `hub-investments-common`
+    - [ ] Replace direct Redis imports with `hub-investments-common/cache`
+    - [ ] Replace direct PostgreSQL imports with `hub-investments-common/database`
+    - [ ] Update `MarketDataCacheRepository` to use interfaces
+    - [ ] Run tests to verify no regressions
+    - [ ] Update documentation
+  - [ ] **Step 2.2: Migrate `HubInvestmentsServer` (Monolith)**
+    - [ ] Update `go.mod` to use `hub-investments-common`
+    - [ ] Replace `shared/infra/cache` with `hub-investments-common/cache`
+    - [ ] Replace `shared/infra/messaging` with `hub-investments-common/messaging`
+    - [ ] Replace `shared/infra/database` with `hub-investments-common/database`
+    - [ ] Update all repositories and workers
+    - [ ] Run comprehensive test suite
+    - [ ] Update documentation
+  - [ ] **Step 2.3: Migrate Future Microservices**
+    - [ ] `hub-user-service` (database + cache)
+    - [ ] `hub-order-service` (database + cache + messaging)
+    - [ ] `hub-portfolio-service` (database + cache + messaging)
+    - [ ] All other microservices
+  - [ ] **Deliverable**: All services using shared infrastructure library
+
+- [ ] **Phase 3: Advanced Features** (Week 6-8)
+  - [ ] **Cache Enhancements**
+    - [ ] Add distributed locking (Redis SETNX)
+    - [ ] Add cache warming utilities
+    - [ ] Add cache invalidation patterns
+    - [ ] Add cache statistics and monitoring
+    - [ ] Add support for DragonflyDB (Redis alternative)
+  - [ ] **Messaging Enhancements**
+    - [ ] Add Kafka adapter implementation
+    - [ ] Add message batching support
+    - [ ] Add message compression
+    - [ ] Add saga pattern utilities
+  - [ ] **Database Enhancements**
+    - [ ] Add query builder utilities
+    - [ ] Add advanced migration tools
+    - [ ] Add connection pool monitoring
+  - [ ] **Search Enhancements**
+    - [ ] Add query builder for Elasticsearch
+    - [ ] Add bulk operations optimization
+    - [ ] Add index aliasing support
+  - [ ] **Observability**
+    - [ ] Add Prometheus metrics for all packages
+    - [ ] Add OpenTelemetry tracing integration
+    - [ ] Add structured logging with context
+  - [ ] **Deliverable**: Production-grade infrastructure library
+
+### **Benefits of This Approach**
+
+**Technical Benefits:**
+- ✅ **Single Repository**: All infrastructure in one place (easier to maintain than 4+ repos)
+- ✅ **Loose Coupling**: Services depend on interfaces, not implementations
+- ✅ **Easy Testing**: Mock implementations for all infrastructure
+- ✅ **Easy Swapping**: Change Redis → DragonflyDB without touching services
+- ✅ **Consistent Patterns**: Standardized patterns across all infrastructure
+- ✅ **Reusability**: Write once, use everywhere
+- ✅ **Versioning**: Single semantic version for all infrastructure
+- ✅ **Bug Fixes**: Fix once, update all services via `go get -u`
+- ✅ **Atomic Updates**: Update cache + messaging + database together
+
+**Operational Benefits:**
+- ✅ **Faster Development**: New services bootstrap in minutes
+- ✅ **Easier Maintenance**: One repo to maintain instead of 4+
+- ✅ **Better Observability**: Standardized metrics and logging
+- ✅ **Easier Onboarding**: New developers learn one library
+- ✅ **Simplified Dependency Management**: One `go.mod` entry instead of 4+
+
+**Business Benefits:**
+- ✅ **Faster Time to Market**: Reusable infrastructure accelerates feature development
+- ✅ **Lower Risk**: Battle-tested libraries reduce production issues
+- ✅ **Cost Savings**: Avoid code duplication and maintenance overhead
+- ✅ **Reduced Complexity**: One library vs multiple repos
+
+### **Success Criteria**
+
+- [ ] **Code Quality**: >90% test coverage for all packages
+- [ ] **Performance**: <1ms overhead for cache, <5ms for messaging, <2ms for database
+- [ ] **Reliability**: 99.99% uptime for infrastructure clients
+- [ ] **Adoption**: All microservices using `hub-investments-common`
+- [ ] **Documentation**: Comprehensive README for each package with examples
+- [ ] **Versioning**: Semantic versioning with CHANGELOG
+
+### **Priority**: **CRITICAL** - Must be done before creating 3rd microservice
+
+### **Estimated Duration**: 8 weeks (3 weeks Phase 1, 2 weeks Phase 2, 3 weeks Phase 3)
+
+### **Team Requirements**: 1-2 senior engineers
+
+### **Dependencies**: None (can start immediately)
+
+### **Usage Example After Implementation**
+
+```go
+// hub-market-data-service/go.mod
+require (
+    github.com/RodriguesYan/hub-investments-common v1.0.0
+)
+
+// hub-market-data-service/cmd/server/main.go
+import (
+    "github.com/RodriguesYan/hub-investments-common/cache"
+    "github.com/RodriguesYan/hub-investments-common/cache/redis"
+    "github.com/RodriguesYan/hub-investments-common/database"
+    "github.com/RodriguesYan/hub-investments-common/database/postgres"
+)
+
+func main() {
+    // Initialize cache (Redis)
+    redisCache := redis.NewRedisCache(redis.Config{
+        Host: "localhost",
+        Port: 6379,
+    })
+    
+    // Initialize database (PostgreSQL)
+    db := postgres.NewPostgresDatabase(postgres.Config{
+        Host:     "localhost",
+        Port:     5432,
+        Database: "hub_market_data",
+    })
+    
+    // Use interfaces in your repositories
+    cacheRepo := NewMarketDataCacheRepository(
+        redisCache,  // cache.CacheHandler interface
+        db,          // database.Database interface
+    )
+}
+```
+
+---
+
 - [ ] **Redis Abstraction Module**: Create a shared Redis abstraction service/module for microservices
   - [ ] **Current State**: Monolith has Redis adapter (`shared/infra/cache/`) that decouples Redis from business logic
   - [ ] **Future Goal**: Extract Redis abstraction into a shared library or standalone caching microservice
