@@ -2494,16 +2494,19 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - [ ] Add authentication interceptor
   - [ ] **Deliverable**: gRPC service implementation
 
-- [ ] **Step 2.4: Implement HTTP REST API**
-  - [ ] Copy HTTP handlers from monolith
-  - [ ] Update routes and middleware
-  - [ ] **Deliverable**: REST API implementation
+- [x] ~~**Step 2.4: Implement HTTP REST API**~~ **NOT NEEDED**
+  - **Reason**: API Gateway handles HTTP → gRPC translation
+  - **Architecture**: Frontend → API Gateway (HTTP) → Market Data Service (gRPC)
+  - **Decision**: Microservices only expose gRPC; API Gateway handles all HTTP
 
-- [ ] **Step 2.5: Implement WebSocket Server**
-  - [ ] Copy WebSocket handlers and connection management
-  - [ ] Implement pub/sub for real-time quotes
-  - [ ] Add connection scaling and load balancing
-  - [ ] **Deliverable**: WebSocket server implementation
+- [ ] **Step 2.5: Implement gRPC Streaming for Real-Time Quotes**
+  - [ ] Add `StreamQuotes` RPC method to proto contract
+  - [ ] Implement gRPC bidirectional streaming server
+  - [ ] Integrate with Redis Pub/Sub for quote updates
+  - [ ] Add connection management and heartbeat
+  - [ ] **Architecture**: API Gateway (WebSocket) → Market Data Service (gRPC Stream)
+  - [ ] **Note**: WebSocket server lives in API Gateway, not microservice
+  - [ ] **Deliverable**: gRPC streaming implementation
 
 - [ ] **Step 2.6: Configuration Management**
   - [ ] Create config.yaml and config.env
