@@ -2499,25 +2499,28 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
   - **Architecture**: Frontend → API Gateway (HTTP) → Market Data Service (gRPC)
   - **Decision**: Microservices only expose gRPC; API Gateway handles all HTTP
 
-- [ ] **Step 2.5: Implement gRPC Streaming for Real-Time Quotes**
-  - [ ] Add `StreamQuotes` RPC method to proto contract
-  - [ ] Implement gRPC bidirectional streaming server
-  - [ ] Integrate with Redis Pub/Sub for quote updates
-  - [ ] Add connection management and heartbeat
-  - [ ] **Architecture**: API Gateway (WebSocket) → Market Data Service (gRPC Stream)
-  - [ ] **Note**: WebSocket server lives in API Gateway, not microservice
-  - [ ] **Deliverable**: gRPC streaming implementation
+- [x] **Step 2.5: Implement gRPC Streaming for Real-Time Quotes** ✅ **COMPLETED**
+  - [x] Add `StreamQuotes` RPC method to proto contract
+  - [x] Implement gRPC bidirectional streaming server
+  - [x] Integrate with existing PriceOscillationService (Redis Pub/Sub not needed)
+  - [x] Add connection management and heartbeat
+  - [x] **Architecture**: API Gateway (WebSocket) → Market Data Service (gRPC Stream)
+  - [x] **Note**: WebSocket server lives in API Gateway, not microservice
+  - [x] **Deliverable**: gRPC streaming implementation (`docs/STEP_2_5_GRPC_STREAMING_COMPLETE.md`)
 
-- [ ] **Step 2.6: Configuration Management**
-  - [ ] Create config.yaml and config.env
-  - [ ] Add database, Redis, gRPC, HTTP, WebSocket configurations
-  - [ ] **Deliverable**: Configuration management
+- [x] **Step 2.6: Configuration Management** ✅ **COMPLETED**
+  - [x] Create config.yaml and .env.example
+  - [x] Add database, Redis, gRPC configurations
+  - [x] Update docker-compose.yml with all environment variables
+  - [x] Update README.md with comprehensive configuration documentation
+  - [x] **Deliverable**: Configuration management (`docs/STEP_2_6_CONFIGURATION_COMPLETE.md`)
 
-- [ ] **Step 2.7: Database Setup**
-  - [ ] Create separate `hub_market_data_service` database
-  - [ ] Copy migration files
-  - [ ] Create data migration script from monolith
-  - [ ] **Deliverable**: Independent database
+- [x] **Step 2.7: Database Setup** ✅ **COMPLETED**
+  - [x] Create separate `hub_market_data_service` database
+  - [x] Create automated setup script (`scripts/setup_database.sh`)
+  - [x] Create data migration script from monolith (`scripts/migrate_data.sh`)
+  - [x] Integrate with Makefile (`make db-setup`, `make db-migrate`)
+  - [x] **Deliverable**: Independent database with automated setup (`docs/STEP_2_7_DATABASE_SETUP_COMPLETE.md`)
 
 ---
 
