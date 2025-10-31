@@ -23,7 +23,7 @@ type GetPositionAggregationUseCase struct {
 func NewGetPositionAggregationUseCase(repo repository.PositionRepository) *GetPositionAggregationUseCase {
 	// Create market data client for fetching current prices
 	mdClient, err := marketDataClient.NewMarketDataGRPCClient(marketDataClient.MarketDataGRPCClientConfig{
-		ServerAddress: "localhost:50060",
+		ServerAddress: "localhost:50054",
 		Timeout:       0, // Use default
 	})
 	if err != nil {

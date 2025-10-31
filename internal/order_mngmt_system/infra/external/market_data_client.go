@@ -89,7 +89,7 @@ func NewMarketDataClient(config MarketDataClientConfig) (IMarketDataClient, erro
 		config.Timeout = 30 * time.Second
 	}
 	if config.ServerAddress == "" {
-		config.ServerAddress = "localhost:50051"
+		config.ServerAddress = "localhost:50054"
 	}
 
 	// Create the underlying gRPC client
@@ -112,7 +112,7 @@ func NewMarketDataClient(config MarketDataClientConfig) (IMarketDataClient, erro
 // NewMarketDataClientWithDefaults creates a client with default configuration
 func NewMarketDataClientWithDefaults() (IMarketDataClient, error) {
 	return NewMarketDataClient(MarketDataClientConfig{
-		ServerAddress: "localhost:50051",
+		ServerAddress: "localhost:50054",
 		Timeout:       30 * time.Second,
 	})
 }
