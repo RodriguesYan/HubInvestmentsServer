@@ -1,0 +1,5 @@
+// This directory contains backup files and should not be built
+//go:build ignore
+
+package backups
+

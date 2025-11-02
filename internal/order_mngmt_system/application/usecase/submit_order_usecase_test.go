@@ -74,11 +74,12 @@ func (m *MockOrderRepository) Delete(ctx context.Context, orderID string) error 
 
 // MockMarketDataClient implements IMarketDataClient for testing
 type MockMarketDataClient struct {
-	ValidateSymbolFunc  func(ctx context.Context, symbol string) (bool, error)
-	GetCurrentPriceFunc func(ctx context.Context, symbol string) (float64, error)
-	GetAssetDetailsFunc func(ctx context.Context, symbol string) (*external.AssetDetails, error)
-	GetTradingHoursFunc func(ctx context.Context, symbol string) (*external.TradingHours, error)
-	IsMarketOpenFunc    func(ctx context.Context, symbol string) (bool, error)
+	ValidateSymbolFunc     func(ctx context.Context, symbol string) (bool, error)
+	GetCurrentPriceFunc    func(ctx context.Context, symbol string) (float64, error)
+	GetAssetDetailsFunc    func(ctx context.Context, symbol string) (*external.AssetDetails, error)
+	GetTradingHoursFunc    func(ctx context.Context, symbol string) (*external.TradingHours, error)
+	IsMarketOpenFunc       func(ctx context.Context, symbol string) (bool, error)
+	GetBatchMarketDataFunc func(ctx context.Context, symbols []string) ([]external.MarketDataResponse, error)
 }
 
 func (m *MockMarketDataClient) ValidateSymbol(ctx context.Context, symbol string) (bool, error) {
@@ -133,6 +134,23 @@ func (m *MockMarketDataClient) IsMarketOpen(ctx context.Context, symbol string) 
 		return m.IsMarketOpenFunc(ctx, symbol)
 	}
 	return true, nil
+}
+
+func (m *MockMarketDataClient) GetBatchMarketData(ctx context.Context, symbols []string) ([]external.MarketDataResponse, error) {
+	if m.GetBatchMarketDataFunc != nil {
+		return m.GetBatchMarketDataFunc(ctx, symbols)
+	}
+	// Return default mock data
+	result := make([]external.MarketDataResponse, len(symbols))
+	for i, symbol := range symbols {
+		result[i] = external.MarketDataResponse{
+			Symbol:      symbol,
+			CompanyName: "Test Company",
+			LastQuote:   150.50,
+			Category:    "0",
+		}
+	}
+	return result, nil
 }
 
 func (m *MockMarketDataClient) Close() error {
