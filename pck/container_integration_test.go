@@ -77,7 +77,6 @@ func TestContainer_AllServicesAvailable(t *testing.T) {
 	assert.NotNil(t, container.GetPositionAggregationUseCase(), "PositionAggregationUseCase should be available")
 	assert.NotNil(t, container.GetBalanceUseCase(), "BalanceUseCase should be available")
 	assert.NotNil(t, container.GetPortfolioSummaryUsecase(), "PortfolioSummaryUsecase should be available")
-	assert.NotNil(t, container.GetMarketDataUsecase(), "MarketDataUsecase should be available")
 	assert.NotNil(t, container.GetWatchlistUsecase(), "WatchlistUsecase should be available")
 	assert.NotNil(t, container.DoLoginUsecase(), "LoginUsecase should be available")
 

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	marketDataModel "HubInvestments/internal/market_data/domain/model"
-	"HubInvestments/internal/market_data/presentation/grpc/client"
+	"github.com/RodriguesYan/hub-proto-contracts/monolith"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // IMarketDataClient defines the interface needed by order management domain services
@@ -28,8 +29,19 @@ type IMarketDataClient interface {
 	// In future, we need to create a service only for handling trading hours
 	GetTradingHours(ctx context.Context, symbol string) (*TradingHours, error)
 
+	// GetBatchMarketData retrieves market data for multiple symbols
+	GetBatchMarketData(ctx context.Context, symbols []string) ([]MarketDataResponse, error)
+
 	// Close closes the underlying connections
 	Close() error
+}
+
+// MarketDataResponse represents a simplified market data response
+type MarketDataResponse struct {
+	Symbol      string
+	CompanyName string
+	LastQuote   float64
+	Category    string
 }
 
 // AssetDetails represents detailed information about a tradeable asset
@@ -70,9 +82,10 @@ type TradingHours struct {
 	PostMarketClose time.Time
 }
 
-// MarketDataClient wraps the existing gRPC client and adapts it for order management needs
+// MarketDataClient wraps the gRPC client and adapts it for order management needs
 type MarketDataClient struct {
-	grpcClient client.IMarketDataGRPCClient
+	conn       *grpc.ClientConn
+	grpcClient monolith.MarketDataServiceClient
 	timeout    time.Duration
 }
 
@@ -82,7 +95,7 @@ type MarketDataClientConfig struct {
 	Timeout       time.Duration
 }
 
-// NewMarketDataClient creates a new market data client using the existing gRPC infrastructure
+// NewMarketDataClient creates a new market data client using the gRPC infrastructure
 func NewMarketDataClient(config MarketDataClientConfig) (IMarketDataClient, error) {
 	// Set defaults
 	if config.Timeout == 0 {
@@ -92,18 +105,21 @@ func NewMarketDataClient(config MarketDataClientConfig) (IMarketDataClient, erro
 		config.ServerAddress = "localhost:50054"
 	}
 
-	// Create the underlying gRPC client
-	grpcConfig := client.MarketDataGRPCClientConfig{
-		ServerAddress: config.ServerAddress,
-		Timeout:       config.Timeout,
+	// Create gRPC connection
+	conn, err := grpc.Dial(
+		config.ServerAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+		grpc.WithTimeout(config.Timeout),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to market data service: %w", err)
 	}
 
-	grpcClient, err := client.NewMarketDataGRPCClient(grpcConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC client: %w", err)
-	}
+	grpcClient := monolith.NewMarketDataServiceClient(conn)
 
 	return &MarketDataClient{
+		conn:       conn,
 		grpcClient: grpcClient,
 		timeout:    config.Timeout,
 	}, nil
@@ -117,6 +133,14 @@ func NewMarketDataClientWithDefaults() (IMarketDataClient, error) {
 	})
 }
 
+// Close closes the gRPC connection
+func (c *MarketDataClient) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
 // GetAssetDetails retrieves detailed information about an asset
 func (c *MarketDataClient) GetAssetDetails(ctx context.Context, symbol string) (*AssetDetails, error) {
 	// Create context with timeout
@@ -124,26 +148,27 @@ func (c *MarketDataClient) GetAssetDetails(ctx context.Context, symbol string) (
 	defer cancel()
 
 	// Get market data via gRPC
-	marketData, err := c.grpcClient.GetMarketData(ctx, []string{symbol})
+	req := &monolith.GetMarketDataRequest{Symbol: symbol}
+	resp, err := c.grpcClient.GetMarketData(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get market data for symbol %s: %w", symbol, err)
 	}
 
-	if len(marketData) == 0 {
+	if resp.MarketData == nil {
 		return nil, fmt.Errorf("no data found for symbol %s", symbol)
 	}
 
 	// Convert to AssetDetails
-	data := marketData[0]
+	data := resp.MarketData
 	assetDetails := &AssetDetails{
 		Symbol:       data.Symbol,
-		Name:         data.Name,
-		Category:     mapCategoryFromMarketData(data.Category),
-		LastQuote:    float64(data.LastQuote),
+		Name:         data.CompanyName,
+		Category:     mapCategoryFromMarketData(int(data.Category)),
+		LastQuote:    data.CurrentPrice,
 		IsActive:     true, // Assume active if we got data
 		IsTradeable:  c.isSymbolTradeable(data),
-		MaxOrderSize: c.getMaxOrderSize(data.Category),
-		PriceStep:    c.getPriceStep(data.Category),
+		MaxOrderSize: c.getMaxOrderSize(int(data.Category)),
+		PriceStep:    c.getPriceStep(int(data.Category)),
 		LastUpdated:  time.Now(),
 	}
 
@@ -170,6 +195,35 @@ func (c *MarketDataClient) GetCurrentPrice(ctx context.Context, symbol string) (
 	}
 
 	return assetDetails.LastQuote, nil
+}
+
+// GetBatchMarketData retrieves market data for multiple symbols
+func (c *MarketDataClient) GetBatchMarketData(ctx context.Context, symbols []string) ([]MarketDataResponse, error) {
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+
+	// Get batch market data via gRPC
+	req := &monolith.GetBatchMarketDataRequest{Symbols: symbols}
+	resp, err := c.grpcClient.GetBatchMarketData(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batch market data: %w", err)
+	}
+
+	// Convert to MarketDataResponse
+	result := make([]MarketDataResponse, 0, len(resp.MarketData))
+	for _, data := range resp.MarketData {
+		// Convert category int32 to string representation
+		categoryStr := fmt.Sprintf("%d", data.Category)
+		result = append(result, MarketDataResponse{
+			Symbol:      data.Symbol,
+			CompanyName: data.CompanyName,
+			LastQuote:   data.CurrentPrice,
+			Category:    categoryStr,
+		})
+	}
+
+	return result, nil
 }
 
 // IsMarketOpen checks if the market is currently open for trading
@@ -230,14 +284,6 @@ func (c *MarketDataClient) GetTradingHours(ctx context.Context, symbol string) (
 	return tradingHours, nil
 }
 
-// Close closes the underlying gRPC connection
-func (c *MarketDataClient) Close() error {
-	if c.grpcClient != nil {
-		return c.grpcClient.Close()
-	}
-	return nil
-}
-
 // Helper methods
 
 func mapCategoryFromMarketData(category int) AssetCategory {
@@ -259,9 +305,9 @@ func mapCategoryFromMarketData(category int) AssetCategory {
 	}
 }
 
-func (c *MarketDataClient) isSymbolTradeable(data marketDataModel.MarketDataModel) bool {
+func (c *MarketDataClient) isSymbolTradeable(data *monolith.MarketData) bool {
 	// Basic tradeability check - in production you'd have more sophisticated rules
-	return data.LastQuote > 0 && data.Symbol != ""
+	return data.CurrentPrice > 0 && data.Symbol != ""
 }
 
 func (c *MarketDataClient) getMaxOrderSize(category int) float64 {

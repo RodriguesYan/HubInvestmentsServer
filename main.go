@@ -17,12 +17,9 @@ import (
 	"HubInvestments/internal/auth/token"
 	balanceHandler "HubInvestments/internal/balance/presentation/http"
 	doLoginHandler "HubInvestments/internal/login/presentation/http"
-	adminHandler "HubInvestments/internal/market_data/presentation/http"
-	marketDataHandler "HubInvestments/internal/market_data/presentation/http"
 	orderHandler "HubInvestments/internal/order_mngmt_system/presentation/http"
 	portfolioSummaryHandler "HubInvestments/internal/portfolio_summary/presentation/http"
 	positionHandler "HubInvestments/internal/position/presentation/http"
-	_ "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistHandler "HubInvestments/internal/watchlist/presentation/http"
 	di "HubInvestments/pck"
 	"HubInvestments/shared/config"
@@ -69,7 +66,6 @@ func main() {
 	http.HandleFunc("/getAucAggregation", positionHandler.GetAucAggregationWithAuth(verifyToken, container))
 	http.HandleFunc("/getBalance", balanceHandler.GetBalanceWithAuth(verifyToken, container))
 	http.HandleFunc("/getPortfolioSummary", portfolioSummaryHandler.GetPortfolioSummaryWithAuth(verifyToken, container))
-	http.HandleFunc("/getMarketData", marketDataHandler.GetMarketDataWithAuth(verifyToken, container))
 	http.HandleFunc("/getWatchlist", watchlistHandler.GetWatchlistWithAuth(verifyToken, container))
 
 	// Order Management Routes
@@ -85,30 +81,6 @@ func main() {
 		}
 	})
 	http.HandleFunc("/orders/history", orderHandler.GetOrderHistoryWithAuth(verifyToken, container))
-
-	// Admin Routes for Cache Management
-	http.HandleFunc("/admin/market-data/cache/invalidate", adminHandler.AdminInvalidateCacheWithAuth(verifyToken, container))
-	http.HandleFunc("/admin/market-data/cache/warm", adminHandler.AdminWarmCacheWithAuth(verifyToken, container))
-
-	// Realtime Quotes Routes
-	http.HandleFunc("/quotes", func(w http.ResponseWriter, r *http.Request) {
-		quotesHandler := container.GetQuotesHandler()
-		quotesHandler.GetAllQuotes(w, r)
-	})
-	http.HandleFunc("/quotes/stocks", func(w http.ResponseWriter, r *http.Request) {
-		quotesHandler := container.GetQuotesHandler()
-		quotesHandler.GetStocks(w, r)
-	})
-	http.HandleFunc("/quotes/etfs", func(w http.ResponseWriter, r *http.Request) {
-		quotesHandler := container.GetQuotesHandler()
-		quotesHandler.GetETFs(w, r)
-	})
-
-	// WebSocket Routes for Realtime Quotes
-	http.HandleFunc("/ws/quotes", func(w http.ResponseWriter, r *http.Request) {
-		wsHandler := container.GetRealtimeQuotesWebSocketHandler()
-		wsHandler.HandleConnection(w, r)
-	})
 
 	// Swagger documentation route
 	http.HandleFunc("/swagger/", httpSwagger.WrapHandler)

@@ -4,7 +4,6 @@ import (
 	"HubInvestments/internal/auth"
 	balUsecase "HubInvestments/internal/balance/application/usecase"
 	doLoginUsecase "HubInvestments/internal/login/application/usecase"
-	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	orderMktClient "HubInvestments/internal/order_mngmt_system/infra/external"
 	orderRabbitMQ "HubInvestments/internal/order_mngmt_system/infra/messaging/rabbitmq"
@@ -12,10 +11,6 @@ import (
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionWorker "HubInvestments/internal/position/infra/worker"
-	quotesService "HubInvestments/internal/realtime_quotes/application/service"
-	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
-	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
-	quotesHttp "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	"HubInvestments/shared/infra/messaging"
 	"HubInvestments/shared/infra/websocket"
@@ -31,7 +26,6 @@ type TestContainer struct {
 	closePositionUseCase       posUsecase.IClosePositionUseCase
 	getBalanceUsecase          *balUsecase.GetBalanceUseCase
 	getPortfolioSummary        portfolioUsecase.PortfolioSummaryUsecase
-	getMarketDataUsecase       mktUsecase.IGetMarketDataUsecase
 	getWatchlistUsecase        watchlistUsecase.IGetWatchlistUsecase
 	loginUsecase               doLoginUsecase.IDoLoginUsecase
 }
@@ -89,12 +83,6 @@ func (c *TestContainer) WithPortfolioSummaryUsecase(usecase portfolioUsecase.Por
 	return c
 }
 
-// WithMarketDataUsecase sets the MarketDataUsecase for testing
-func (c *TestContainer) WithMarketDataUsecase(usecase mktUsecase.IGetMarketDataUsecase) *TestContainer {
-	c.getMarketDataUsecase = usecase
-	return c
-}
-
 func (c *TestContainer) WithWatchlistUsecase(usecase watchlistUsecase.IGetWatchlistUsecase) *TestContainer {
 	c.getWatchlistUsecase = usecase
 	return c
@@ -133,28 +121,12 @@ func (c *TestContainer) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 	return c.getPortfolioSummary
 }
 
-func (c *TestContainer) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
-	return c.getMarketDataUsecase
-}
-
 func (c *TestContainer) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase {
-	// No-op implementation for testing
 	return c.getWatchlistUsecase
 }
 
 func (c *TestContainer) DoLoginUsecase() doLoginUsecase.IDoLoginUsecase {
 	return c.loginUsecase
-}
-
-// Cache management methods for testing (no-op implementations)
-func (c *TestContainer) InvalidateMarketDataCache(symbols []string) error {
-	// No-op implementation for testing
-	return nil
-}
-
-func (c *TestContainer) WarmMarketDataCache(symbols []string) error {
-	// No-op implementation for testing
-	return nil
 }
 
 // GetMessageHandler returns nil for testing (no messaging needed in tests)
@@ -198,23 +170,6 @@ func (c *TestContainer) GetOrderWorkerManager() *orderWorker.WorkerManager {
 }
 
 func (c *TestContainer) GetPositionWorkerManager() *positionWorker.PositionUpdateWorker {
-	return nil
-}
-
-// Realtime Quotes System methods - no-op implementations for testing
-func (c *TestContainer) GetAssetDataService() *quotesAssetService.AssetDataService {
-	return nil
-}
-
-func (c *TestContainer) GetPriceOscillationService() *quotesService.PriceOscillationService {
-	return nil
-}
-
-func (c *TestContainer) GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler {
-	return nil
-}
-
-func (c *TestContainer) GetQuotesHandler() *quotesHttp.QuotesHandler {
 	return nil
 }
 

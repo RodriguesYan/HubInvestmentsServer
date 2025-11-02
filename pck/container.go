@@ -12,9 +12,6 @@ import (
 	balancePersistence "HubInvestments/internal/balance/infra/persistence"
 	doLoginUsecase "HubInvestments/internal/login/application/usecase"
 	loginPersistence "HubInvestments/internal/login/infra/persistense"
-	mktUsecase "HubInvestments/internal/market_data/application/usecase"
-	mktCache "HubInvestments/internal/market_data/infra/cache"
-	mktPersistence "HubInvestments/internal/market_data/infra/persistence"
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	orderRepository "HubInvestments/internal/order_mngmt_system/domain/repository"
 	orderService "HubInvestments/internal/order_mngmt_system/domain/service"
@@ -28,10 +25,6 @@ import (
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionPersistence "HubInvestments/internal/position/infra/persistence"
 	positionWorker "HubInvestments/internal/position/infra/worker"
-	quotesService "HubInvestments/internal/realtime_quotes/application/service"
-	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
-	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
-	quotesHttp "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	watchPersistence "HubInvestments/internal/watchlist/infra/persistence"
 	"HubInvestments/shared/infra/cache"
@@ -51,7 +44,6 @@ type Container interface {
 	GetClosePositionUseCase() posUsecase.IClosePositionUseCase
 	GetBalanceUseCase() *balUsecase.GetBalanceUseCase
 	GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase
-	GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase
 	GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase
 
 	// Order Management System - Market Data Integration
@@ -70,21 +62,11 @@ type Container interface {
 	// Position Management System - Infrastructure
 	GetPositionWorkerManager() *positionWorker.PositionUpdateWorker
 
-	// Cache management methods for admin operations
-	InvalidateMarketDataCache(symbols []string) error
-	WarmMarketDataCache(symbols []string) error
-
 	// Messaging infrastructure
 	GetMessageHandler() messaging.MessageHandler
 
 	// WebSocket infrastructure
 	GetWebSocketManager() websocket.WebSocketManager
-
-	// Realtime Quotes System
-	GetAssetDataService() *quotesAssetService.AssetDataService
-	GetPriceOscillationService() *quotesService.PriceOscillationService
-	GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler
-	GetQuotesHandler() *quotesHttp.QuotesHandler
 
 	// Lifecycle management
 	Close() error
@@ -98,8 +80,6 @@ type containerImpl struct {
 	ClosePositionUseCase       posUsecase.IClosePositionUseCase
 	BalanceUsecase             *balUsecase.GetBalanceUseCase
 	PortfolioSummaryUsecase    portfolioUsecase.PortfolioSummaryUsecase
-	MarketDataUsecase          mktUsecase.IGetMarketDataUsecase
-	MarketDataCacheManager     mktCache.CacheManager
 	WatchlistUsecase           watchlistUsecase.IGetWatchlistUsecase
 	LoginUsecase               doLoginUsecase.IDoLoginUsecase
 
@@ -129,12 +109,6 @@ type containerImpl struct {
 
 	// Position Management System - Infrastructure
 	PositionWorkerManager *positionWorker.PositionUpdateWorker
-
-	// Realtime Quotes System
-	AssetDataService               *quotesAssetService.AssetDataService
-	PriceOscillationService        *quotesService.PriceOscillationService
-	RealtimeQuotesWebSocketHandler *quotesWebSocket.RealtimeQuotesWebSocketHandler
-	QuotesHandler                  *quotesHttp.QuotesHandler
 }
 
 func (c *containerImpl) GetAuthService() auth.IAuthService {
@@ -165,21 +139,8 @@ func (c *containerImpl) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioS
 	return c.PortfolioSummaryUsecase
 }
 
-func (c *containerImpl) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase {
-	return c.MarketDataUsecase
-}
-
 func (c *containerImpl) DoLoginUsecase() doLoginUsecase.IDoLoginUsecase {
 	return c.LoginUsecase
-}
-
-// Cache management methods implementation
-func (c *containerImpl) InvalidateMarketDataCache(symbols []string) error {
-	return c.MarketDataCacheManager.InvalidateCache(symbols)
-}
-
-func (c *containerImpl) WarmMarketDataCache(symbols []string) error {
-	return c.MarketDataCacheManager.WarmCache(symbols)
 }
 
 func (c *containerImpl) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase {
@@ -226,30 +187,9 @@ func (c *containerImpl) GetPositionWorkerManager() *positionWorker.PositionUpdat
 	return c.PositionWorkerManager
 }
 
-func (c *containerImpl) GetAssetDataService() *quotesAssetService.AssetDataService {
-	return c.AssetDataService
-}
-
-func (c *containerImpl) GetPriceOscillationService() *quotesService.PriceOscillationService {
-	return c.PriceOscillationService
-}
-
-func (c *containerImpl) GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler {
-	return c.RealtimeQuotesWebSocketHandler
-}
-
-func (c *containerImpl) GetQuotesHandler() *quotesHttp.QuotesHandler {
-	return c.QuotesHandler
-}
-
 // Close gracefully shuts down all resources managed by the container
 func (c *containerImpl) Close() error {
 	var errors []error
-
-	// Stop price oscillation service first
-	if c.PriceOscillationService != nil {
-		c.PriceOscillationService.Stop()
-	}
 
 	// Stop worker manager first to gracefully shutdown workers
 	if c.OrderWorkerManager != nil {
@@ -334,37 +274,6 @@ func NewContainer() (Container, error) {
 	balanceUsecase := balUsecase.NewGetBalanceUseCase(balanceRepo)
 	portfolioSummaryUseCase := portfolioUsecase.NewGetPortfolioSummaryUsecase(*positionAggregationUseCase, *balanceUsecase)
 
-	//====== Market data begin============
-	marketDataDbRepo := mktPersistence.NewMarketDataRepository(db)
-
-	// Read Redis configuration from environment variables
-	redisHost := getEnvWithDefault("REDIS_HOST", "localhost")
-	redisPort := getEnvWithDefault("REDIS_PORT", "6379")
-	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	redisDB, _ := strconv.Atoi(getEnvWithDefault("REDIS_DB", "0"))
-
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-		DB:       redisDB,
-	})
-	cacheHandler := cache.NewRedisCacheHandler(redisClient)
-
-	// Step 3: Wrap database repository with cache-aside pattern
-	marketDataRepo := mktCache.NewMarketDataCacheRepository(
-		marketDataDbRepo, // Database repository
-		cacheHandler,     // Your cache handler
-		5*time.Minute,    // TTL for cached data
-	)
-
-	// Step 4: Create use case with cached repository
-	marketDataUsecase := mktUsecase.NewGetMarketDataUseCase(marketDataRepo)
-
-	// Step 5: Extract cache manager for admin operations
-	cacheManager := mktCache.GetCacheManager(marketDataRepo)
-	//====== Market data end============
-
 	//====== Messaging Infrastructure begin============
 	// Create RabbitMQ message handler with environment-based configuration
 	messageHandlerConfig := messaging.NewMessageHandlerConfigFromEnv()
@@ -412,6 +321,20 @@ func NewContainer() (Container, error) {
 	//====== Order Management System Use Cases begin============
 	// Create order repository with database connection
 	orderRepo := orderPersistence.NewOrderRepository(db)
+
+	// Create Redis client for idempotency
+	redisHost := getEnvWithDefault("REDIS_HOST", "localhost")
+	redisPort := getEnvWithDefault("REDIS_PORT", "6379")
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisDB, _ := strconv.Atoi(getEnvWithDefault("REDIS_DB", "0"))
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       redisDB,
+	})
+	cacheHandler := cache.NewRedisCacheHandler(redisClient)
 
 	// Create idempotency service with Redis repository
 	idempotencyRepo := orderIdempotency.NewRedisIdempotencyRepository(cacheHandler)
@@ -488,59 +411,32 @@ func NewContainer() (Container, error) {
 	}
 	//====== Position Management Infrastructure end============
 
-	//====== Realtime Quotes System begin============
-	// Create asset data service with predefined stocks and ETFs
-	assetDataService := quotesAssetService.NewAssetDataService()
-
-	// Create price oscillation service
-	priceOscillationService := quotesService.NewPriceOscillationService(assetDataService)
-
-	// Start price oscillation in background
-	priceOscillationService.Start()
-
-	// Create WebSocket handler for realtime quotes with same auth service as HTTP handlers
-	realtimeQuotesWebSocketHandler := quotesWebSocket.NewRealtimeQuotesWebSocketHandler(
-		webSocketManager,
-		priceOscillationService,
-		authService,
-	)
-
-	// Create HTTP handler for quotes API
-	quotesHandler := quotesHttp.NewQuotesHandler(assetDataService)
-	//====== Realtime Quotes System end============
-
 	watchRepo := watchPersistence.NewWatchlistRepository(db)
-	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, marketDataUsecase)
+	watchlistUsecase := watchlistUsecase.NewGetWatchlistUsecase(watchRepo, orderMarketDataClient)
 
 	return &containerImpl{
-		PositionAggregationUseCase:     positionAggregationUseCase,
-		CreatePositionUseCase:          createPositionUseCase,
-		UpdatePositionUseCase:          updatePositionUseCase,
-		ClosePositionUseCase:           closePositionUseCase,
-		BalanceUsecase:                 balanceUsecase,
-		PortfolioSummaryUsecase:        portfolioSummaryUseCase,
-		MarketDataUsecase:              marketDataUsecase,
-		MarketDataCacheManager:         cacheManager,
-		WatchlistUsecase:               watchlistUsecase,
-		LoginUsecase:                   loginUsecase,
-		AuthService:                    authService,
-		MessageHandler:                 messageHandler,
-		WebSocketManager:               webSocketManager,
-		OrderMarketDataClient:          orderMarketDataClient,
-		OrderRepository:                orderRepo,
-		SubmitOrderUseCase:             submitOrderUseCase,
-		GetOrderStatusUseCase:          getOrderStatusUseCase,
-		CancelOrderUseCase:             cancelOrderUseCase,
-		ProcessOrderUseCase:            processOrderUseCase,
-		OrderProducer:                  orderProducer,
-		OrderEventPublisher:            orderEventPublisher,
-		OrderWorkerManager:             orderWorkerManager,
-		IdempotencyService:             idempotencyService,
-		PositionWorkerManager:          positionWorkerManager,
-		AssetDataService:               assetDataService,
-		PriceOscillationService:        priceOscillationService,
-		RealtimeQuotesWebSocketHandler: realtimeQuotesWebSocketHandler,
-		QuotesHandler:                  quotesHandler,
+		PositionAggregationUseCase: positionAggregationUseCase,
+		CreatePositionUseCase:      createPositionUseCase,
+		UpdatePositionUseCase:      updatePositionUseCase,
+		ClosePositionUseCase:       closePositionUseCase,
+		BalanceUsecase:             balanceUsecase,
+		PortfolioSummaryUsecase:    portfolioSummaryUseCase,
+		WatchlistUsecase:           watchlistUsecase,
+		LoginUsecase:               loginUsecase,
+		AuthService:                authService,
+		MessageHandler:             messageHandler,
+		WebSocketManager:           webSocketManager,
+		OrderMarketDataClient:      orderMarketDataClient,
+		OrderRepository:            orderRepo,
+		SubmitOrderUseCase:         submitOrderUseCase,
+		GetOrderStatusUseCase:      getOrderStatusUseCase,
+		CancelOrderUseCase:         cancelOrderUseCase,
+		ProcessOrderUseCase:        processOrderUseCase,
+		OrderProducer:              orderProducer,
+		OrderEventPublisher:        orderEventPublisher,
+		OrderWorkerManager:         orderWorkerManager,
+		IdempotencyService:         idempotencyService,
+		PositionWorkerManager:      positionWorkerManager,
 	}, nil
 }
 

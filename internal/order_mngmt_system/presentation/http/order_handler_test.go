@@ -14,7 +14,6 @@ import (
 	"HubInvestments/internal/auth"
 	balUsecase "HubInvestments/internal/balance/application/usecase"
 	doLoginUsecase "HubInvestments/internal/login/application/usecase"
-	mktUsecase "HubInvestments/internal/market_data/application/usecase"
 	"HubInvestments/internal/order_mngmt_system/application/command"
 	orderUsecase "HubInvestments/internal/order_mngmt_system/application/usecase"
 	domain "HubInvestments/internal/order_mngmt_system/domain/model"
@@ -24,10 +23,6 @@ import (
 	portfolioUsecase "HubInvestments/internal/portfolio_summary/application/usecase"
 	posUsecase "HubInvestments/internal/position/application/usecase"
 	positionWorker "HubInvestments/internal/position/infra/worker"
-	quotesService "HubInvestments/internal/realtime_quotes/application/service"
-	quotesAssetService "HubInvestments/internal/realtime_quotes/domain/service"
-	quotesWebSocket "HubInvestments/internal/realtime_quotes/infra/websocket"
-	quotesHttp "HubInvestments/internal/realtime_quotes/presentation/http"
 	watchlistUsecase "HubInvestments/internal/watchlist/application/usecase"
 	"HubInvestments/shared/infra/messaging"
 	"HubInvestments/shared/infra/websocket"
@@ -49,31 +44,10 @@ func (m *MockContainer) GetBalanceUseCase() *balUsecase.GetBalanceUseCase { retu
 func (m *MockContainer) GetPortfolioSummaryUsecase() portfolioUsecase.PortfolioSummaryUsecase {
 	return nil
 }
-func (m *MockContainer) GetMarketDataUsecase() mktUsecase.IGetMarketDataUsecase     { return nil }
 func (m *MockContainer) GetWatchlistUsecase() watchlistUsecase.IGetWatchlistUsecase { return nil }
 func (m *MockContainer) GetOrderMarketDataClient() orderMktClient.IMarketDataClient { return nil }
-func (m *MockContainer) InvalidateMarketDataCache(symbols []string) error           { return nil }
-func (m *MockContainer) WarmMarketDataCache(symbols []string) error                 { return nil }
 func (m *MockContainer) GetMessageHandler() messaging.MessageHandler                { return nil }
-
-// Realtime Quotes System methods - no-op implementations for testing
-func (m *MockContainer) GetAssetDataService() *quotesAssetService.AssetDataService {
-	return nil
-}
-
-func (m *MockContainer) GetPriceOscillationService() *quotesService.PriceOscillationService {
-	return nil
-}
-
-func (m *MockContainer) GetRealtimeQuotesWebSocketHandler() *quotesWebSocket.RealtimeQuotesWebSocketHandler {
-	return nil
-}
-
-func (m *MockContainer) GetQuotesHandler() *quotesHttp.QuotesHandler {
-	return nil
-}
-
-func (m *MockContainer) Close() error { return nil }
+func (m *MockContainer) Close() error                                               { return nil }
 
 func (m *MockContainer) GetSubmitOrderUseCase() orderUsecase.ISubmitOrderUseCase {
 	return &m.submitOrderUseCase

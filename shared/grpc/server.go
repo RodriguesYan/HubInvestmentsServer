@@ -6,7 +6,6 @@ import (
 	"net"
 
 	balanceGrpc "HubInvestments/internal/balance/presentation/grpc"
-	marketDataGrpc "HubInvestments/internal/market_data/presentation/grpc"
 	orderGrpc "HubInvestments/internal/order_mngmt_system/presentation/grpc"
 	portfolioGrpc "HubInvestments/internal/portfolio_summary/presentation/grpc"
 	positionGrpc "HubInvestments/internal/position/presentation/grpc"
@@ -40,13 +39,11 @@ func NewGRPCServer(container di.Container, port string) (*grpc.Server, net.Liste
 	// Register new feature-based handlers
 	portfolioHandler := portfolioGrpc.NewPortfolioGRPCHandler(container)
 	balanceHandler := balanceGrpc.NewBalanceGRPCHandler(container)
-	marketDataHandler := marketDataGrpc.NewMarketDataGRPCHandler(container)
 	orderHandler := orderGrpc.NewOrderGRPCHandler(container)
 	positionHandler := positionGrpc.NewPositionGRPCHandler(container)
 
 	monolithpb.RegisterPortfolioServiceServer(server, portfolioHandler)
 	monolithpb.RegisterBalanceServiceServer(server, balanceHandler)
-	monolithpb.RegisterMarketDataServiceServer(server, marketDataHandler)
 	monolithpb.RegisterOrderServiceServer(server, orderHandler)
 	monolithpb.RegisterPositionServiceServer(server, positionHandler)
 

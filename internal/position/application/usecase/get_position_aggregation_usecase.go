@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	marketDataClient "HubInvestments/internal/market_data/presentation/grpc/client"
 	domain "HubInvestments/internal/position/domain/model"
 	repository "HubInvestments/internal/position/domain/repository"
 	service "HubInvestments/internal/position/domain/service"
@@ -11,30 +10,44 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/RodriguesYan/hub-proto-contracts/monolith"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GetPositionAggregationUseCase struct {
 	repo               repository.PositionRepository
 	aggregationService service.PositionAggregationService
-	marketDataClient   marketDataClient.IMarketDataGRPCClient
+	marketDataClient   monolith.MarketDataServiceClient
+	grpcConn           *grpc.ClientConn
 }
 
 func NewGetPositionAggregationUseCase(repo repository.PositionRepository) *GetPositionAggregationUseCase {
-	// Create market data client for fetching current prices
-	mdClient, err := marketDataClient.NewMarketDataGRPCClient(marketDataClient.MarketDataGRPCClientConfig{
-		ServerAddress: "localhost:50054",
-		Timeout:       0, // Use default
-	})
+	// Create market data gRPC client
+	conn, err := grpc.Dial(
+		"localhost:50054",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+		grpc.WithTimeout(5*time.Second),
+	)
 	if err != nil {
-		log.Printf("Warning: Failed to create market data client: %v. Positions will show 0 for current prices.", err)
-		mdClient = nil
+		log.Printf("Warning: Failed to connect to market data service: %v. Positions will show 0 for current prices.", err)
+		return &GetPositionAggregationUseCase{
+			repo:               repo,
+			aggregationService: service.NewPositionAggregationService(),
+			marketDataClient:   nil,
+			grpcConn:           nil,
+		}
 	}
+
+	mdClient := monolith.NewMarketDataServiceClient(conn)
 
 	return &GetPositionAggregationUseCase{
 		repo:               repo,
 		aggregationService: service.NewPositionAggregationService(),
 		marketDataClient:   mdClient,
+		grpcConn:           conn,
 	}
 }
 
@@ -109,7 +122,8 @@ func (uc *GetPositionAggregationUseCase) fetchMarketPrices(positions []*domain.P
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	marketDataList, err := uc.marketDataClient.GetMarketData(ctx, symbols)
+	req := &monolith.GetBatchMarketDataRequest{Symbols: symbols}
+	resp, err := uc.marketDataClient.GetBatchMarketData(ctx, req)
 	if err != nil {
 		log.Printf("Warning: Failed to fetch market data for positions: %v", err)
 		return make(map[string]float64)
@@ -117,8 +131,8 @@ func (uc *GetPositionAggregationUseCase) fetchMarketPrices(positions []*domain.P
 
 	// Build price map
 	priceMap := make(map[string]float64)
-	for _, md := range marketDataList {
-		priceMap[md.Symbol] = float64(md.LastQuote)
+	for _, md := range resp.MarketData {
+		priceMap[md.Symbol] = md.CurrentPrice
 	}
 
 	return priceMap
