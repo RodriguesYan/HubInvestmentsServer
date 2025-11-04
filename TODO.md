@@ -3110,59 +3110,73 @@ The Strangler Fig Pattern allows us to gradually replace monolithic functionalit
 
 ### **Pre-Migration Analysis (Weeks 41-42)**
 
-- [ ] **Step 1.1: Deep Code Analysis**
-  - [ ] Audit `internal/order_mngmt_system/` module (domain, use cases, workers)
-  - [ ] Document order lifecycle and state machine
-  - [ ] Document RabbitMQ queue integration (orders.submit, orders.processing, orders.dlq)
-  - [ ] Document order worker and async processing
-  - [ ] **Deliverable**: Code inventory document (expect 200+ pages)
+- [x] **Step 1.1: Deep Code Analysis** ✅ **COMPLETED**
+  - [x] Audit `internal/order_mngmt_system/` module (domain, use cases, workers)
+  - [x] Document order lifecycle and state machine
+  - [x] Document RabbitMQ queue integration (orders.submit, orders.processing, orders.dlq)
+  - [x] Document order worker and async processing
+  - [x] **Deliverable**: Code inventory document (`docs/PHASE_10_6_STEP_1_1_CODE_ANALYSIS.md` - 1000+ lines)
 
-- [ ] **Step 1.2: Database Schema Analysis**
-  - [ ] Review `orders` table schema
-  - [ ] Review order history and audit tables
-  - [ ] Plan for separate database
-  - [ ] **Deliverable**: Database migration strategy
+- [x] **Step 1.2: Database Schema Analysis** ✅ **COMPLETED**
+  - [x] Review `orders` table schema (22 columns, 6 indexes)
+  - [x] Review order history and audit tables
+  - [x] Plan for separate database (Database Per Service pattern)
+  - [x] **Deliverable**: Database migration strategy (`docs/PHASE_10_6_STEP_1_2_DATABASE_SCHEMA_ANALYSIS.md`)
 
-- [ ] **Step 1.3: Dependency Analysis**
-  - [ ] Document dependencies:
-    - Market Data Service (symbol validation, price fetching)
-    - Account Service (balance checks, reservations)
-    - Position Service (position updates via events)
-    - User Service (authentication)
-  - [ ] **Deliverable**: Comprehensive dependency map
+- [x] **Step 1.3: Dependency Analysis** ✅ **COMPLETED**
+  - [x] Document dependencies:
+    - Market Data Service (symbol validation, price fetching) - CRITICAL
+    - Account Service (balance checks, reservations) - CRITICAL (Saga pattern required)
+    - Position Service (position updates via events) - CRITICAL (Event-driven)
+    - User Service (authentication) - CRITICAL (JWT validation)
+  - [x] **Deliverable**: Comprehensive dependency map (`docs/PHASE_10_6_STEP_1_3_DEPENDENCY_ANALYSIS.md`)
 
-- [ ] **Step 1.4: Saga Pattern Design**
-  - [ ] Design saga orchestration for order placement:
-    ```
-    1. Validate symbol (Market Data Service)
-    2. Reserve balance (Account Service)
-    3. Submit order (Order Service)
-    4. Process order (Order Worker)
-    5. Update position (Position Service via event)
-    6. Release/deduct balance (Account Service)
-    ```
-  - [ ] Design compensating transactions for each step
-  - [ ] **Deliverable**: Saga pattern design document
+- [x] **Step 1.4: Saga Pattern Design** ✅ **COMPLETED**
+  - [x] Design saga orchestration for order placement (8 steps)
+  - [x] Define saga steps: Validate, Check Market, Reserve Balance, Mark Processing, Execute, Deduct Balance, Update Position, Finalize
+  - [x] Design compensating transactions for each step (LIFO rollback strategy)
+  - [x] Choose orchestration-based saga (centralized coordinator)
+  - [x] Define idempotency requirements for all steps
+  - [x] Design saga persistence (order_sagas table)
+  - [x] Define retry and timeout strategies
+  - [x] **Deliverable**: Saga pattern design document (`docs/PHASE_10_6_STEP_1_4_SAGA_PATTERN_DESIGN.md`)
 
-- [ ] **Step 1.5: Integration Point Mapping**
-  - [ ] Identify all services calling Order Service (Frontend only)
-  - [ ] Identify all services Order Service calls (Market Data, Account)
-  - [ ] Identify all events Order Service publishes (OrderExecutedEvent)
-  - [ ] **Deliverable**: Integration dependency map
+- [x] **Step 1.5: Integration Point Mapping** ✅ **COMPLETED**
+  - [x] Identify all services calling Order Service (Frontend only)
+  - [x] Identify all services Order Service calls (Market Data, Account)
+  - [x] Identify all events Order Service publishes (OrderExecutedEvent)
+  - [x] **Deliverable**: Integration dependency map (`PHASE_10_6_STEP_1_5_INTEGRATION_MAPPING.md`)
 
 ---
 
 ### **Microservice Development (Weeks 43-48)**
 
-- [ ] **Step 2.1: Repository and Project Setup**
-  - [ ] Create `hub-order-service` repository
-  - [ ] Initialize Go module and project structure
-  - [ ] **Deliverable**: Initialized repository
+- [x] **Step 2.1: Repository and Project Setup** ✅ **COMPLETED**
+  - [x] Create `hub-order-service` repository
+  - [x] Initialize Go module (`github.com/RodriguesYan/hub-order-service`)
+  - [x] Set up project structure (DDD: domain, application, infrastructure, presentation)
+  - [x] Create Dockerfile (multi-stage build, Alpine, non-root user)
+  - [x] Create docker-compose.yml (PostgreSQL port 5435, Redis port 6382, RabbitMQ port 5675)
+  - [x] Create Makefile (build, test, docker, migrate commands)
+  - [x] Create configuration files (config.yaml, .env.example)
+  - [x] Create README.md (comprehensive documentation)
+  - [x] Create .gitignore and .dockerignore
+  - [x] Initial commit created
+  - [x] Remote repository configured (https://github.com/RodriguesYan/hub-order-service.git)
+  - [x] **Deliverable**: Initialized repository (`docs/PHASE_10_6_STEP_2_1_COMPLETE.md`)
 
-- [ ] **Step 2.2: Copy Core Order Logic**
-  - [ ] Copy `internal/order_mngmt_system/` module (all submodules)
-  - [ ] Update import paths
-  - [ ] **Deliverable**: Core logic copied
+- [x] **Step 2.2: Copy Core Order Logic (AS-IS)** ✅ **COMPLETED**
+  - [x] Copy domain layer (models, repositories, services) - 19 files
+  - [x] Copy application layer (commands, use cases) - 10 files
+  - [x] Copy infrastructure layer (persistence, messaging, external, workers) - 23 files
+  - [x] Copy presentation layer (gRPC, HTTP handlers) - 3 files
+  - [x] Copy shared packages (messaging, cache, database) - 11 files
+  - [x] Copy middleware and container - 2 files
+  - [x] Update all import paths (HubInvestments/* → github.com/RodriguesYan/hub-order-service/*)
+  - [x] Add dependencies (testify, sqlx, pq, redis, rabbitmq)
+  - [x] Verify compilation (go build ./... ✅)
+  - [x] Commit changes (42f704c) - 71 files, +23,788 lines
+  - [x] **Deliverable**: Core logic copied (`docs/PHASE_10_6_STEP_2_2_COMPLETE.md`)
 
 - [ ] **Step 2.3: Implement gRPC Service**
   - [ ] Define `order_service.proto`:
@@ -4292,3 +4306,10 @@ func main() {
   - [ ] **Priority**: Medium - Important for microservices scalability and consistency
 
   - [] Check if price oscilation is oscilating
+  - [] Setup private IPs for services (excluding api gateway)
+  - [] Apply some database logic to handle multiples request (master & slave/data base replication?)
+  - [] Create cluster server for redis (scale up redis and use intelligence to make caches distributed and consistent when user hits any redis server)
+  - [] Auto scale for servers (check GCP options)
+  - [] Create server only for workers?
+  - [] Config Istio
+  - [] Kubernets - HPA
